@@ -1,0 +1,129 @@
+import Link from "next/link";
+import CardThumb from "@/components/CardThumb";
+import { formatMoney } from "@/lib/currency";
+import {
+  ConfidenceBadge,
+  DemoBanner,
+  Money,
+  PageHeader,
+  Panel,
+  Pct,
+  ScoreBadge,
+  StatCard,
+  StatusRow,
+} from "@/components/ui";
+import { getAssessments, listHoldings, listWatchlist, loadSettings } from "@/data/source";
+
+export const dynamic = "force-dynamic";
+
+export default async function OverviewPage() {
+  const [{ settings, source, error: settingsError }, watch, hold] = await Promise.all([
+    loadSettings(),
+    listWatchlist(),
+    listHoldings(),
+  ]);
+  const fx = settings.usdToAud;
+  const assessments = getAssessments(settings);
+  const qualifying = assessments.filter((a) => a.meetsCriteria);
+  const holdings = hold.data;
+  const portfolioCost = holdings.reduce((s, h) => s + h.purchasePriceUsd + h.purchaseCostsUsd, 0);
+  const dbOk = source === "database" && !watch.error && !hold.error;
+
+  return (
+    <>
+      <PageHeader
+        title="Overview"
+        subtitle="Listings are only flagged when verified sold data supports the price and the numbers clear your ROI and profit rules."
+      />
+      <DemoBanner>
+        Opportunities below are demonstration listings until real eBay and sold-price data is connected in Phase 3.
+        Your watchlist, portfolio and settings are real and saved.
+      </DemoBanner>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Watchlist" value={watch.data.length} sub="cards you're tracking" />
+        <StatCard
+          label="Portfolio cost basis"
+          value={formatMoney(portfolioCost, "USD")}
+          sub={`${holdings.length} cards held · ${formatMoney(portfolioCost * fx, "AUD")}`}
+        />
+        <StatCard
+          label="Demo deals meeting criteria"
+          value={qualifying.length}
+          sub={`≥ ${settings.minRoiPercent}% ROI and ≥ ${formatMoney(settings.minProfitUsd, "USD")} profit`}
+          tone={qualifying.length > 0 ? "gain" : "neutral"}
+        />
+        <StatCard label="Exchange rate" value={fx} sub="1 USD in AUD · set in Settings" />
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <Panel
+          title="Best opportunities (demo)"
+          className="lg:col-span-2"
+          right={<Link href="/deals" className="text-xs text-accent hover:underline">All deals →</Link>}
+        >
+          <ul className="divide-y divide-line">
+            {assessments.slice(0, 4).map((a) => (
+              <li key={a.listing.id}>
+                <Link href={`/deals/${a.listing.id}`} className="flex items-center gap-3 py-3 first:pt-0">
+                  <CardThumb card={a.listing.card} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{a.listing.title}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <ConfidenceBadge confidence={a.valuation.confidence} />
+                      <Pct value={a.profit?.roiPercent} />
+                      <span className="text-xs text-faint">ROI</span>
+                    </div>
+                  </div>
+                  <div className="hidden sm:block">
+                    <Money usd={a.profit?.netProfitUsd} fx={fx} tone="auto" align="right" />
+                  </div>
+                  <ScoreBadge score={a.score.total} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+
+        <Panel title="System status">
+          <div className="divide-y divide-line">
+            <StatusRow
+              label="Database"
+              status={dbOk ? "ok" : "off"}
+              detail={dbOk ? "Supabase · settings, watchlist, portfolio" : (settingsError ?? watch.error ?? hold.error ?? "Not connected")}
+            />
+            <StatusRow label="Listing data" status="demo" detail="eBay Browse API arrives in Phase 3" />
+            <StatusRow label="Sold-price data" status="demo" detail="PriceCharting / eBay in Phase 3" />
+            <StatusRow label="Population data" status="off" detail="Shown as missing — never estimated" />
+            <StatusRow label="Automatic scanning" status="off" detail="Background job built in Phase 4" />
+          </div>
+        </Panel>
+      </div>
+
+      <Panel
+        title="Your watchlist"
+        className="mt-6"
+        right={<Link href="/watchlist" className="text-xs text-accent hover:underline">Open →</Link>}
+      >
+        {watch.data.length === 0 ? (
+          <p className="text-sm text-muted">
+            Nothing saved yet.{" "}
+            <Link href="/analyse" className="text-accent hover:underline">Analyse a card</Link> to add one.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {watch.data.slice(0, 6).map((w) => (
+              <Link key={w.id} href="/watchlist" className="flex items-center gap-3 rounded-lg bg-panel-2 p-3 ring-1 ring-line">
+                <CardThumb card={w.card} size="sm" />
+                <div className="min-w-0">
+                  <div className="truncate text-sm">{w.title}</div>
+                  <div className="mt-1"><Money usd={w.askingPriceUsd} fx={fx} size="sm" /></div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Panel>
+    </>
+  );
+}

@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* CardScout AI design tokens — dark financial dashboard */
+@theme {
+  --color-bg: #080b10;
+  --color-panel: #0f141b;
+  --color-panel-2: #151b24;
+  --color-line: #1f2733;
+  --color-line-strong: #2b3644;
+  --color-ink: #e6ebf2;
+  --color-muted: #8492a6;
+  --color-faint: #5a6678;
+  --color-gain: #22c55e;
+  --color-gain-soft: #0f2a1a;
+  --color-loss: #f05252;
+  --color-loss-soft: #2d1416;
+  --color-warn: #f5a524;
+  --color-warn-soft: #2b2110;
+  --color-accent: #4cc2ff;
+  --color-accent-soft: #0e2433;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular figures keep money columns aligned */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Hide scrollbar on the mobile nav strip */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
