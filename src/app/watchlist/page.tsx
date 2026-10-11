@@ -109,10 +109,15 @@ export default async function WatchlistPage({
                   ) : (
                     <span className="text-xs text-faint">No listing link</span>
                   )}
-                  <form action={removeWatchlistAction}>
-                    <input type="hidden" name="id" value={w.id} />
-                    <button className="text-xs text-muted hover:text-loss">Remove</button>
-                  </form>
+                  <div className="flex items-center gap-4">
+                    <Link href={`/watchlist/${w.id}/edit`} className="text-xs text-accent hover:underline">
+                      Edit
+                    </Link>
+                    <form action={removeWatchlistAction}>
+                      <input type="hidden" name="id" value={w.id} />
+                      <button className="text-xs text-muted hover:text-loss">Remove</button>
+                    </form>
+                  </div>
                 </div>
               </article>
             );

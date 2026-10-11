@@ -196,3 +196,58 @@ export async function deleteHolding(id: string): Promise<string | null> {
     return message(e);
   }
 }
+
+// ---------- Single-item reads and updates (edit pages) ----------
+
+export async function getWatchlistItem(id: string): Promise<DbResult<WatchlistEntry | null>> {
+  const all = await listWatchlist();
+  return { data: all.data.find((w) => w.id === id) ?? null, error: all.error };
+}
+
+export async function updateWatchlist(id: string, w: WatchlistInput): Promise<string | null> {
+  try {
+    const { error } = await db()
+      .from("watchlist")
+      .update({
+        title: w.title,
+        card: w.card,
+        asking_price_usd: w.askingPriceUsd,
+        buyer_shipping_usd: w.buyerShippingUsd,
+        expected_resale_usd: w.expectedResaleUsd,
+        target_price_usd: w.targetPriceUsd,
+        listing_url: w.listingUrl,
+        note: w.note,
+      })
+      .eq("id", id);
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function getHolding(id: string): Promise<DbResult<Holding | null>> {
+  const all = await listHoldings();
+  return { data: all.data.find((h) => h.id === id) ?? null, error: all.error };
+}
+
+export async function updateHolding(id: string, h: HoldingInput): Promise<string | null> {
+  try {
+    const { error } = await db()
+      .from("holdings")
+      .update({
+        title: h.title,
+        card: h.card,
+        purchase_price_usd: h.purchasePriceUsd,
+        purchase_costs_usd: h.purchaseCostsUsd,
+        purchased_at: h.purchasedAt,
+        estimated_value_usd: h.estimatedValueUsd,
+        note: h.note,
+      })
+      .eq("id", id);
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}

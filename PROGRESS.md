@@ -19,7 +19,7 @@
 - Mac runs an older macOS: Node.js 20 is used; esbuild/tsx removed (needed macOS 12+) — tests compile with plain `tsc` instead.
 - Not yet checked: `npm run build`, iPhone view, `npm audit` warnings (do NOT run `npm audit fix --force`).
 
-## Phase 2 — Saved data, manual analysis, password 🟡 (code complete, awaiting first run on Mac)
+## Phase 2 — Saved data, manual analysis, password 🟡 (live on Vercel; finishing touches next)
 
 ### Done
 - [x] Supabase project created (Sydney region); tables `settings`, `watchlist`, `holdings` with Row Level Security on and no public policies (`supabase/schema.sql`)
@@ -33,10 +33,18 @@
 - [x] End-to-end check against a fake database: save/add/remove flows, validation errors, login/logout, forged cookie blocked, database outage handled
 
 ### Still to do in Phase 2
-- [ ] Run on Mac with real Supabase and confirm rows appear in Table Editor
-- [ ] Edit (not just add/remove) watchlist and portfolio items
-- [ ] Deploy to Vercel (needs GitHub repo) and set env vars there
-- [ ] iPhone check over the internet
+- [x] Run on Mac with real Supabase — login works, watchlist row confirmed in Table Editor (10 Oct 2026)
+- [x] Edit pages for watchlist and portfolio items (prefilled, validated, e2e-tested)
+- [x] Code pushed to private GitHub repo `majorcardscoutai/cardscout-ai`; imported into Vercel with SUPABASE_URL, SUPABASE_SECRET_KEY, APP_PASSWORD; first deploy succeeded, sign-in screen live (10 Oct 2026)
+- [ ] Sign in on the live .vercel.app address and confirm watchlist loads
+- [ ] iPhone check over the internet + Add to Home Screen
+- [x] `vercel.json` sets function region to Sydney (syd1), next to the Sydney database
+- [x] Removed unused `src/components/ProfitCalculator.tsx`
+
+Deployment notes:
+- The Vercel CLI (`npx vercel`) does NOT work on this Mac — it needs esbuild, which requires macOS 12+. Deploy via GitHub instead.
+- To publish changes: unzip the new version into ~/Projects/cardscout-ai, then `git add .` → `git commit -m "message"` → `git push`. Vercel rebuilds automatically.
+- GitHub password prompt = the `ghp_` token (expires in 90 days), not the GitHub password.
 
 Notes: resale values and holding values are **your estimates** (labelled as such) until verified sold data arrives in Phase 3. Investment scores stay demo-only until then.
 

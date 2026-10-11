@@ -1,3 +1,4 @@
+# Files never uploaded to Vercel
 .env*
 node_modules
 .next

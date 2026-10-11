@@ -14,6 +14,8 @@ import {
   insertWatchlist,
   loadSettings,
   saveSettings,
+  updateHolding,
+  updateWatchlist,
 } from "@/data/db";
 import { parseHoldingForm, parseSettingsForm, parseWatchlistForm } from "@/lib/forms";
 
@@ -68,4 +70,28 @@ export async function removeHoldingAction(formData: FormData) {
   if (error) back("/portfolio", "error", `Couldn't remove: ${error}`);
   revalidatePath("/", "layout");
   back("/portfolio", "saved", "Removed from portfolio.");
+}
+
+export async function updateWatchlistAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!UUID.test(id)) back("/watchlist", "error", "Invalid item.");
+  const { settings } = await loadSettings();
+  const parsed = parseWatchlistForm(formData, settings.usdToAud);
+  if (!parsed.ok) back(`/watchlist/${id}/edit`, "error", parsed.error);
+  const error = await updateWatchlist(id, parsed.value);
+  if (error) back(`/watchlist/${id}/edit`, "error", `Couldn't save: ${error}`);
+  revalidatePath("/", "layout");
+  back("/watchlist", "saved", `Updated ${parsed.value.card.player}.`);
+}
+
+export async function updateHoldingAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!UUID.test(id)) back("/portfolio", "error", "Invalid item.");
+  const { settings } = await loadSettings();
+  const parsed = parseHoldingForm(formData, settings.usdToAud);
+  if (!parsed.ok) back(`/portfolio/${id}/edit`, "error", parsed.error);
+  const error = await updateHolding(id, parsed.value);
+  if (error) back(`/portfolio/${id}/edit`, "error", `Couldn't save: ${error}`);
+  revalidatePath("/", "layout");
+  back("/portfolio", "saved", `Updated ${parsed.value.card.player}.`);
 }

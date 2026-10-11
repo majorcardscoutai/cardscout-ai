@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { addHoldingAction, removeHoldingAction } from "@/app/actions";
 import CardThumb from "@/components/CardThumb";
 import { CardFields, CurrencyPicker, DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
@@ -72,6 +73,9 @@ export default async function PortfolioPage({
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         <Tag>Bought {h.purchasedAt}</Tag>
                         {h.estimatedValueUsd !== null && <Tag>Your estimate</Tag>}
+                        <Link href={`/portfolio/${h.id}/edit`} className="text-[11px] text-accent hover:underline">
+                          Edit
+                        </Link>
                         <form action={removeHoldingAction}>
                           <input type="hidden" name="id" value={h.id} />
                           <button className="text-[11px] text-muted hover:text-loss">Remove</button>
