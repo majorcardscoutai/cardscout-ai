@@ -24,6 +24,7 @@
   "files": [
     "tests/profit.test.ts",
     "tests/valuation-scoring.test.ts",
-    "tests/forms.test.ts"
+    "tests/forms.test.ts",
+    "tests/ebay.test.ts"
   ]
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { addWatchlistAction } from "@/app/actions";
 import { calculateProfit, maxPurchasePrice, recommendedOpeningOffer } from "@/lib/profit";
-import type { Settings } from "@/lib/types";
+import type { CardIdentity, Settings } from "@/lib/types";
 import { CardFields, CurrencyPicker, Field, inputCls, SubmitButton } from "./FormBits";
 import { Money, Pct } from "./ui";
 
@@ -12,11 +12,22 @@ import { Money, Pct } from "./ui";
  * "Expected resale" is YOUR estimate for now. In Phase 3 it will be filled
  * from verified sold data instead.
  */
-export default function ManualAnalysis({ settings }: { settings: Settings }) {
+export interface ManualPrefill {
+  card?: Partial<CardIdentity>;
+  askingUsd?: number | null;
+  shippingUsd?: number | null;
+  url?: string;
+  note?: string;
+}
+
+export default function ManualAnalysis({ settings, prefill }: { settings: Settings; prefill?: ManualPrefill }) {
   const fx = settings.usdToAud;
-  const [currency, setCurrency] = useState<"USD" | "AUD">("AUD");
-  const [asking, setAsking] = useState("");
-  const [shipping, setShipping] = useState("");
+  const fromListing = prefill?.askingUsd !== undefined && prefill?.askingUsd !== null;
+  const [currency, setCurrency] = useState<"USD" | "AUD">(fromListing ? "USD" : "AUD");
+  const [asking, setAsking] = useState(fromListing ? String(prefill?.askingUsd) : "");
+  const [shipping, setShipping] = useState(
+    prefill?.shippingUsd !== undefined && prefill?.shippingUsd !== null ? String(prefill.shippingUsd) : "",
+  );
   const [resale, setResale] = useState("");
 
   const toUsd = (v: string): number | null => {
@@ -50,7 +61,7 @@ export default function ManualAnalysis({ settings }: { settings: Settings }) {
     <form action={addWatchlistAction} className="space-y-6">
       <section>
         <h3 className="mb-3 text-sm font-medium">1. Identify the card</h3>
-        <CardFields />
+        <CardFields card={prefill?.card} />
       </section>
 
       <section>
@@ -70,10 +81,10 @@ export default function ManualAnalysis({ settings }: { settings: Settings }) {
             <input name="target" inputMode="decimal" className={inputCls} />
           </Field>
           <Field label="Listing link" hint="Optional" className="col-span-2 sm:col-span-3">
-            <input name="url" type="url" placeholder="https://www.ebay.com.au/itm/…" className={inputCls} />
+            <input name="url" type="url" defaultValue={prefill?.url ?? ""} placeholder="https://www.ebay.com.au/itm/…" className={inputCls} />
           </Field>
           <Field label="Note" className="col-span-2 sm:col-span-4">
-            <input name="note" maxLength={500} placeholder="e.g. check centering on slab photo" className={inputCls} />
+            <input name="note" maxLength={500} defaultValue={prefill?.note ?? ""} placeholder="e.g. check centering on slab photo" className={inputCls} />
           </Field>
         </div>
       </section>

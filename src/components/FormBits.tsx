@@ -73,7 +73,7 @@ export function DbError({ error }: { error: string | null }) {
 }
 
 /** Card identity inputs, shared by the Manual Scanner, Portfolio and edit forms. */
-export function CardFields({ card }: { card?: CardIdentity }) {
+export function CardFields({ card }: { card?: Partial<CardIdentity> }) {
   const v = (x: string | number | null | undefined) => (x === null || x === undefined ? "" : String(x));
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -17,6 +17,7 @@ import {
   updateHolding,
   updateWatchlist,
 } from "@/data/db";
+import { itemIdFromUrl } from "@/lib/ebay/parse";
 import { parseHoldingForm, parseSettingsForm, parseWatchlistForm } from "@/lib/forms";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -94,4 +95,13 @@ export async function updateHoldingAction(formData: FormData) {
   if (error) back(`/portfolio/${id}/edit`, "error", `Couldn't save: ${error}`);
   revalidatePath("/", "layout");
   back("/portfolio", "saved", `Updated ${parsed.value.card.player}.`);
+}
+
+/** Manual Scanner: turn a pasted eBay link into /analyse?item=…&market=… */
+export async function loadListingAction(formData: FormData) {
+  const raw = String(formData.get("listingUrl") ?? "").trim();
+  const id = itemIdFromUrl(raw);
+  if (!id) back("/analyse", "error", "That doesn't look like an eBay listing link. It should contain /itm/ and a long number.");
+  const market = /ebay\.com\.au/i.test(raw) ? "EBAY_AU" : "EBAY_US";
+  redirect(`/analyse?item=${id}&market=${market}`);
 }

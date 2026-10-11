@@ -19,7 +19,7 @@
 - Mac runs an older macOS: Node.js 20 is used; esbuild/tsx removed (needed macOS 12+) — tests compile with plain `tsc` instead.
 - Not yet checked: `npm run build`, iPhone view, `npm audit` warnings (do NOT run `npm audit fix --force`).
 
-## Phase 2 — Saved data, manual analysis, password 🟡 (live on Vercel; finishing touches next)
+## Phase 2 — Saved data, manual analysis, password ✅ (complete 11 Oct 2026)
 
 ### Done
 - [x] Supabase project created (Sydney region); tables `settings`, `watchlist`, `holdings` with Row Level Security on and no public policies (`supabase/schema.sql`)
@@ -32,12 +32,13 @@
 - [x] Form validation module with tests; 35 unit tests total
 - [x] End-to-end check against a fake database: save/add/remove flows, validation errors, login/logout, forged cookie blocked, database outage handled
 
-### Still to do in Phase 2
+### Finishing items
 - [x] Run on Mac with real Supabase — login works, watchlist row confirmed in Table Editor (10 Oct 2026)
 - [x] Edit pages for watchlist and portfolio items (prefilled, validated, e2e-tested)
 - [x] Code pushed to private GitHub repo `majorcardscoutai/cardscout-ai`; imported into Vercel with SUPABASE_URL, SUPABASE_SECRET_KEY, APP_PASSWORD; first deploy succeeded, sign-in screen live (10 Oct 2026)
-- [ ] Sign in on the live .vercel.app address and confirm watchlist loads
-- [ ] iPhone check over the internet + Add to Home Screen
+- [x] Live at https://cardscout-ai.vercel.app — update "Edit buttons and Sydney region" deployed via git push, status Ready (11 Oct 2026)
+- [x] Signed in on the live address; watchlist + Edit confirmed working
+- [x] iPhone: signed in over the internet, added to Home Screen
 - [x] `vercel.json` sets function region to Sydney (syd1), next to the Sydney database
 - [x] Removed unused `src/components/ProfitCalculator.tsx`
 
@@ -48,11 +49,15 @@ Deployment notes:
 
 Notes: resale values and holding values are **your estimates** (labelled as such) until verified sold data arrives in Phase 3. Investment scores stay demo-only until then.
 
-## Phase 3 — Authorised data sources
-- [ ] Apply for eBay Developers Program keys; Browse API for active listings (server-side only)
+## Phase 3 — Authorised data sources (started 11 Oct 2026)
+- [ ] Register at developer.ebay.com (Individual) — awaiting approval
+- [x] eBay Browse API client built (`src/lib/ebay/client.ts`): OAuth client-credentials token with caching, get item by legacy ID, newest-listing search, AUD→USD, shipping to AU, de-duplication, 401 refresh, 429/404/timeout/bad-key messages
+- [x] Listing → card-details suggester (`src/lib/ebay/parse.ts`): item specifics first, title fallback, reports missing fields instead of guessing; Pokémon X/Y numbering handled
+- [x] Manual Scanner: paste eBay link → listing panel (image, price, shipping, seller, risk flags) + prefilled analysis form
+- [x] Scanner page: live "Search eBay now" (US or AU site, category, max price, BIN/auction) with Analyse links; results clearly labelled unvalued
+- [x] 51 unit tests (16 eBay) + e2e checks against a fake eBay
+- [ ] Add EBAY_CLIENT_ID / EBAY_CLIENT_SECRET (Production keyset) to .env.local and Vercel once approved, then test with real listings
 - [ ] Choose and connect an authorised sold-price source (confirm terms of use and cost first)
-- [ ] Listing-URL analysis in Manual Scanner
-- [ ] Title/item-specifics parser → exact CardIdentity
 - [ ] Live FX rate
 - [ ] Rate-limit handling, retries, error states
 

@@ -12,6 +12,8 @@ The app needs a file called `.env.local` in the project folder (never shared, ne
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_...
 APP_PASSWORD=your-own-password
+EBAY_CLIENT_ID=your-ebay-app-id        # Phase 3, Production keyset
+EBAY_CLIENT_SECRET=your-ebay-cert-id
 ```
 
 Create or edit it with `nano .env.local` (save: Ctrl+O, Enter; exit: Ctrl+X). Restart `npm run dev` after any change.
@@ -45,7 +47,7 @@ Database tables are created by pasting `supabase/schema.sql` into Supabase → S
 
 ```bash
 npm install        # downloads Next.js, React, Tailwind (takes 1–2 minutes)
-npm test           # runs 35 tests on the maths, form checks and login
+npm test           # runs 51 tests: maths, forms, login and eBay handling
 npm run dev        # starts the app
 ```
 
