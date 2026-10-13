@@ -82,6 +82,7 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [x] First real manual scan (13 Oct 2026): saved search "shohei ohtani bowman" → 50 new listings stored, 0 deals (broad search; few cards valued yet)
 - [x] First scheduled run via GitHub Actions (manual "Run workflow") — Success, 13 s, 13 Oct 2026. Runner pinned to ubuntu-24.04 (ubuntu-latest moves to 26 on 19 Oct)
 - [x] Scan results re-priced on display with current Card Values + Settings (`revalueHit`) — values added after a scan now count; deals filter and Overview count use the re-priced results; "card details unclear" shown separately from "no value saved"; Overview status lines updated. 64 unit tests + e2e
+- [x] Fix: eBay search results carry no item specifics, so titles without "baseball"/"NBA" never matched. Sport now inferred from known player or a single team name; stored results are re-read with the current parser on display. 65 unit tests + e2e
 - [ ] First real alert email (needs a valued card to appear in a scan)
 
 ## Phase 5 — Advanced

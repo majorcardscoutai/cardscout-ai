@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cardKey } from "../src/lib/cardKey";
+import { cardFromListing } from "../src/lib/ebay/parse";
 import { evaluateListing, revalueHit, shouldAlert, type CardValue } from "../src/lib/scan";
 import { DEFAULT_SETTINGS } from "../src/lib/config";
 import type { EbayListing } from "../src/lib/ebay/client";
@@ -125,6 +126,24 @@ test("revalueHit drops a value that was removed and follows parcel-locker shippi
 });
 
 test("revalueHit never matches a listing with unclear card details", () => {
-  const unclear = { ...evaluateListing(listing(), DEFAULT_SETTINGS, values), cardKey: null };
+  const unclear = { ...evaluateListing(listing(), DEFAULT_SETTINGS, values), title: "Shohei Ohtani PSA 10 rookie card", cardKey: null };
   assert.equal(revalueHit(unclear, DEFAULT_SETTINGS, values).valueUsd, null);
+});
+
+test("title-only search results: sport comes from a known player or team", () => {
+  const fs1: CardIdentity = { sport: "MLB", player: "Shohei Ohtani", year: 2019, set: "Topps Chrome", cardNumber: "FS-1",
+    parallel: null, serialNumbered: null, variation: null, isRookie: false, grader: "PSA", grade: 10 };
+  const want = cardKey(fs1);
+  assert.ok(want);
+  const k = (t: string) => cardKey(cardFromListing(t).card);
+  assert.equal(k("2019 TOPPS CHROME FUTURE STARS #FS-1 SHOHEI OHTANI PSA 10"), want);
+  assert.equal(k("2019 Topps Chrome Shohei Ohtani Future Stars #FS-1 Angels PSA 10"), want);
+  assert.equal(k("2019 Topps Chrome Shohei Ohtani Future Stars #FS-1 Angels"), null, "no grade stated = no match");
+  assert.equal(cardFromListing("2026 Topps Chrome Refractor Samuel Basallo RC Baltimore Orioles #12").card.sport, "MLB", "team name");
+  assert.equal(cardFromListing("1997 Michael Jordan Bulls Finest #1").card.sport, "NBA");
+  assert.equal(cardFromListing("Random Player Dodgers Lakers card #5").card.sport, undefined, "two sports named = unknown");
+  // an earlier-stored hit with no key gets matched on display
+  const stored = { ...evaluateListing(listing({ title: "2019 TOPPS CHROME FUTURE STARS #FS-1 SHOHEI OHTANI PSA 10", aspects: [] }), DEFAULT_SETTINGS, new Map()), cardKey: null };
+  const vals = new Map<string, CardValue>([[want!, { id: "v2", key: want!, title: "FS-1", valueUsd: 400, updatedAt: "2026-10-13" }]]);
+  assert.equal(revalueHit(stored, DEFAULT_SETTINGS, vals).valueUsd, 400);
 });

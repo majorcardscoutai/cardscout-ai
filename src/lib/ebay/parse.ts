@@ -82,6 +82,37 @@ function sportFrom(text: string): Sport | null {
   return null;
 }
 
+/**
+ * Search results only include the title (no item specifics), and titles rarely
+ * say "baseball". A known player or an unambiguous team name settles the sport.
+ */
+const PLAYER_SPORT: Record<string, Sport> = {
+  "shohei ohtani": "MLB", "mike trout": "MLB", "ken griffey jr": "MLB", "derek jeter": "MLB", "aaron judge": "MLB",
+  "juan soto": "MLB", "mickey mantle": "MLB",
+  "michael jordan": "NBA", "lebron james": "NBA", "luka doncic": "NBA", "victor wembanyama": "NBA", "kobe bryant": "NBA",
+  "stephen curry": "NBA", "giannis antetokounmpo": "NBA", "anthony edwards": "NBA",
+  charizard: "Pokemon", pikachu: "Pokemon", mewtwo: "Pokemon", umbreon: "Pokemon", rayquaza: "Pokemon", lugia: "Pokemon",
+  blastoise: "Pokemon", venusaur: "Pokemon", gengar: "Pokemon",
+};
+const MLB_TEAMS = /\b(angels|dodgers|yankees|red sox|mariners|orioles|blue jays|astros|braves|padres|cubs|white sox|mets|phillies|brewers|guardians|tigers|twins|royals|athletics|marlins|nationals|pirates|reds|rockies|diamondbacks|rays)\b/;
+const NBA_TEAMS = /\b(bulls|lakers|celtics|warriors|mavericks|spurs|knicks|heat|bucks|timberwolves|nuggets|suns|76ers|sixers|raptors|clippers|rockets|thunder|grizzlies|pelicans|hornets|pistons|pacers|cavaliers|hawks|magic|wizards|trail blazers|jazz|nets)\b/;
+
+function plain(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+function sportFromPlayerOrTeam(player: string | undefined, title: string): Sport | null {
+  if (player) {
+    const s = PLAYER_SPORT[plain(player).replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim()];
+    if (s) return s;
+  }
+  const t = plain(title);
+  const mlb = MLB_TEAMS.test(t);
+  const nba = NBA_TEAMS.test(t);
+  if (mlb !== nba) return mlb ? "MLB" : "NBA"; // only when exactly one sport's team is named
+  return null;
+}
+
 export function cardFromListing(title: string, aspects: Aspect[] = []): CardSuggestion {
   const card: Partial<CardIdentity> = {};
   const sources: CardSuggestion["sources"] = {};
@@ -101,6 +132,10 @@ export function cardFromListing(title: string, aspects: Aspect[] = []): CardSugg
   else {
     const known = KNOWN_PLAYERS.find((p) => ci(title).includes(ci(p)));
     if (known) set("player", known, "title");
+  }
+  if (!card.sport) {
+    const s = sportFromPlayerOrTeam(card.player, title);
+    if (s) set("sport", s, "title");
   }
 
   // Year (season "2018-19" → 2018)
