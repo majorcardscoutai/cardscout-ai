@@ -50,12 +50,14 @@ Deployment notes:
 Notes: resale values and holding values are **your estimates** (labelled as such) until verified sold data arrives in Phase 3. Investment scores stay demo-only until then.
 
 ## Phase 3 — Authorised data sources (started 11 Oct 2026)
-- [ ] Register at developer.ebay.com (Individual) — awaiting approval
+- [x] Registered at developer.ebay.com (Individual) — approved 13 Oct 2026
+- [x] Clear "can't search yet" message when eBay keys are missing; sidebar note updated for Phase 3
 - [x] eBay Browse API client built (`src/lib/ebay/client.ts`): OAuth client-credentials token with caching, get item by legacy ID, newest-listing search, AUD→USD, shipping to AU, de-duplication, 401 refresh, 429/404/timeout/bad-key messages
 - [x] Listing → card-details suggester (`src/lib/ebay/parse.ts`): item specifics first, title fallback, reports missing fields instead of guessing; Pokémon X/Y numbering handled
 - [x] Manual Scanner: paste eBay link → listing panel (image, price, shipping, seller, risk flags) + prefilled analysis form
 - [x] Scanner page: live "Search eBay now" (US or AU site, category, max price, BIN/auction) with Analyse links; results clearly labelled unvalued
 - [x] 51 unit tests (16 eBay) + e2e checks against a fake eBay
+- [x] Deployed "eBay connection" (commit 0ad0e41) — Vercel build Ready, 11 Oct 2026. eBay features show "not connected" until keys are added.
 - [ ] Add EBAY_CLIENT_ID / EBAY_CLIENT_SECRET (Production keyset) to .env.local and Vercel once approved, then test with real listings
 - [ ] Choose and connect an authorised sold-price source (confirm terms of use and cost first)
 - [ ] Live FX rate
@@ -73,7 +75,7 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [ ] Portfolio analytics (value over time, realised P/L)
 
 ## Open decisions
-- Which sold-price source to use (eBay's own sold-item data access is restricted; options to evaluate in Phase 3)
+- Sold-price source: **decided 11 Oct 2026 — Option A (free) for now.** Travis enters resale estimates from eBay sold listings manually. Revisit paid PriceCharting/SportsCardsPro (US$49+/month) after a few weeks of real use.
 - Default fee rate for the marketplace you'll resell on (eBay AU vs eBay US)
 
 ---

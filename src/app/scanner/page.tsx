@@ -91,8 +91,17 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           </div>
         </form>
 
-        {!connected && (
+        {!connected && !search && (
           <p className="mt-3 text-xs text-faint">Live search switches on once your eBay developer keys are added.</p>
+        )}
+        {!connected && search && (
+          <div role="alert" className="mt-4 flex items-start gap-3 rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">
+            <IconAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Can&apos;t search yet — eBay isn&apos;t connected. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET (in .env.local on
+              your Mac, and in Vercel → Settings → Environment Variables), then redeploy.
+            </span>
+          </div>
         )}
 
         {result && !result.ok && (

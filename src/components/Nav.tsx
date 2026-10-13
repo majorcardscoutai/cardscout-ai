@@ -69,7 +69,7 @@ export default function Nav() {
           })}
         </nav>
         <div className="mt-auto rounded-lg border border-warn/30 bg-warn-soft px-3 py-2.5 text-xs leading-relaxed text-warn">
-          Phase 2 · Your watchlist, portfolio and settings are saved. Deals are still demo data.
+          Phase 3 · Live eBay listings + your saved data. Top Deals are still demo data until sold prices are connected.
         </div>
       </aside>
 

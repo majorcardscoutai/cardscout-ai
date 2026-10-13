@@ -27,9 +27,9 @@ The risk is in **how** data is obtained, not **which** site it comes from.
 | | |
 |---|---|
 | Access | Official paid subscription; top **"Legendary"** tier unlocks the **API + daily CSV download** |
-| Coverage | Sports cards and Pokémon |
+| Coverage | Pokémon on PriceCharting; baseball/basketball on SportsCardsPro (separate site and subscription). Graded values per grade, incl. PSA 10 and BGS 10 |
 | Pricing model | Flat subscription (not pay-per-request), predictable |
-| Cost | Modest annual subscription — on the order of **tens of dollars per year**. **Confirm the exact figure on their site before committing.** |
+| Cost | **Corrected 11 Oct 2026:** Legendary is listed at **US$49/month** (≈ A$75/month); only Legendary includes the API. The cheaper Collector tier (US$6/month) has **no** API. Sports cards (baseball, basketball) live on the sister site **SportsCardsPro**, which needs its own paid subscription for API access — price not confirmed. |
 | Catch | API/CSV provide **current values per grade/condition**; individual historic sales are not in the API. |
 
 **Implication for the valuation engine:** PriceCharting values arrive pre-aggregated rather than as individual sold comps, so the engine will need a "provider value" input path alongside sold comps, with confidence rated accordingly.
@@ -48,12 +48,13 @@ The risk is in **how** data is obtained, not **which** site it comes from.
 
 ## Summary
 
-- **Realistic paid cost for a solid private v1:** roughly one PriceCharting Legendary subscription (tens of dollars a year). eBay and PSA basic APIs are free.
+- **Realistic paid cost:** US$49/month for PriceCharting Legendary (Pokémon), plus a SportsCardsPro subscription for sports cards (price to confirm). Earlier "tens of dollars a year" estimate was wrong. eBay and PSA basic APIs are free.
+- **Free alternative for now:** enter your own resale estimate from eBay's sold listings in the Manual Scanner — already supported.
 - **Deferred / harder / costlier:** eBay sold-price access (Marketplace Insights) and PSA population data.
 
 ## TODO before Phase 3
 
-- [ ] Confirm PriceCharting's exact price and terms of use (personal use, API limits, caching)
+- [ ] Confirm SportsCardsPro API price and whether one subscription covers both sites; confirm terms of use (personal use, API limits, caching)
 - [ ] Apply for eBay developer keys and confirm whether our app is granted Marketplace Insights
 - [ ] Decide eBay AU vs eBay US resale fee assumptions (`src/lib/config.ts`)
 - [ ] Create a PSA account and test a cert lookup
