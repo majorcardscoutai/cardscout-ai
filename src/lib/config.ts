@@ -18,6 +18,8 @@ export const DEFAULT_SETTINGS: Settings = {
   otherCostsUsd: 2,
   minRoiPercent: 20,
   minProfitUsd: 25,
+  inboundShippingMode: "ebay",
+  inboundShippingFixedUsd: 0,
 };
 
 /**

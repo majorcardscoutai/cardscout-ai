@@ -52,3 +52,7 @@ create table if not exists public.holdings (
 alter table public.settings enable row level security;
 alter table public.watchlist enable row level security;
 alter table public.holdings enable row level security;
+
+-- Update 13 Oct 2026: parcel-locker shipping setting (safe to run more than once)
+alter table public.settings add column if not exists inbound_shipping_mode text not null default 'ebay';
+alter table public.settings add column if not exists inbound_shipping_fixed_usd numeric not null default 0;

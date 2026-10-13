@@ -55,6 +55,42 @@ export default async function SettingsPage({
               <input name="minProfit" defaultValue={s.minProfitUsd} inputMode="decimal" required className={inputCls} />
             </Field>
           </div>
+          <fieldset className="rounded-lg border border-line p-4">
+            <legend className="px-1 text-sm font-medium">Shipping to you</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex items-start gap-3 rounded-lg bg-panel-2 p-3 ring-1 ring-line">
+                <input
+                  type="radio"
+                  name="inboundShippingMode"
+                  value="ebay"
+                  defaultChecked={s.inboundShippingMode !== "fixed"}
+                  className="mt-1 accent-gain"
+                />
+                <span>
+                  <span className="block text-sm">Use eBay&apos;s quoted shipping</span>
+                  <span className="block text-xs text-faint">The seller&apos;s shipping cost to Australia, per card.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-lg bg-panel-2 p-3 ring-1 ring-line">
+                <input
+                  type="radio"
+                  name="inboundShippingMode"
+                  value="fixed"
+                  defaultChecked={s.inboundShippingMode === "fixed"}
+                  className="mt-1 accent-gain"
+                />
+                <span>
+                  <span className="block text-sm">Parcel locker — fixed amount per card</span>
+                  <span className="block text-xs text-faint">
+                    Ignores eBay&apos;s shipping. Use 0, or your share of the monthly shipment.
+                  </span>
+                </span>
+              </label>
+            </div>
+            <Field label="Parcel locker cost per card (US$)" hint="Only used when parcel locker is selected" className="mt-3 sm:w-64">
+              <input name="inboundShippingFixed" defaultValue={s.inboundShippingFixedUsd} inputMode="decimal" className={inputCls} />
+            </Field>
+          </fieldset>
           <div className="flex justify-end">
             <SubmitButton>Save settings</SubmitButton>
           </div>

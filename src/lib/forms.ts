@@ -230,5 +230,14 @@ export function parseSettingsForm(fd: FormData): Parsed<Settings> {
     if (!r.ok) return r;
     (out as Record<string, unknown>)[key] = Math.round(((r.value as number) / divisor) * 1e6) / 1e6;
   }
+  // Shipping to you: "ebay" (seller's quoted shipping) or "fixed" per card (parcel locker).
+  out.inboundShippingMode = str(fd, "inboundShippingMode") === "fixed" ? "fixed" : "ebay";
+  const fixed = parseNumber(str(fd, "inboundShippingFixed"), "Parcel locker cost per card", {
+    optional: true,
+    min: 0,
+    max: 500,
+  });
+  if (!fixed.ok) return fixed;
+  out.inboundShippingFixedUsd = fixed.value ?? 0;
   return { ok: true, value: out as Settings };
 }

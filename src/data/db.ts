@@ -48,6 +48,11 @@ export async function loadSettings(): Promise<SettingsLoad> {
         otherCostsUsd: num(data.other_costs_usd),
         minRoiPercent: num(data.min_roi_percent),
         minProfitUsd: num(data.min_profit_usd),
+        inboundShippingMode: data.inbound_shipping_mode === "fixed" ? "fixed" : "ebay",
+        inboundShippingFixedUsd:
+          data.inbound_shipping_fixed_usd === undefined || data.inbound_shipping_fixed_usd === null
+            ? 0
+            : num(data.inbound_shipping_fixed_usd),
       },
     };
   } catch (e) {
@@ -69,6 +74,8 @@ export async function saveSettings(s: Settings): Promise<string | null> {
         other_costs_usd: s.otherCostsUsd,
         min_roi_percent: s.minRoiPercent,
         min_profit_usd: s.minProfitUsd,
+        inbound_shipping_mode: s.inboundShippingMode,
+        inbound_shipping_fixed_usd: s.inboundShippingFixedUsd,
         updated_at: new Date().toISOString(),
       });
     if (error) throw error;

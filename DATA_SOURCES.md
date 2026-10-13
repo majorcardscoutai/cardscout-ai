@@ -46,6 +46,15 @@ The risk is in **how** data is obtained, not **which** site it comes from.
 
 ---
 
+## Other options checked (13 Oct 2026)
+
+| Source | Covers | Graded | Cost | Verdict |
+|---|---|---|---|---|
+| Scrydex API | Pokémon + other TCGs (no sports) | Yes (PSA, BGS, CGC…) | from US$29/month | Pokémon-only option |
+| eBay Marketplace Insights | eBay sold items | — | Free | Restricted; individuals report being denied. Worth a free request anyway |
+| Third-party scrapers (e.g. Apify actors for SportsCardsPro / Card Ladder) | Various | Various | Various | **Not used** — they scrape sites without permission |
+| Asking prices from active listings | — | — | Free | **Not used** — asking price ≠ market value |
+
 ## Summary
 
 - **Realistic paid cost:** US$49/month for PriceCharting Legendary (Pokémon), plus a SportsCardsPro subscription for sports cards (price to confirm). Earlier "tens of dollars a year" estimate was wrong. eBay and PSA basic APIs are free.

@@ -30,6 +30,9 @@ export async function saveSettingsAction(formData: FormData) {
   const parsed = parseSettingsForm(formData);
   if (!parsed.ok) back("/settings", "error", parsed.error);
   const error = await saveSettings(parsed.value);
+  if (error && /inbound_shipping/.test(error)) {
+    back("/settings", "error", "Your database needs a quick update first: run the 'parcel locker' SQL from supabase/schema.sql in Supabase → SQL Editor.");
+  }
   if (error) back("/settings", "error", `Couldn't save: ${error}`);
   revalidatePath("/", "layout");
   back("/settings", "saved", "Settings saved.");

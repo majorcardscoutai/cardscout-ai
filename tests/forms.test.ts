@@ -119,6 +119,15 @@ test("settings form turns percentages into fractions", () => {
   assert.equal(bad.ok, false);
 });
 
+test("parcel-locker shipping setting is parsed, defaulting to eBay shipping", () => {
+  const base = { usdToAud: "1.5", feePercent: "13.25", fixedFee: "0.4", outboundShipping: "5", importTaxPercent: "10", otherCosts: "2", minRoi: "20", minProfit: "25" };
+  const def = parseSettingsForm(fd(base));
+  assert.ok(def.ok && def.value.inboundShippingMode === "ebay" && def.value.inboundShippingFixedUsd === 0);
+  const locker = parseSettingsForm(fd({ ...base, inboundShippingMode: "fixed", inboundShippingFixed: "3.50" }));
+  assert.ok(locker.ok && locker.value.inboundShippingMode === "fixed" && locker.value.inboundShippingFixedUsd === 3.5);
+  assert.equal(parseSettingsForm(fd({ ...base, inboundShippingMode: "fixed", inboundShippingFixed: "-1" })).ok, false);
+});
+
 test("session token is stable, password-specific and hex", async () => {
   const a = await sessionToken("hunter2");
   assert.equal(a, await sessionToken("hunter2"));

@@ -79,6 +79,9 @@ export interface Settings {
   otherCostsUsd: number; // supplies, grading, etc.
   minRoiPercent: number;
   minProfitUsd: number;
+  /** How shipping to you is counted: eBay's quoted shipping, or a fixed amount per card (parcel locker). */
+  inboundShippingMode: "ebay" | "fixed";
+  inboundShippingFixedUsd: number;
 }
 
 export interface Holding {

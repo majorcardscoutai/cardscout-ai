@@ -58,7 +58,10 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [x] Scanner page: live "Search eBay now" (US or AU site, category, max price, BIN/auction) with Analyse links; results clearly labelled unvalued
 - [x] 51 unit tests (16 eBay) + e2e checks against a fake eBay
 - [x] Deployed "eBay connection" (commit 0ad0e41) — Vercel build Ready, 11 Oct 2026. eBay features show "not connected" until keys are added.
-- [ ] Add EBAY_CLIENT_ID / EBAY_CLIENT_SECRET (Production keyset) to .env.local and Vercel once approved, then test with real listings
+- [x] Production keyset created; Marketplace Account Deletion exemption granted (keyset was disabled until then); EBAY_CLIENT_ID / EBAY_CLIENT_SECRET added to Vercel (Production) — live eBay search verified on cardscout-ai.vercel.app, 13 Oct 2026
+- [x] 'Analyse' prefill verified on a real listing (2018 Topps Now #210 Ohtani PSA 10); profit maths hand-checked: net US$61.64, ROI 10.6%, max price US$458 — 13 Oct 2026
+- [x] Parcel-locker shipping setting (Settings → Shipping to you): eBay quoted shipping or fixed US$ per card; applied when a listing is loaded. Needs DB columns `inbound_shipping_mode`, `inbound_shipping_fixed_usd` (see end of supabase/schema.sql). 52 unit tests + e2e.
+- [ ] Idea: show auction end time / hide early auctions (current bid of US$1 isn't meaningful)
 - [ ] Choose and connect an authorised sold-price source (confirm terms of use and cost first)
 - [ ] Live FX rate
 - [ ] Rate-limit handling, retries, error states
@@ -77,6 +80,7 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 ## Open decisions
 - Sold-price source: **decided 11 Oct 2026 — Option A (free) for now.** Travis enters resale estimates from eBay sold listings manually. Revisit paid PriceCharting/SportsCardsPro (US$49+/month) after a few weeks of real use.
 - Default fee rate for the marketplace you'll resell on (eBay AU vs eBay US)
+- Automatic market values: emailed SportsCardsPro (13 Oct) re API price, combined PriceCharting coverage, grades, limits, parallels — awaiting reply
 
 ---
 

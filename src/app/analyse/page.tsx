@@ -47,7 +47,7 @@ export default async function ManualScannerPage({
       prefill = {
         card: suggestion.card,
         askingUsd,
-        shippingUsd: toUsd(listing.shipping, fx),
+        shippingUsd: settings.inboundShippingMode === "fixed" ? settings.inboundShippingFixedUsd : toUsd(listing.shipping, fx),
         url: listing.url,
         note: listing.isAuction ? `Auction · current bid${listing.bidCount !== null ? ` · ${listing.bidCount} bids` : ""}` : "",
       };
@@ -103,8 +103,19 @@ export default async function ManualScannerPage({
                   <Money usd={toUsd(listing.price, fx)} fx={fx} />
                 </div>
                 <div>
-                  <div className="text-xs text-muted">Shipping to AU</div>
-                  {listing.shipping ? <Money usd={toUsd(listing.shipping, fx)} fx={fx} /> : <span className="text-sm text-faint">Not stated — check listing</span>}
+                  <div className="text-xs text-muted">
+                    {settings.inboundShippingMode === "fixed" ? "Shipping (parcel locker)" : "Shipping to AU"}
+                  </div>
+                  {settings.inboundShippingMode === "fixed" ? (
+                    <>
+                      <Money usd={settings.inboundShippingFixedUsd} fx={fx} />
+                      <div className="text-[11px] text-faint">Your setting · eBay quotes {listing.shipping ? `${listing.shipping.currency} ${listing.shipping.value}` : "n/a"} to AU</div>
+                    </>
+                  ) : listing.shipping ? (
+                    <Money usd={toUsd(listing.shipping, fx)} fx={fx} />
+                  ) : (
+                    <span className="text-sm text-faint">Not stated — check listing</span>
+                  )}
                 </div>
                 <div>
                   <div className="text-xs text-muted">Seller</div>
