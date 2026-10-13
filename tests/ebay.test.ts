@@ -119,6 +119,11 @@ test("toUsd converts AUD and refuses other currencies", () => {
   assert.equal(toUsd(null, 1.5), null);
 });
 
+test("Best Offer filter asks eBay for listings that accept offers", () => {
+  const p = buildSearchPath({ q: "jordan fleer", market: "EBAY_US", category: "sportsCards", maxPrice: null, format: "BEST_OFFER" });
+  assert.equal(new URL("https://x" + p).searchParams.get("filter"), "buyingOptions:{BEST_OFFER}");
+});
+
 test("search path encodes filters correctly", () => {
   const p = buildSearchPath({ q: "ohtani psa 10", market: "EBAY_AU", category: "sportsCards", maxPrice: 500, format: "FIXED_PRICE" });
   const u = new URL("https://x" + p);

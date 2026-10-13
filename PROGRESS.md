@@ -60,7 +60,8 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [x] Deployed "eBay connection" (commit 0ad0e41) — Vercel build Ready, 11 Oct 2026. eBay features show "not connected" until keys are added.
 - [x] Production keyset created; Marketplace Account Deletion exemption granted (keyset was disabled until then); EBAY_CLIENT_ID / EBAY_CLIENT_SECRET added to Vercel (Production) — live eBay search verified on cardscout-ai.vercel.app, 13 Oct 2026
 - [x] 'Analyse' prefill verified on a real listing (2018 Topps Now #210 Ohtani PSA 10); profit maths hand-checked: net US$61.64, ROI 10.6%, max price US$458 — 13 Oct 2026
-- [x] Parcel-locker shipping setting (Settings → Shipping to you): eBay quoted shipping or fixed US$ per card; applied when a listing is loaded. Needs DB columns `inbound_shipping_mode`, `inbound_shipping_fixed_usd` (see end of supabase/schema.sql). 52 unit tests + e2e.
+- [x] Parcel-locker shipping setting (Settings → Shipping to you): eBay quoted shipping or fixed US$ per card; applied when a listing is loaded. DB columns added in Supabase; deployed and switched on (parcel locker, US$0) — 13 Oct 2026. 52 unit tests + e2e.
+- [x] Scanner Type filter: added "Best Offer (accepts offers)" — eBay buyingOptions:{BEST_OFFER}
 - [ ] Idea: show auction end time / hide early auctions (current bid of US$1 isn't meaningful)
 - [ ] Choose and connect an authorised sold-price source (confirm terms of use and cost first)
 - [ ] Live FX rate

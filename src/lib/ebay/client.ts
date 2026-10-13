@@ -226,7 +226,7 @@ export interface SearchInput {
   market: Marketplace;
   category: keyof typeof CATEGORY_IDS;
   maxPrice: number | null; // in the marketplace's currency
-  format: "ALL" | "FIXED_PRICE" | "AUCTION";
+  format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
   limit?: number;
 }
 

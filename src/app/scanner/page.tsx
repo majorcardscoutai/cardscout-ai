@@ -27,7 +27,7 @@ function parseSearch(p: Params): SearchInput | null {
     market: p.market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
     category: p.category === "pokemon" ? "pokemon" : "sportsCards",
     maxPrice: p.max && Number.isFinite(max) && max > 0 ? max : null,
-    format: p.format === "FIXED_PRICE" || p.format === "AUCTION" ? p.format : "ALL",
+    format: p.format === "FIXED_PRICE" || p.format === "AUCTION" || p.format === "BEST_OFFER" ? p.format : "ALL",
   };
 }
 
@@ -83,6 +83,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
             <select name="format" defaultValue={search?.format ?? "ALL"} className={inputCls}>
               <option value="ALL">All</option>
               <option value="FIXED_PRICE">Buy It Now</option>
+              <option value="BEST_OFFER">Best Offer (accepts offers)</option>
               <option value="AUCTION">Auction</option>
             </select>
           </Field>
