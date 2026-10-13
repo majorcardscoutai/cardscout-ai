@@ -12,19 +12,24 @@ import {
   StatCard,
   StatusRow,
 } from "@/components/ui";
+import { lastScanRuns, listRecentHits } from "@/data/db";
 import { getAssessments, listHoldings, listWatchlist, loadSettings } from "@/data/source";
 
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [{ settings, source, error: settingsError }, watch, hold] = await Promise.all([
+  const [{ settings, source, error: settingsError }, watch, hold, deals, runs] = await Promise.all([
     loadSettings(),
     listWatchlist(),
     listHoldings(),
+    listRecentHits(100, true),
+    lastScanRuns(1),
   ]);
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const dealsThisWeek = deals.data.filter((d) => new Date(d.createdAt).getTime() > weekAgo).length;
+  const lastRun = runs.data[0] ?? null;
   const fx = settings.usdToAud;
   const assessments = getAssessments(settings);
-  const qualifying = assessments.filter((a) => a.meetsCriteria);
   const holdings = hold.data;
   const portfolioCost = holdings.reduce((s, h) => s + h.purchasePriceUsd + h.purchaseCostsUsd, 0);
   const dbOk = source === "database" && !watch.error && !hold.error;
@@ -48,10 +53,10 @@ export default async function OverviewPage() {
           sub={`${holdings.length} cards held · ${formatMoney(portfolioCost * fx, "AUD")}`}
         />
         <StatCard
-          label="Demo deals meeting criteria"
-          value={qualifying.length}
-          sub={`≥ ${settings.minRoiPercent}% ROI and ≥ ${formatMoney(settings.minProfitUsd, "USD")} profit`}
-          tone={qualifying.length > 0 ? "gain" : "neutral"}
+          label="Deals found by scans (7 days)"
+          value={dealsThisWeek}
+          sub={lastRun ? `Last scan ${new Date(lastRun.createdAt).toLocaleString("en-AU", { dateStyle: "short", timeStyle: "short" })}` : "No scans yet"}
+          tone={dealsThisWeek > 0 ? "gain" : "neutral"}
         />
         <StatCard label="Exchange rate" value={fx} sub="1 USD in AUD · set in Settings" />
       </div>
@@ -95,7 +100,11 @@ export default async function OverviewPage() {
             <StatusRow label="Listing data" status="demo" detail="eBay Browse API arrives in Phase 3" />
             <StatusRow label="Sold-price data" status="demo" detail="PriceCharting / eBay in Phase 3" />
             <StatusRow label="Population data" status="off" detail="Shown as missing — never estimated" />
-            <StatusRow label="Automatic scanning" status="off" detail="Background job built in Phase 4" />
+            <StatusRow
+              label="Automatic scanning"
+              status={lastRun && Date.now() - new Date(lastRun.createdAt).getTime() < 4 * 3_600_000 ? "ok" : "off"}
+              detail={lastRun ? `Last scan ${Math.round((Date.now() - new Date(lastRun.createdAt).getTime()) / 60000)} min ago` : "No scan has run yet"}
+            />
           </div>
         </Panel>
       </div>

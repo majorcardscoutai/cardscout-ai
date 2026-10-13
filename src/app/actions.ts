@@ -14,11 +14,27 @@ import {
   insertWatchlist,
   loadSettings,
   saveSettings,
+  deleteCardValue,
+  deleteSavedSearch,
+  insertSavedSearch,
+  setSavedSearchActive,
+  updateCardValueAmount,
   updateHolding,
   updateWatchlist,
+  upsertCardValue,
 } from "@/data/db";
+import { runAllScans } from "@/data/scanner";
+import { cardKey } from "@/lib/cardKey";
 import { itemIdFromUrl } from "@/lib/ebay/parse";
-import { parseHoldingForm, parseSettingsForm, parseWatchlistForm } from "@/lib/forms";
+import {
+  parseCardValueForm,
+  parseHoldingForm,
+  parseNumber,
+  parseSavedSearchForm,
+  parseSettingsForm,
+  parseWatchlistForm,
+  toUsd,
+} from "@/lib/forms";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -44,8 +60,16 @@ export async function addWatchlistAction(formData: FormData) {
   if (!parsed.ok) back("/analyse", "error", parsed.error);
   const error = await insertWatchlist(parsed.value);
   if (error) back("/analyse", "error", `Couldn't save: ${error}`);
+  let remembered = "";
+  if (formData.get("rememberValue") === "on" && parsed.value.expectedResaleUsd) {
+    const key = cardKey(parsed.value.card);
+    if (key) {
+      const e = await upsertCardValue({ key, card: parsed.value.card, title: parsed.value.title, valueUsd: parsed.value.expectedResaleUsd });
+      if (!e) remembered = " Value saved to your card values.";
+    }
+  }
   revalidatePath("/", "layout");
-  back("/watchlist", "saved", `Added ${parsed.value.card.player} to your watchlist.`);
+  back("/watchlist", "saved", `Added ${parsed.value.card.player} to your watchlist.${remembered}`);
 }
 
 export async function removeWatchlistAction(formData: FormData) {
@@ -107,4 +131,81 @@ export async function loadListingAction(formData: FormData) {
   if (!id) back("/analyse", "error", "That doesn't look like an eBay listing link. It should contain /itm/ and a long number.");
   const market = /ebay\.com\.au/i.test(raw) ? "EBAY_AU" : "EBAY_US";
   redirect(`/analyse?item=${id}&market=${market}`);
+}
+
+// ---------- Card values ----------
+
+export async function addCardValueAction(formData: FormData) {
+  const { settings } = await loadSettings();
+  const parsed = parseCardValueForm(formData, settings.usdToAud);
+  if (!parsed.ok) back("/values", "error", parsed.error);
+  const key = cardKey(parsed.value.card);
+  if (!key) back("/values", "error", "Some card details are missing.");
+  const error = await upsertCardValue({ key, ...parsed.value });
+  if (error) back("/values", "error", `Couldn't save: ${error}`);
+  revalidatePath("/", "layout");
+  back("/values", "saved", `Saved your value for ${parsed.value.title}.`);
+}
+
+export async function updateCardValueAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!UUID.test(id)) back("/values", "error", "Invalid item.");
+  const { settings } = await loadSettings();
+  const n = parseNumber(String(formData.get("value") ?? ""), "Value", { min: 0.01 });
+  if (!n.ok || n.value === null) back("/values", "error", n.ok ? "Value is required." : n.error);
+  const currency = formData.get("currency") === "AUD" ? "AUD" : "USD";
+  const error = await updateCardValueAmount(id, toUsd(n.value, currency, settings.usdToAud));
+  if (error) back("/values", "error", `Couldn't save: ${error}`);
+  revalidatePath("/", "layout");
+  back("/values", "saved", "Value updated.");
+}
+
+export async function deleteCardValueAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!UUID.test(id)) back("/values", "error", "Invalid item.");
+  const error = await deleteCardValue(id);
+  if (error) back("/values", "error", `Couldn't remove: ${error}`);
+  revalidatePath("/", "layout");
+  back("/values", "saved", "Value removed.");
+}
+
+// ---------- Saved searches & scanning ----------
+
+export async function addSavedSearchAction(formData: FormData) {
+  const parsed = parseSavedSearchForm(formData);
+  if (!parsed.ok) back("/scanner", "error", parsed.error);
+  const error = await insertSavedSearch(parsed.value);
+  if (error) back("/scanner", "error", `Couldn't save: ${error}`);
+  revalidatePath("/", "layout");
+  back("/scanner", "saved", `Saved search "${parsed.value.name}". It will be checked on every scan.`);
+}
+
+export async function toggleSavedSearchAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!UUID.test(id)) back("/scanner", "error", "Invalid item.");
+  const active = formData.get("active") === "true";
+  const error = await setSavedSearchActive(id, active);
+  if (error) back("/scanner", "error", `Couldn't update: ${error}`);
+  revalidatePath("/", "layout");
+  back("/scanner", "saved", active ? "Search resumed." : "Search paused.");
+}
+
+export async function deleteSavedSearchAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!UUID.test(id)) back("/scanner", "error", "Invalid item.");
+  const error = await deleteSavedSearch(id);
+  if (error) back("/scanner", "error", `Couldn't remove: ${error}`);
+  revalidatePath("/", "layout");
+  back("/scanner", "saved", "Saved search removed.");
+}
+
+export async function scanNowAction() {
+  const r = await runAllScans("manual");
+  revalidatePath("/", "layout");
+  if (r.errors.length) back("/scanner", "error", `Scan finished with problems: ${r.errors.join("; ")}`);
+  back(
+    "/scanner",
+    "saved",
+    `Scan done: ${r.searches} search${r.searches === 1 ? "" : "es"}, ${r.newListings} new listing${r.newListings === 1 ? "" : "s"}, ${r.deals} deal${r.deals === 1 ? "" : "s"}${r.emailed ? `, ${r.emailed} emailed` : ""}.`,
+  );
 }

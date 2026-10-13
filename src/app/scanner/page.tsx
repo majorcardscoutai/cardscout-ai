@@ -1,23 +1,27 @@
 import Link from "next/link";
-import { Field, inputCls, SubmitButton } from "@/components/FormBits";
+import { addSavedSearchAction, deleteSavedSearchAction, scanNowAction, toggleSavedSearchAction } from "@/app/actions";
+import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { IconAlert } from "@/components/Icons";
-import { DemoBanner, Money, PageHeader, Panel, StatusRow, Tag } from "@/components/ui";
-import { getSavedSearches, getSettings } from "@/data/source";
-import { formatMoney } from "@/lib/currency";
-import { ebayConfigured, searchListings, toUsd, type SearchInput } from "@/lib/ebay/client";
+import { Money, PageHeader, Panel, Pct, StatusRow, Tag } from "@/components/ui";
+import { cardValueMap, lastScanRuns, listRecentHits, listSavedSearches } from "@/data/db";
+import { getSettings } from "@/data/source";
+import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/client";
+import { emailConfigured } from "@/lib/email";
+import { evaluateListing } from "@/lib/scan";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
-const PIPELINE = [
-  ["Search", "Scheduled job queries eBay's Browse API with each saved search (authorised access only)."],
-  ["De-duplicate", "Listings already seen are skipped using their eBay item ID."],
-  ["Identify", "Title and item specifics are parsed into an exact card identity (set, number, parallel, grade)."],
-  ["Value", "Exact-match sold comparisons from an authorised source are run through the valuation engine."],
-  ["Score", "Profit, ROI and the 100-point score are calculated with your settings."],
-  ["Alert", "Listings that meet your criteria are saved and you're notified."],
-];
-
-type Params = { q?: string; market?: string; category?: string; max?: string; format?: string };
+type Params = {
+  q?: string;
+  market?: string;
+  category?: string;
+  max?: string;
+  format?: string;
+  saved?: string;
+  error?: string;
+  deals?: string;
+};
 
 function parseSearch(p: Params): SearchInput | null {
   if (!p.q) return null;
@@ -32,33 +36,67 @@ function parseSearch(p: Params): SearchInput | null {
 }
 
 function ago(iso: string | null): string {
-  if (!iso) return "";
+  if (!iso) return "never";
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   if (mins < 60 * 48) return `${Math.round(mins / 60)}h ago`;
   return `${Math.round(mins / 1440)}d ago`;
 }
 
+function endsIn(iso: string | null): string | null {
+  if (!iso) return null;
+  const mins = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (mins <= 0) return "ended";
+  if (mins < 60) return `ends in ${mins}m`;
+  if (mins < 60 * 48) return `ends in ${Math.round(mins / 60)}h`;
+  return `ends in ${Math.round(mins / 1440)}d`;
+}
+
+const FORMAT_LABEL = { ALL: "All", FIXED_PRICE: "Buy It Now", AUCTION: "Auction", BEST_OFFER: "Best Offer" } as const;
+
 export default async function AutomaticScannerPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const fx = (await getSettings()).usdToAud;
-  const searches = getSavedSearches();
+  const settings = await getSettings();
+  const fx = settings.usdToAud;
   const connected = ebayConfigured();
   const search = parseSearch(params);
-  const result = search && connected ? await searchListings(search) : null;
+  const onlyDeals = params.deals === "1";
+
+  const [result, values, saved, hits, runs] = await Promise.all([
+    search && connected ? searchListings(search) : Promise.resolve(null),
+    cardValueMap(),
+    listSavedSearches(),
+    listRecentHits(60, onlyDeals),
+    lastScanRuns(5),
+  ]);
+
+  const lastScheduled = runs.data.find((r) => r.trigger === "schedule" || r.trigger === "daily") ?? null;
+  const scheduleHealthy = lastScheduled !== null && Date.now() - new Date(lastScheduled.createdAt).getTime() < 4 * 3_600_000;
+  const searchNames = new Map(saved.data.map((s) => [s.id, s.name]));
 
   return (
     <>
       <PageHeader
         title="Automatic Scanner"
-        subtitle="Search live eBay listings now. Scheduled scanning and alerts come in Phase 4."
+        subtitle="Search eBay now, save searches, and let CardScout check them every few hours against your card values."
         action={
-          <span className="inline-flex items-center gap-2 rounded-full border border-loss/40 bg-loss-soft px-3 py-1 text-xs font-medium text-loss">
-            <span className="h-2 w-2 rounded-full bg-loss" /> Scheduled scanning not running
-          </span>
+          scheduleHealthy ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-gain/40 bg-gain-soft px-3 py-1 text-xs font-medium text-gain">
+              <span className="h-2 w-2 rounded-full bg-gain" /> Scheduled scanning running · last {ago(lastScheduled?.createdAt ?? null)}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-2 rounded-full border border-loss/40 bg-loss-soft px-3 py-1 text-xs font-medium text-loss">
+              <span className="h-2 w-2 rounded-full bg-loss" /> Scheduled scanning not confirmed
+              {lastScheduled ? ` · last ${ago(lastScheduled.createdAt)}` : ""}
+            </span>
+          )
         }
       />
+      <Flash saved={params.saved} error={params.error} />
+      <DbError error={saved.error} />
 
+      {/* ---------- Search now ---------- */}
       <Panel title="Search eBay now" className="mb-6" right={<Tag tone={connected ? "default" : "warn"}>{connected ? "eBay connected" : "eBay not connected yet"}</Tag>}>
         <form method="GET" className="grid grid-cols-2 gap-3 sm:grid-cols-6 sm:items-end">
           <Field label="Search" className="col-span-2 sm:col-span-2">
@@ -80,11 +118,11 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
             <input name="max" inputMode="decimal" defaultValue={params.max ?? ""} className={inputCls} />
           </Field>
           <Field label="Type">
-            <select name="format" defaultValue={search?.format ?? "ALL"} className={inputCls}>
-              <option value="ALL">All</option>
+            <select name="format" defaultValue={search?.format ?? "FIXED_PRICE"} className={inputCls}>
               <option value="FIXED_PRICE">Buy It Now</option>
               <option value="BEST_OFFER">Best Offer (accepts offers)</option>
               <option value="AUCTION">Auction</option>
+              <option value="ALL">All</option>
             </select>
           </Field>
           <div className="col-span-2 flex justify-end sm:col-span-6">
@@ -92,19 +130,13 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           </div>
         </form>
 
-        {!connected && !search && (
-          <p className="mt-3 text-xs text-faint">Live search switches on once your eBay developer keys are added.</p>
-        )}
+        {!connected && !search && <p className="mt-3 text-xs text-faint">Live search switches on once your eBay developer keys are added.</p>}
         {!connected && search && (
           <div role="alert" className="mt-4 flex items-start gap-3 rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">
             <IconAlert className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>
-              Can&apos;t search yet — eBay isn&apos;t connected. Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET (in .env.local on
-              your Mac, and in Vercel → Settings → Environment Variables), then redeploy.
-            </span>
+            <span>Can&apos;t search yet — eBay isn&apos;t connected.</span>
           </div>
         )}
-
         {result && !result.ok && (
           <div role="alert" className="mt-4 flex items-start gap-3 rounded-xl border border-loss/30 bg-loss-soft px-4 py-3 text-sm text-loss">
             <IconAlert className="mt-0.5 h-4 w-4 shrink-0" />
@@ -112,18 +144,31 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           </div>
         )}
 
-        {result && result.ok && (
+        {result && result.ok && search && (
           <div className="mt-5">
+            <div className="mb-4 flex flex-col gap-3 rounded-xl border border-line bg-panel-2 p-3 sm:flex-row sm:items-end">
+              <form action={addSavedSearchAction} className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end">
+                <input type="hidden" name="q" value={search.q} />
+                <input type="hidden" name="market" value={search.market} />
+                <input type="hidden" name="category" value={search.category} />
+                <input type="hidden" name="format" value={search.format} />
+                <input type="hidden" name="max" value={search.maxPrice ?? ""} />
+                <Field label="Save this search as" className="flex-1">
+                  <input name="name" defaultValue={search.q} maxLength={80} className={inputCls} />
+                </Field>
+                <SubmitButton>Save search</SubmitButton>
+              </form>
+            </div>
             <p className="mb-3 text-xs text-warn">
-              Live asking prices only — these are <strong>not</strong> valued or scored, because verified sold data isn&apos;t
-              connected yet. Open a listing in the Manual Scanner to check the profit with your own resale estimate.
+              Profit is shown only for cards in your <Link href="/values" className="underline">Card Values</Link> — it compares the
+              asking price with <strong>your</strong> value, not verified sold data.
             </p>
             {result.data.items.length === 0 ? (
               <p className="text-sm text-muted">No listings found. Try fewer words or a higher max price.</p>
             ) : (
               <ul className="divide-y divide-line">
                 {result.data.items.map((l) => {
-                  const usd = toUsd(l.price, fx);
+                  const h = evaluateListing(l, settings, values.map);
                   return (
                     <li key={l.itemId} className="flex items-center gap-3 py-3">
                       {l.imageUrl ? (
@@ -136,18 +181,30 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                         <a href={l.url} target="_blank" rel="noopener noreferrer" className="line-clamp-2 text-sm hover:text-accent">
                           {l.title}
                         </a>
-                        <div className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-faint">
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
                           <Tag>{l.isAuction ? `Auction${l.bidCount !== null ? ` · ${l.bidCount} bids` : ""}` : l.acceptsOffers ? "Buy It Now · Offers" : "Buy It Now"}</Tag>
+                          {l.isAuction && endsIn(l.endsAt) && <Tag tone="warn">{endsIn(l.endsAt)}</Tag>}
                           {l.country && <Tag>{l.country}</Tag>}
-                          {l.listedAt && <span>Listed {ago(l.listedAt)}</span>}
+                          {h.valueUsd !== null ? (
+                            h.meetsCriteria ? (
+                              <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Meets your rules</span>
+                            ) : (
+                              <span className="rounded-md bg-loss-soft px-1.5 py-0.5 font-medium text-loss">Below your rules</span>
+                            )
+                          ) : (
+                            <span>No value saved for this card</span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
-                        {usd !== null ? <Money usd={usd} fx={fx} size="sm" align="right" /> : <span className="text-xs text-faint">{l.price ? `${l.price.currency} ${l.price.value}` : "—"}</span>}
-                        <Link
-                          href={`/analyse?item=${l.itemId}&market=${search?.market}`}
-                          className="mt-1 block text-xs text-accent hover:underline"
-                        >
+                        <Money usd={h.priceUsd} fx={fx} size="sm" align="right" />
+                        {h.netProfitUsd !== null && (
+                          <div className="mt-1 flex items-center justify-end gap-2">
+                            <Money usd={h.netProfitUsd} fx={fx} size="sm" tone="auto" align="right" />
+                            <Pct value={h.roiPercent} />
+                          </div>
+                        )}
+                        <Link href={`/analyse?item=${l.itemId}&market=${search.market}`} className="mt-1 block text-xs text-accent hover:underline">
                           Analyse →
                         </Link>
                       </div>
@@ -164,49 +221,131 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
       </Panel>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Panel title="Saved searches (examples)" className="lg:col-span-2" right={<Tag tone="warn">Demo · Phase 4</Tag>}>
+        {/* ---------- Saved searches ---------- */}
+        <Panel
+          title="Saved searches"
+          className="lg:col-span-2"
+          right={
+            <form action={scanNowAction}>
+              <SubmitButton tone="neutral">Scan now</SubmitButton>
+            </form>
+          }
+        >
+          {saved.data.length === 0 ? (
+            <p className="text-sm text-muted">
+              None yet. Run a search above and click <strong>Save search</strong> — every active saved search is checked on each scan.
+            </p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {saved.data.map((s) => (
+                <li key={s.id} className="flex flex-col gap-2 py-3 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <span className={`h-2 w-2 rounded-full ${s.active ? "bg-gain" : "bg-faint"}`} />
+                      {s.name}
+                    </div>
+                    <div className="text-xs text-faint">
+                      “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"} · {FORMAT_LABEL[s.format]}
+                      {s.maxPrice ? ` · ≤ ${s.market === "EBAY_AU" ? "A$" : "US$"}${s.maxPrice}` : ""}
+                    </div>
+                    <div className="text-xs text-faint">
+                      Last checked {ago(s.lastRunAt)}
+                      {s.lastRunStatus ? ` · ${s.lastRunStatus}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <form action={toggleSavedSearchAction}>
+                      <input type="hidden" name="id" value={s.id} />
+                      <input type="hidden" name="active" value={s.active ? "false" : "true"} />
+                      <button className="text-xs text-accent hover:underline">{s.active ? "Pause" : "Resume"}</button>
+                    </form>
+                    <form action={deleteSavedSearchAction}>
+                      <input type="hidden" name="id" value={s.id} />
+                      <button className="text-xs text-muted hover:text-loss">Remove</button>
+                    </form>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        {/* ---------- Status ---------- */}
+        <Panel title="Scanner status">
+          <div className="divide-y divide-line">
+            <StatusRow label="eBay Browse API" status={connected ? "ok" : "off"} detail={connected ? "Live listings" : "Needs eBay keys"} />
+            <StatusRow
+              label="Schedule (every 3 hours)"
+              status={scheduleHealthy ? "ok" : "off"}
+              detail={lastScheduled ? `Last scheduled scan ${ago(lastScheduled.createdAt)}` : "No scheduled scan has run yet"}
+            />
+            <StatusRow label="Email alerts" status={emailConfigured() ? "ok" : "off"} detail={emailConfigured() ? "Resend connected" : "Add RESEND_API_KEY + ALERT_EMAIL"} />
+            <StatusRow label="Card values" status={values.map.size > 0 ? "ok" : "off"} detail={`${values.map.size} saved — needed to spot deals`} />
+          </div>
+          {runs.data.length > 0 && (
+            <ul className="mt-3 space-y-1 text-[11px] text-faint">
+              {runs.data.map((r) => (
+                <li key={r.createdAt}>
+                  {ago(r.createdAt)} · {r.trigger} · {r.newListings} new · {r.deals} deals{r.error ? ` · ⚠ ${r.error}` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+
+      {/* ---------- Results ---------- */}
+      <Panel
+        title="Latest scan results"
+        className="mt-6"
+        right={
+          <Link href={onlyDeals ? "/scanner" : "/scanner?deals=1"} className="text-xs text-accent hover:underline">
+            {onlyDeals ? "Show all" : "Show deals only"}
+          </Link>
+        }
+      >
+        {hits.data.length === 0 ? (
+          <p className="text-sm text-muted">No scan results yet. Save a search, then click Scan now.</p>
+        ) : (
           <ul className="divide-y divide-line">
-            {searches.map((s) => (
-              <li key={s.id} className="flex flex-col gap-1 py-3 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-sm font-medium">{s.name}</div>
-                  <div className="text-xs text-faint">Keywords: “{s.keywords}”</div>
+            {hits.data.map((h) => (
+              <li key={h.id} className="flex items-center gap-3 py-3">
+                {h.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={h.imageUrl} alt="" className="h-14 w-10 shrink-0 rounded object-cover ring-1 ring-line" />
+                ) : (
+                  <div className="h-14 w-10 shrink-0 rounded bg-panel-2 ring-1 ring-line" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <a href={h.url} target="_blank" rel="noopener noreferrer" className="line-clamp-1 text-sm hover:text-accent">
+                    {h.title}
+                  </a>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
+                    <span>{searchNames.get(h.searchId) ?? "Search"}</span>
+                    <span>· found {ago(h.createdAt)}</span>
+                    {h.isAuction && <Tag tone="warn">Auction{endsIn(h.endsAt) ? ` · ${endsIn(h.endsAt)}` : ""}</Tag>}
+                    {h.meetsCriteria && <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Deal</span>}
+                    {h.alerted && <Tag>Emailed</Tag>}
+                    {h.valueUsd === null && <span>· no value saved</span>}
+                  </div>
                 </div>
-                <div className="flex gap-2 text-xs text-muted">
-                  <span className="num">≤ {formatMoney(s.maxPriceUsd, "USD")} ({formatMoney(s.maxPriceUsd * fx, "AUD")})</span>
-                  <span>· min score {s.minScore}</span>
+                <div className="text-right">
+                  <Money usd={h.priceUsd} fx={fx} size="sm" align="right" />
+                  {h.netProfitUsd !== null && (
+                    <div className="mt-1 flex items-center justify-end gap-2">
+                      <Money usd={h.netProfitUsd} fx={fx} size="sm" tone="auto" align="right" />
+                      <Pct value={h.roiPercent} />
+                    </div>
+                  )}
+                  <Link href={`/analyse?item=${h.itemId}`} className="mt-1 block text-xs text-accent hover:underline">
+                    Analyse →
+                  </Link>
                 </div>
               </li>
             ))}
           </ul>
-        </Panel>
-
-        <Panel title="Scanner status">
-          <div className="divide-y divide-line">
-            <StatusRow label="eBay Browse API" status={connected ? "ok" : "off"} detail={connected ? "Live listings available" : "Needs eBay developer keys"} />
-            <StatusRow label="Sold-price source" status="off" detail="PriceCharting — to decide" />
-            <StatusRow label="Scheduled job" status="off" detail="Vercel Cron · Phase 4" />
-            <StatusRow label="Alerts" status="off" detail="Email · Phase 4" />
-          </div>
-        </Panel>
-      </div>
-
-      <Panel title="How automatic scanning will work" className="mt-6">
-        <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PIPELINE.map(([title, body], i) => (
-            <li key={title} className="rounded-lg bg-panel-2 p-3 ring-1 ring-line">
-              <div className="flex items-center gap-2">
-                <span className="num grid h-6 w-6 place-items-center rounded-full bg-accent-soft text-xs text-accent">{i + 1}</span>
-                <span className="text-sm font-medium">{title}</span>
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted">{body}</p>
-            </li>
-          ))}
-        </ol>
+        )}
       </Panel>
-      <div className="mt-6">
-        <DemoBanner>The saved searches above are examples. Live search results are real eBay listings.</DemoBanner>
-      </div>
     </>
   );
 }

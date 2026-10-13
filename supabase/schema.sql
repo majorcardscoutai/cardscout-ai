@@ -56,3 +56,67 @@ alter table public.holdings enable row level security;
 -- Update 13 Oct 2026: parcel-locker shipping setting (safe to run more than once)
 alter table public.settings add column if not exists inbound_shipping_mode text not null default 'ebay';
 alter table public.settings add column if not exists inbound_shipping_fixed_usd numeric not null default 0;
+
+-- Update 13 Oct 2026 (Phase 4): card values, saved searches, scan results. Safe to run more than once.
+create table if not exists public.card_values (
+  id uuid primary key default gen_random_uuid(),
+  card_key text not null unique,
+  card jsonb not null,
+  title text not null,
+  value_usd numeric not null,
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.saved_searches (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  name text not null,
+  query text not null,
+  market text not null default 'EBAY_US',
+  category text not null default 'sportsCards',
+  format text not null default 'FIXED_PRICE',
+  max_price numeric,
+  active boolean not null default true,
+  last_run_at timestamptz,
+  last_run_status text
+);
+
+create table if not exists public.scan_hits (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  search_id uuid not null references public.saved_searches(id) on delete cascade,
+  item_id text not null,
+  title text not null,
+  url text not null,
+  image_url text,
+  is_auction boolean not null default false,
+  ends_at timestamptz,
+  price_usd numeric,
+  shipping_usd numeric,
+  card_key text,
+  value_usd numeric,
+  net_profit_usd numeric,
+  roi_percent numeric,
+  max_price_usd numeric,
+  meets_criteria boolean not null default false,
+  alerted boolean not null default false,
+  unique (search_id, item_id)
+);
+
+create table if not exists public.scan_runs (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  trigger text not null,
+  searches int not null default 0,
+  new_listings int not null default 0,
+  deals int not null default 0,
+  emailed int not null default 0,
+  error text
+);
+
+alter table public.card_values enable row level security;
+alter table public.saved_searches enable row level security;
+alter table public.scan_hits enable row level security;
+alter table public.scan_runs enable row level security;

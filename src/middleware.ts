@@ -8,6 +8,8 @@ import { AUTH_COOKIE, sessionToken } from "@/lib/auth";
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   if (pathname === "/login") return NextResponse.next();
+  // The scheduled scan endpoint has its own secret check (CRON_SECRET).
+  if (pathname.startsWith("/api/cron/")) return NextResponse.next();
 
   const password = process.env.APP_PASSWORD;
   const cookie = req.cookies.get(AUTH_COOKIE)?.value;

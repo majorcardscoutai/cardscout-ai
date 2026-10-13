@@ -5,6 +5,7 @@
  */
 import { DEFAULT_SETTINGS } from "@/lib/config";
 import type { HoldingInput, WatchlistInput } from "@/lib/forms";
+import type { CardValue, ScanHit } from "@/lib/scan";
 import { db, dbConfigured } from "@/lib/supabase";
 import type { CardIdentity, Holding, Settings, WatchlistEntry } from "@/lib/types";
 
@@ -256,5 +257,306 @@ export async function updateHolding(id: string, h: HoldingInput): Promise<string
     return null;
   } catch (e) {
     return message(e);
+  }
+}
+
+// ---------- Card values (your value book) ----------
+
+
+export interface CardValueRow extends CardValue {
+  card: CardIdentity;
+  note: string | null;
+}
+
+export async function listCardValues(): Promise<DbResult<CardValueRow[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("card_values").select("*").order("updated_at", { ascending: false });
+    if (error) throw error;
+    return {
+      error: null,
+      data: (data ?? []).map((r) => ({
+        id: String(r.id),
+        key: String(r.card_key),
+        title: String(r.title),
+        valueUsd: num(r.value_usd),
+        updatedAt: String(r.updated_at),
+        card: r.card as CardIdentity,
+        note: r.note ? String(r.note) : null,
+      })),
+    };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}
+
+export async function cardValueMap(): Promise<{ map: Map<string, CardValue>; error: string | null }> {
+  const r = await listCardValues();
+  return { map: new Map(r.data.map((v) => [v.key, v])), error: r.error };
+}
+
+export async function upsertCardValue(input: {
+  key: string;
+  card: CardIdentity;
+  title: string;
+  valueUsd: number;
+  note?: string | null;
+}): Promise<string | null> {
+  try {
+    const { error } = await db()
+      .from("card_values")
+      .upsert(
+        {
+          card_key: input.key,
+          card: input.card,
+          title: input.title,
+          value_usd: input.valueUsd,
+          note: input.note ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "card_key" },
+      );
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function updateCardValueAmount(id: string, valueUsd: number): Promise<string | null> {
+  try {
+    const { error } = await db()
+      .from("card_values")
+      .update({ value_usd: valueUsd, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function deleteCardValue(id: string): Promise<string | null> {
+  try {
+    const { error } = await db().from("card_values").delete().eq("id", id);
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+// ---------- Saved searches ----------
+
+export interface SavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  market: "EBAY_US" | "EBAY_AU";
+  category: "sportsCards" | "pokemon";
+  format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
+  maxPrice: number | null;
+  active: boolean;
+  lastRunAt: string | null;
+  lastRunStatus: string | null;
+}
+
+function mapSearch(r: Record<string, unknown>): SavedSearch {
+  const fmt = String(r.format);
+  return {
+    id: String(r.id),
+    name: String(r.name),
+    query: String(r.query),
+    market: r.market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
+    category: r.category === "pokemon" ? "pokemon" : "sportsCards",
+    format: fmt === "ALL" || fmt === "AUCTION" || fmt === "BEST_OFFER" ? fmt : "FIXED_PRICE",
+    maxPrice: numOrNull(r.max_price),
+    active: Boolean(r.active),
+    lastRunAt: r.last_run_at ? String(r.last_run_at) : null,
+    lastRunStatus: r.last_run_status ? String(r.last_run_status) : null,
+  };
+}
+
+export async function listSavedSearches(): Promise<DbResult<SavedSearch[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("saved_searches").select("*").order("created_at", { ascending: true });
+    if (error) throw error;
+    return { error: null, data: (data ?? []).map((r) => mapSearch(r)) };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}
+
+export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" | "lastRunStatus" | "active">): Promise<string | null> {
+  try {
+    const { error } = await db().from("saved_searches").insert({
+      name: s.name,
+      query: s.query,
+      market: s.market,
+      category: s.category,
+      format: s.format,
+      max_price: s.maxPrice,
+      active: true,
+    });
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function setSavedSearchActive(id: string, active: boolean): Promise<string | null> {
+  try {
+    const { error } = await db().from("saved_searches").update({ active }).eq("id", id);
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function deleteSavedSearch(id: string): Promise<string | null> {
+  try {
+    const { error } = await db().from("saved_searches").delete().eq("id", id);
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function markSearchRun(id: string, status: string): Promise<void> {
+  try {
+    await db().from("saved_searches").update({ last_run_at: new Date().toISOString(), last_run_status: status }).eq("id", id);
+  } catch {
+    // non-fatal
+  }
+}
+
+// ---------- Scan hits & runs ----------
+
+export interface StoredHit extends ScanHit {
+  id: string;
+  createdAt: string;
+  searchId: string;
+  alerted: boolean;
+}
+
+export async function existingItemIds(searchId: string, itemIds: string[]): Promise<Set<string>> {
+  if (itemIds.length === 0) return new Set();
+  const { data, error } = await db().from("scan_hits").select("item_id").eq("search_id", searchId).in("item_id", itemIds);
+  if (error) throw error;
+  return new Set((data ?? []).map((r) => String(r.item_id)));
+}
+
+export async function insertHits(searchId: string, hits: (ScanHit & { alerted: boolean })[]): Promise<void> {
+  if (hits.length === 0) return;
+  const { error } = await db()
+    .from("scan_hits")
+    .upsert(
+      hits.map((h) => ({
+        search_id: searchId,
+        item_id: h.itemId,
+        title: h.title,
+        url: h.url,
+        image_url: h.imageUrl,
+        is_auction: h.isAuction,
+        ends_at: h.endsAt,
+        price_usd: h.priceUsd,
+        shipping_usd: h.shippingUsd,
+        card_key: h.cardKey,
+        value_usd: h.valueUsd,
+        net_profit_usd: h.netProfitUsd,
+        roi_percent: h.roiPercent,
+        max_price_usd: h.maxPriceUsd,
+        meets_criteria: h.meetsCriteria,
+        alerted: h.alerted,
+      })),
+      { onConflict: "search_id,item_id", ignoreDuplicates: true },
+    );
+  if (error) throw error;
+}
+
+export async function listRecentHits(limit = 60, onlyDeals = false): Promise<DbResult<StoredHit[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    let q = db().from("scan_hits").select("*").order("created_at", { ascending: false }).limit(limit);
+    if (onlyDeals) q = q.eq("meets_criteria", true);
+    const { data, error } = await q;
+    if (error) throw error;
+    return {
+      error: null,
+      data: (data ?? []).map((r) => ({
+        id: String(r.id),
+        createdAt: String(r.created_at),
+        searchId: String(r.search_id),
+        alerted: Boolean(r.alerted),
+        itemId: String(r.item_id),
+        title: String(r.title),
+        url: String(r.url),
+        imageUrl: r.image_url ? String(r.image_url) : null,
+        isAuction: Boolean(r.is_auction),
+        endsAt: r.ends_at ? String(r.ends_at) : null,
+        priceUsd: numOrNull(r.price_usd),
+        shippingUsd: num(r.shipping_usd ?? 0),
+        cardKey: r.card_key ? String(r.card_key) : null,
+        valueUsd: numOrNull(r.value_usd),
+        valueTitle: null,
+        netProfitUsd: numOrNull(r.net_profit_usd),
+        roiPercent: numOrNull(r.roi_percent),
+        maxPriceUsd: numOrNull(r.max_price_usd),
+        meetsCriteria: Boolean(r.meets_criteria),
+      })),
+    };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}
+
+export interface ScanRun {
+  createdAt: string;
+  trigger: string;
+  searches: number;
+  newListings: number;
+  deals: number;
+  emailed: number;
+  error: string | null;
+}
+
+export async function recordScanRun(r: Omit<ScanRun, "createdAt">): Promise<void> {
+  try {
+    await db().from("scan_runs").insert({
+      trigger: r.trigger,
+      searches: r.searches,
+      new_listings: r.newListings,
+      deals: r.deals,
+      emailed: r.emailed,
+      error: r.error,
+    });
+  } catch {
+    // non-fatal
+  }
+}
+
+export async function lastScanRuns(limit = 5): Promise<DbResult<ScanRun[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("scan_runs").select("*").order("created_at", { ascending: false }).limit(limit);
+    if (error) throw error;
+    return {
+      error: null,
+      data: (data ?? []).map((r) => ({
+        createdAt: String(r.created_at),
+        trigger: String(r.trigger),
+        searches: num(r.searches),
+        newListings: num(r.new_listings),
+        deals: num(r.deals),
+        emailed: num(r.emailed),
+        error: r.error ? String(r.error) : null,
+      })),
+    };
+  } catch (e) {
+    return { data: [], error: message(e) };
   }
 }

@@ -9,6 +9,7 @@ import {
   IconRadar,
   IconSearch,
   IconSettings,
+  IconTag,
   IconTrophy,
 } from "./Icons";
 
@@ -18,6 +19,7 @@ const NAV = [
   { href: "/analyse", label: "Manual Scanner", short: "Analyse", Icon: IconSearch },
   { href: "/deals", label: "Top Deals", Icon: IconTrophy },
   { href: "/watchlist", label: "Watchlist", Icon: IconEye },
+  { href: "/values", label: "Card Values", short: "Values", Icon: IconTag },
   { href: "/portfolio", label: "Portfolio", Icon: IconBriefcase },
   { href: "/settings", label: "Settings", Icon: IconSettings },
 ];
@@ -69,7 +71,7 @@ export default function Nav() {
           })}
         </nav>
         <div className="mt-auto rounded-lg border border-warn/30 bg-warn-soft px-3 py-2.5 text-xs leading-relaxed text-warn">
-          Phase 3 · Live eBay listings + your saved data. Top Deals are still demo data until sold prices are connected.
+          Phase 4 · Saved searches are scanned against your Card Values. Top Deals are still demo data until sold prices are connected.
         </div>
       </aside>
 

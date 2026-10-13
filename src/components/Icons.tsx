@@ -52,6 +52,12 @@ export const IconEye = (p: IconProps) => (
     <circle cx="12" cy="12" r="3" />
   </Svg>
 );
+export const IconTag = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9Z" />
+    <circle cx="8" cy="8" r="1.5" />
+  </Svg>
+);
 export const IconBriefcase = (p: IconProps) => (
   <Svg {...p}>
     <rect x="3" y="7" width="18" height="13" rx="2" />

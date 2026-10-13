@@ -67,11 +67,19 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [ ] Live FX rate
 - [ ] Rate-limit handling, retries, error states
 
-## Phase 4 — Automatic scanning
-- [ ] Saved searches stored in DB
-- [ ] Scheduled job (Vercel Cron) → search → de-duplicate → value → score → save
-- [ ] Alerts (email first)
-- [ ] Mark scanner as "Running" only after an end-to-end test with real data
+## Phase 4 — Automatic scanning 🟡 (code complete 13 Oct 2026; awaiting setup + first real scheduled run)
+- [x] Card Values book (`card_values`): your value per exact card; normalised card key (`src/lib/cardKey.ts`) — parallel/grade/print run must match, incomplete cards never match
+- [x] Values auto-fill expected resale in Analyse; "Remember this resale" checkbox when saving to watchlist; /values page (add, update, remove, age shown)
+- [x] Live search shows profit/ROI + "meets your rules" for valued cards; "Save search" from any search
+- [x] Saved searches (`saved_searches`) with pause/resume/remove; "Scan now" button
+- [x] Scan engine (`src/data/scanner.ts`, `src/lib/scan.ts`): eBay → de-duplicate per search (`scan_hits` unique) → value → score → save; run log (`scan_runs`)
+- [x] Alerts: email via Resend for new listings meeting your rules; auctions only within 24h of ending; max 15 per email
+- [x] `/api/cron/scan` protected by CRON_SECRET (401 otherwise; closed if unset); excluded from password middleware
+- [x] Schedule: GitHub Actions every 3h (`.github/workflows/scan.yml`) + Vercel daily cron backup (Hobby plan only allows daily)
+- [x] Scanner shows "running" only if a *scheduled* scan ran in the last 4h — manual scans don't count
+- [x] 61 unit tests + e2e (values, prefill, saved searches, scan, dedupe, email, pause, cron auth, middleware)
+- [ ] Run Phase 4 SQL in Supabase; add CRON_SECRET (Vercel + GitHub secret), RESEND_API_KEY, ALERT_EMAIL; add `workflow` scope to GitHub token; deploy
+- [ ] Confirm first real scheduled run + first real alert email
 
 ## Phase 5 — Advanced
 - [ ] AI image analysis (suggest identity for user confirmation)

@@ -1,0 +1,24 @@
+# Runs CardScout's automatic scan every 3 hours (free GitHub Actions).
+# Needs a repository secret called CRON_SECRET with the same value as in Vercel.
+name: CardScout scan
+
+on:
+  schedule:
+    - cron: "17 */3 * * *" # every 3 hours (UTC), at :17 past to avoid busy times
+  workflow_dispatch: {} # lets you run it by hand from the Actions tab
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger scan
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          status=$(curl -s -o response.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://cardscout-ai.vercel.app/api/cron/scan?source=github")
+          cat response.json
+          echo
+          test "$status" = "200"

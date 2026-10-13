@@ -241,3 +241,53 @@ export function parseSettingsForm(fd: FormData): Parsed<Settings> {
   out.inboundShippingFixedUsd = fixed.value ?? 0;
   return { ok: true, value: out as Settings };
 }
+
+// ---------- Card values & saved searches ----------
+
+export interface CardValueInput {
+  card: CardIdentity;
+  title: string;
+  valueUsd: number;
+  note: string | null;
+}
+
+export function parseCardValueForm(fd: FormData, usdToAud: number): Parsed<CardValueInput> {
+  const card = parseCard(fd);
+  if (!card.ok) return card;
+  const value = money(fd, "value", "Value", usdToAud);
+  if (!value.ok) return value;
+  if (!value.value) return { ok: false, error: "Value must be more than 0." };
+  return {
+    ok: true,
+    value: { card: card.value, title: cardDescription(card.value), valueUsd: value.value, note: str(fd, "note").slice(0, 300) || null },
+  };
+}
+
+export interface SavedSearchInput {
+  name: string;
+  query: string;
+  market: "EBAY_US" | "EBAY_AU";
+  category: "sportsCards" | "pokemon";
+  format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
+  maxPrice: number | null;
+}
+
+export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {
+  const query = str(fd, "q");
+  if (query.length < 3) return { ok: false, error: "Search words must be at least 3 characters." };
+  if (query.length > 120) return { ok: false, error: "Search words are too long." };
+  const max = parseNumber(str(fd, "max"), "Max price", { optional: true, min: 1, max: 1_000_000 });
+  if (!max.ok) return max;
+  const fmt = str(fd, "format");
+  return {
+    ok: true,
+    value: {
+      name: (str(fd, "name") || query).slice(0, 80),
+      query,
+      market: str(fd, "market") === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
+      category: str(fd, "category") === "pokemon" ? "pokemon" : "sportsCards",
+      format: fmt === "ALL" || fmt === "AUCTION" || fmt === "BEST_OFFER" ? fmt : "FIXED_PRICE",
+      maxPrice: max.value,
+    },
+  };
+}

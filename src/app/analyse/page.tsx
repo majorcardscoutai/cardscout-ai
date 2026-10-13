@@ -3,7 +3,9 @@ import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/Form
 import { IconAlert } from "@/components/Icons";
 import ManualAnalysis, { type ManualPrefill } from "@/components/ManualAnalysis";
 import { Money, PageHeader, Panel, Tag } from "@/components/ui";
+import { cardValueMap } from "@/data/db";
 import { loadSettings } from "@/data/source";
+import { cardKey } from "@/lib/cardKey";
 import { ebayConfigured, getListing, toUsd, type EbayListing, type Marketplace } from "@/lib/ebay/client";
 import { cardFromListing, type CardSuggestion } from "@/lib/ebay/parse";
 
@@ -40,6 +42,8 @@ export default async function ManualScannerPage({
     if (r.ok) {
       listing = r.data;
       suggestion = cardFromListing(listing.title, listing.aspects);
+      const key = cardKey(suggestion.card);
+      const known = key ? (await cardValueMap()).map.get(key) : undefined;
       const askingUsd = toUsd(listing.price, fx);
       if (listing.price && askingUsd === null) {
         listingError = `This listing is priced in ${listing.price.currency}. Only US$ and A$ listings are supported for now.`;
@@ -49,6 +53,10 @@ export default async function ManualScannerPage({
         askingUsd,
         shippingUsd: settings.inboundShippingMode === "fixed" ? settings.inboundShippingFixedUsd : toUsd(listing.shipping, fx),
         url: listing.url,
+        resaleUsd: known?.valueUsd ?? null,
+        resaleSource: known
+          ? `Your value for this card (saved ${new Date(known.updatedAt).toLocaleDateString("en-AU")})`
+          : undefined,
         note: listing.isAuction ? `Auction · current bid${listing.bidCount !== null ? ` · ${listing.bidCount} bids` : ""}` : "",
       };
     } else {

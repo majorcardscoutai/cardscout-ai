@@ -18,6 +18,8 @@ export interface ManualPrefill {
   shippingUsd?: number | null;
   url?: string;
   note?: string;
+  resaleUsd?: number | null;
+  resaleSource?: string; // e.g. "Your value for … (saved 13 Oct)"
 }
 
 export default function ManualAnalysis({ settings, prefill }: { settings: Settings; prefill?: ManualPrefill }) {
@@ -28,7 +30,9 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
   const [shipping, setShipping] = useState(
     prefill?.shippingUsd !== undefined && prefill?.shippingUsd !== null ? String(prefill.shippingUsd) : "",
   );
-  const [resale, setResale] = useState("");
+  const [resale, setResale] = useState(
+    prefill?.resaleUsd !== undefined && prefill?.resaleUsd !== null ? String(prefill.resaleUsd) : "",
+  );
 
   const toUsd = (v: string): number | null => {
     if (v.trim() === "") return null;
@@ -74,7 +78,7 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
           <Field label={`Shipping to you (${sym})`}>
             <input name="shipping" inputMode="decimal" value={shipping} onChange={(e) => setShipping(e.target.value)} className={inputCls} />
           </Field>
-          <Field label={`Expected resale (${sym})`} hint="Your estimate from recent sold listings">
+          <Field label={`Expected resale (${sym})`} hint={prefill?.resaleSource ?? "Your estimate from recent sold listings"}>
             <input name="resale" inputMode="decimal" value={resale} onChange={(e) => setResale(e.target.value)} className={inputCls} />
           </Field>
           <Field label={`Your target price (${sym})`} hint="Optional">
@@ -144,7 +148,11 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
         )}
       </section>
 
-      <div className="flex justify-end">
+      <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <input type="checkbox" name="rememberValue" defaultChecked className="h-4 w-4 accent-gain" />
+          Remember this resale as my value for this exact card
+        </label>
         <SubmitButton>Save to watchlist</SubmitButton>
       </div>
     </form>
