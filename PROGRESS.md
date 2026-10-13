@@ -78,8 +78,11 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [x] Schedule: GitHub Actions every 3h (`.github/workflows/scan.yml`) + Vercel daily cron backup (Hobby plan only allows daily)
 - [x] Scanner shows "running" only if a *scheduled* scan ran in the last 4h — manual scans don't count
 - [x] 61 unit tests + e2e (values, prefill, saved searches, scan, dedupe, email, pause, cron auth, middleware)
-- [ ] Run Phase 4 SQL in Supabase; add CRON_SECRET (Vercel + GitHub secret), RESEND_API_KEY, ALERT_EMAIL; add `workflow` scope to GitHub token; deploy
-- [ ] Confirm first real scheduled run + first real alert email
+- [x] Phase 4 tables created in Supabase; CRON_SECRET (Vercel + GitHub secret), RESEND_API_KEY, ALERT_EMAIL added; token given `workflow` scope; deployed
+- [x] First real manual scan (13 Oct 2026): saved search "shohei ohtani bowman" → 50 new listings stored, 0 deals (broad search; few cards valued yet)
+- [x] First scheduled run via GitHub Actions (manual "Run workflow") — Success, 13 s, 13 Oct 2026. Runner pinned to ubuntu-24.04 (ubuntu-latest moves to 26 on 19 Oct)
+- [x] Scan results re-priced on display with current Card Values + Settings (`revalueHit`) — values added after a scan now count; deals filter and Overview count use the re-priced results; "card details unclear" shown separately from "no value saved"; Overview status lines updated. 64 unit tests + e2e
+- [ ] First real alert email (needs a valued card to appear in a scan)
 
 ## Phase 5 — Advanced
 - [ ] AI image analysis (suggest identity for user confirmation)

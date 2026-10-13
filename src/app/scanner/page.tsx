@@ -7,7 +7,7 @@ import { cardValueMap, lastScanRuns, listRecentHits, listSavedSearches } from "@
 import { getSettings } from "@/data/source";
 import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/client";
 import { emailConfigured } from "@/lib/email";
-import { evaluateListing } from "@/lib/scan";
+import { evaluateListing, revalueHit } from "@/lib/scan";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -67,9 +67,14 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
     search && connected ? searchListings(search) : Promise.resolve(null),
     cardValueMap(),
     listSavedSearches(),
-    listRecentHits(60, onlyDeals),
+    listRecentHits(400),
     lastScanRuns(5),
   ]);
+
+  // Results are re-priced with TODAY's values + settings, so a value added after a scan counts straight away.
+  const revalued = hits.data.map((h) => revalueHit(h, settings, values.map));
+  const shownHits = (onlyDeals ? revalued.filter((h) => h.meetsCriteria) : revalued).slice(0, 60);
+  const dealCount = revalued.filter((h) => h.meetsCriteria).length;
 
   const lastScheduled = runs.data.find((r) => r.trigger === "schedule" || r.trigger === "daily") ?? null;
   const scheduleHealthy = lastScheduled !== null && Date.now() - new Date(lastScheduled.createdAt).getTime() < 4 * 3_600_000;
@@ -300,15 +305,24 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
         className="mt-6"
         right={
           <Link href={onlyDeals ? "/scanner" : "/scanner?deals=1"} className="text-xs text-accent hover:underline">
-            {onlyDeals ? "Show all" : "Show deals only"}
+            {onlyDeals ? "Show all" : `Show deals only (${dealCount})`}
           </Link>
         }
       >
-        {hits.data.length === 0 ? (
-          <p className="text-sm text-muted">No scan results yet. Save a search, then click Scan now.</p>
+        <p className="mb-3 text-xs text-faint">
+          Profit and &ldquo;Deal&rdquo; are recalculated with your current Card Values and Settings each time this page opens. Older
+          listings may have sold since they were found.
+        </p>
+        <DbError error={hits.error} />
+        {shownHits.length === 0 ? (
+          <p className="text-sm text-muted">
+            {onlyDeals
+              ? "No found listings meet your rules with your current Card Values."
+              : "No scan results yet. Save a search, then click Scan now."}
+          </p>
         ) : (
           <ul className="divide-y divide-line">
-            {hits.data.map((h) => (
+            {shownHits.map((h) => (
               <li key={h.id} className="flex items-center gap-3 py-3">
                 {h.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -326,7 +340,14 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                     {h.isAuction && <Tag tone="warn">Auction{endsIn(h.endsAt) ? ` · ${endsIn(h.endsAt)}` : ""}</Tag>}
                     {h.meetsCriteria && <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Deal</span>}
                     {h.alerted && <Tag>Emailed</Tag>}
-                    {h.valueUsd === null && <span>· no value saved</span>}
+                    {h.valueUsd === null &&
+                      (h.cardKey ? (
+                        <span>· no value saved for this card</span>
+                      ) : (
+                        <span title="The listing doesn't state every detail needed to match exactly (year, set, number, parallel, grade)">
+                          · card details unclear — use Analyse
+                        </span>
+                      ))}
                   </div>
                 </div>
                 <div className="text-right">

@@ -12,21 +12,28 @@ import {
   StatCard,
   StatusRow,
 } from "@/components/ui";
-import { lastScanRuns, listRecentHits } from "@/data/db";
+import { cardValueMap, lastScanRuns, listRecentHits } from "@/data/db";
+import { ebayConfigured } from "@/lib/ebay/client";
+import { revalueHit } from "@/lib/scan";
 import { getAssessments, listHoldings, listWatchlist, loadSettings } from "@/data/source";
 
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [{ settings, source, error: settingsError }, watch, hold, deals, runs] = await Promise.all([
+  const [{ settings, source, error: settingsError }, watch, hold, hits, runs, values] = await Promise.all([
     loadSettings(),
     listWatchlist(),
     listHoldings(),
-    listRecentHits(100, true),
+    listRecentHits(400),
     lastScanRuns(1),
+    cardValueMap(),
   ]);
   const weekAgo = Date.now() - 7 * 86_400_000;
-  const dealsThisWeek = deals.data.filter((d) => new Date(d.createdAt).getTime() > weekAgo).length;
+  // Re-priced with today's Card Values, so values added after a scan count.
+  const dealsThisWeek = hits.data
+    .filter((h) => new Date(h.createdAt).getTime() > weekAgo)
+    .map((h) => revalueHit(h, settings, values.map))
+    .filter((h) => h.meetsCriteria).length;
   const lastRun = runs.data[0] ?? null;
   const fx = settings.usdToAud;
   const assessments = getAssessments(settings);
@@ -41,8 +48,8 @@ export default async function OverviewPage() {
         subtitle="Listings are only flagged when verified sold data supports the price and the numbers clear your ROI and profit rules."
       />
       <DemoBanner>
-        Opportunities below are demonstration listings until real eBay and sold-price data is connected in Phase 3.
-        Your watchlist, portfolio and settings are real and saved.
+        &ldquo;Best opportunities&rdquo; below are demonstration listings until automatic sold prices are connected. Scan
+        results, Card Values, watchlist, portfolio and settings are real.
       </DemoBanner>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -97,8 +104,16 @@ export default async function OverviewPage() {
               status={dbOk ? "ok" : "off"}
               detail={dbOk ? "Supabase · settings, watchlist, portfolio" : (settingsError ?? watch.error ?? hold.error ?? "Not connected")}
             />
-            <StatusRow label="Listing data" status="demo" detail="eBay Browse API arrives in Phase 3" />
-            <StatusRow label="Sold-price data" status="demo" detail="PriceCharting / eBay in Phase 3" />
+            <StatusRow
+              label="Listing data"
+              status={ebayConfigured() ? "ok" : "off"}
+              detail={ebayConfigured() ? "eBay Browse API · live" : "Needs eBay keys"}
+            />
+            <StatusRow
+              label="Card values"
+              status={values.map.size > 0 ? "ok" : "off"}
+              detail={`${values.map.size} saved by you · automatic sold prices not connected yet`}
+            />
             <StatusRow label="Population data" status="off" detail="Shown as missing — never estimated" />
             <StatusRow
               label="Automatic scanning"

@@ -77,6 +77,28 @@ export function evaluateListing(l: EbayListing, settings: Settings, values: Map<
   };
 }
 
+/**
+ * Re-price a hit that was saved earlier, using TODAY's Card Values and Settings.
+ * Scan results are stored once, when first found — so a value you add later
+ * (or a settings change) must be applied when the results are shown.
+ */
+export function revalueHit<T extends ScanHit>(h: T, settings: Settings, values: Map<string, CardValue>): T {
+  const v = h.cardKey ? values.get(h.cardKey) ?? null : null;
+  const shippingUsd = settings.inboundShippingMode === "fixed" ? settings.inboundShippingFixedUsd : h.shippingUsd;
+  const base = { ...h, shippingUsd, valueUsd: null, valueTitle: null, netProfitUsd: null, roiPercent: null, maxPriceUsd: null, meetsCriteria: false };
+  if (!v || h.priceUsd === null) return base;
+  const p = calculateProfit({ purchasePriceUsd: h.priceUsd, buyerShippingUsd: shippingUsd, expectedResaleUsd: v.valueUsd, settings });
+  return {
+    ...base,
+    valueUsd: v.valueUsd,
+    valueTitle: v.title,
+    netProfitUsd: p.netProfitUsd,
+    roiPercent: p.roiPercent,
+    maxPriceUsd: maxPurchasePrice(v.valueUsd, shippingUsd, settings),
+    meetsCriteria: p.roiPercent >= settings.minRoiPercent && p.netProfitUsd >= settings.minProfitUsd,
+  };
+}
+
 /** Should this hit trigger an alert? Auctions only when ending within 24 hours (early bids are meaningless). */
 export function shouldAlert(h: ScanHit, now = new Date()): boolean {
   if (!h.meetsCriteria) return false;

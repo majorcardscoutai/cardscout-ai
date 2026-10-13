@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cardKey } from "../src/lib/cardKey";
-import { evaluateListing, shouldAlert, type CardValue } from "../src/lib/scan";
+import { evaluateListing, revalueHit, shouldAlert, type CardValue } from "../src/lib/scan";
 import { DEFAULT_SETTINGS } from "../src/lib/config";
 import type { EbayListing } from "../src/lib/ebay/client";
 import type { CardIdentity } from "../src/lib/types";
@@ -96,4 +96,35 @@ test("alerts: fixed price when it meets criteria; auctions only in their last 24
   assert.equal(shouldAlert(ending, now), true);
   const noValue = evaluateListing(listing({ aspects: [] , title: "random card lot"}), s, values);
   assert.equal(shouldAlert(noValue, now), false);
+});
+
+test("revalueHit applies a value added after the scan", () => {
+  const found = evaluateListing(listing(), DEFAULT_SETTINGS, new Map()); // scanned before any value existed
+  assert.equal(found.valueUsd, null);
+  assert.equal(found.meetsCriteria, false);
+  const now = revalueHit(found, DEFAULT_SETTINGS, values);
+  const fresh = evaluateListing(listing(), DEFAULT_SETTINGS, values);
+  assert.equal(now.valueUsd, 400);
+  assert.equal(now.netProfitUsd, fresh.netProfitUsd);
+  assert.equal(now.roiPercent, fresh.roiPercent);
+  assert.equal(now.maxPriceUsd, fresh.maxPriceUsd);
+  assert.equal(now.meetsCriteria, fresh.meetsCriteria);
+});
+
+test("revalueHit drops a value that was removed and follows parcel-locker shipping", () => {
+  const found = evaluateListing(listing(), DEFAULT_SETTINGS, values);
+  assert.ok(found.valueUsd !== null);
+  const removed = revalueHit(found, DEFAULT_SETTINGS, new Map());
+  assert.equal(removed.valueUsd, null);
+  assert.equal(removed.netProfitUsd, null);
+  assert.equal(removed.meetsCriteria, false);
+  const locker = { ...DEFAULT_SETTINGS, inboundShippingMode: "fixed" as const, inboundShippingFixedUsd: 0 };
+  const r = revalueHit(found, locker, values);
+  assert.equal(r.shippingUsd, 0);
+  assert.ok(r.netProfitUsd! > found.netProfitUsd!, "free shipping raises profit");
+});
+
+test("revalueHit never matches a listing with unclear card details", () => {
+  const unclear = { ...evaluateListing(listing(), DEFAULT_SETTINGS, values), cardKey: null };
+  assert.equal(revalueHit(unclear, DEFAULT_SETTINGS, values).valueUsd, null);
 });
