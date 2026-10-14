@@ -140,6 +140,7 @@ Add both to Vercel → Settings → Environment Variables (Production), then red
 - Changed: app name, logo (CH), Home Screen icons/manifest, emails, push notifications, Instagram launch images (@CARDHAWK.AI).
 - Not changed yet (on purpose): GitHub repo, local folder, Vercel URL (cardscout-ai.vercel.app), package name — rename alongside buying the domain so the scheduled scan isn't broken.
 - [ ] Check CardHawk: domains (cardhawk.com.au / cardhawkai.com.au / .au / .com), Instagram handle, trade marks (IP Australia, USPTO, WIPO)
+- [x] Logo: Option A (hawk, wings spread, gripping a card marked $) — in-app logo (src/components/HawkLogo.tsx), Home Screen/app icons, Instagram posts + profile picture — 14 Oct 2026
 - [ ] Later: move to own domain; rename Vercel project/repo; update APP_URL + scan.yml URL
 
 ## Phase 5 — Advanced

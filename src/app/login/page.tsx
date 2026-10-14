@@ -1,5 +1,6 @@
 import { safeNextPath } from "@/lib/auth";
 import { login } from "./actions";
+import HawkLogo from "@/components/HawkLogo";
 
 export const metadata = { title: "Sign in · CardHawk AI" };
 
@@ -21,9 +22,7 @@ export default async function LoginPage({
     <div className="fixed inset-0 z-50 grid place-items-center bg-bg px-4">
       <form action={login} className="w-full max-w-sm rounded-2xl border border-line bg-panel p-6">
         <div className="mb-6 flex items-center gap-2.5">
-          <div className="grid h-9 w-9 place-items-center rounded-lg bg-gain/15 ring-1 ring-gain/40">
-            <span className="num text-sm font-bold text-gain">CH</span>
-          </div>
+          <HawkLogo framed className="h-12 w-12 shrink-0" />
           <div>
             <div className="font-semibold">CardHawk AI</div>
             <div className="text-xs text-faint">Private — sign in to continue</div>

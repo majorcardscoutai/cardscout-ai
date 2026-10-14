@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import HawkLogo from "@/components/HawkLogo";
 import {
   IconBriefcase,
   IconEye,
@@ -31,9 +32,7 @@ function isActive(pathname: string, href: string) {
 function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="grid h-8 w-8 place-items-center rounded-lg bg-gain/15 ring-1 ring-gain/40">
-        <span className="num text-sm font-bold text-gain">CH</span>
-      </div>
+      <HawkLogo framed className="h-10 w-10 shrink-0" />
       <div className="leading-tight">
         <div className="text-[15px] font-semibold tracking-tight">CardHawk AI</div>
         <div className="text-[11px] text-faint">Private deal desk</div>
