@@ -18,6 +18,7 @@ import {
   deleteSavedSearch,
   insertSavedSearch,
   setSavedSearchActive,
+  setSavedSearchExclude,
   updateCardValueAmount,
   updateHolding,
   updateWatchlist,
@@ -26,6 +27,7 @@ import {
 } from "@/data/db";
 import { runAllScans } from "@/data/scanner";
 import { cardKey } from "@/lib/cardKey";
+import { excludeWordsText, parseExcludeWords } from "@/lib/exclude";
 import { itemIdFromUrl } from "@/lib/ebay/parse";
 import {
   parseCardValueForm,
@@ -188,9 +190,23 @@ export async function addSavedSearchAction(formData: FormData) {
   const parsed = parseSavedSearchForm(formData);
   if (!parsed.ok) back("/scanner", "error", parsed.error);
   const error = await insertSavedSearch(parsed.value);
+  if (error && /exclude_words/.test(error))
+    back("/scanner", "error", "Exclude words need a one-time database update — run the Phase 5 SQL in Supabase (see PROGRESS.md), then save again.");
   if (error) back("/scanner", "error", `Couldn't save: ${error}`);
   revalidatePath("/", "layout");
   back("/scanner", "saved", `Saved search "${parsed.value.name}". It will be checked on every scan.`);
+}
+
+export async function updateSavedSearchExcludeAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!UUID.test(id)) back("/scanner", "error", "Invalid item.");
+  const words = excludeWordsText(parseExcludeWords(String(formData.get("x") ?? "")));
+  const error = await setSavedSearchExclude(id, words);
+  if (error && /exclude_words/.test(error))
+    back("/scanner", "error", "Exclude words need a one-time database update — run the Phase 5 SQL in Supabase (see PROGRESS.md), then try again.");
+  if (error) back("/scanner", "error", `Couldn't update: ${error}`);
+  revalidatePath("/", "layout");
+  back("/scanner", "saved", words ? `Now hiding listings containing: ${words}.` : "Exclude words cleared.");
 }
 
 export async function toggleSavedSearchAction(formData: FormData) {
@@ -219,6 +235,6 @@ export async function scanNowAction() {
   back(
     "/scanner",
     "saved",
-    `Scan done: ${r.searches} search${r.searches === 1 ? "" : "es"}, ${r.newListings} new listing${r.newListings === 1 ? "" : "s"}, ${r.deals} deal${r.deals === 1 ? "" : "s"}${r.emailed ? `, ${r.emailed} emailed` : ""}.`,
+    `Scan done: ${r.searches} search${r.searches === 1 ? "" : "es"}, ${r.newListings} new listing${r.newListings === 1 ? "" : "s"}, ${r.deals} deal${r.deals === 1 ? "" : "s"}${r.emailed ? `, ${r.emailed} emailed` : ""}${r.pushed ? `, sent to ${r.pushed} phone${r.pushed === 1 ? "" : "s"}` : ""}.`,
   );
 }

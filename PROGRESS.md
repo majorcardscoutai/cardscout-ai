@@ -101,7 +101,39 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [x] "Add value" on scan + live-search results → Card Values form prefilled from the title (missing fields listed, never guessed), returns to the Scanner after saving — 14 Oct 2026
 - [x] Fix: "Add value" on a listing with an unclear title now links that listing to the card you confirm (scan_hits.card_key), so it gets priced — previously the value saved but the listing couldn't match. 68 unit tests + e2e — 14 Oct 2026
 - [x] Auction filter: auctions with >24h left hidden from scan results and the Overview deal count (toggle "Show them"); ended auctions dropped — 14 Oct 2026. 67 unit tests + e2e
-- [x] Live FX rate: USD→AUD from Frankfurter (ECB reference rates, free, no key), cached 6h; sanity-checked (0.8–3); Settings rate kept as backup when unavailable; shown on Overview + Settings. 71 unit tests + e2e — 14 Oct 2026
+- [x] Live FX rate: USD→AUD from Frankfurter (ECB reference rates, free, no key), cached 6h; sanity-checked (0.8–3); Settings rate kept as backup when unavailable; shown on Overview + Settings. 71 unit tests + e2e. Deployed and verified live — 14 Oct 2026
+
+### Update 14 Oct 2026 — Top Deals, exclude words, phone notifications
+- [x] Top Deals is real: live scan deals re-priced with today's values/settings/FX, ranked (profit, ROI, newest, price), de-duplicated across searches; early/ended auctions and excluded titles hidden; "Close to your rules" list (within 15% of max price, shows your max for a Best Offer). Overview shows the best 4 live deals; all demo data removed from Overview/Top Deals (demo deal page retired; scoring engine kept for when sold data arrives)
+- [x] Exclude words per search and per saved search (whole words, case/accents ignored); also hides earlier stored results
+- [x] Phone notifications (Web Push): service worker, app manifest + icons (Home Screen install), Settings → Phone notifications (turn on per device, device list, test button), sent after each scan with the same deals as the email; dead devices removed automatically. Encryption verified byte-for-byte against the RFC 8291 example; VAPID token verified. No new npm packages (Node crypto)
+- 78 unit tests + e2e (deals, exclude words, push setup/test/scan alert/cleanup, missing-table message)
+
+**"Phase 5 SQL" (one-time, Supabase → SQL Editor):**
+```sql
+alter table public.saved_searches add column if not exists exclude_words text not null default '';
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  label text,
+  created_at timestamptz not null default now(),
+  last_ok_at timestamptz,
+  last_error text
+);
+alter table public.push_subscriptions enable row level security;
+```
+
+**Notification keys (one-time, on the Mac):**
+```
+node -e "const e=require('crypto').createECDH('prime256v1');e.generateKeys();console.log('VAPID_PUBLIC_KEY='+e.getPublicKey('base64url'));console.log('VAPID_PRIVATE_KEY='+e.getPrivateKey('base64url'))"
+```
+Add both to Vercel → Settings → Environment Variables (Production), then redeploy. Never paste the private key into chat or browser code. If the keys are ever changed, every device must turn notifications on again.
+
+**iPhone:** needs iOS 16.4+. Remove the old CardScout Home Screen icon, open the site in Safari → Share → Add to Home Screen, open it from the new icon → Settings → Turn on notifications → Allow → Send test notification.
+- [ ] Phone notifications verified on Travis's iPhone
+
 
 ## Phase 5 — Advanced
 - [ ] AI image analysis (suggest identity for user confirmation)

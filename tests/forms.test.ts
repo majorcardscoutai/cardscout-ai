@@ -142,3 +142,16 @@ test("login redirect only allows paths inside the app", () => {
   assert.equal(safeNextPath(""), "/");
   assert.equal(safeNextPath("/login"), "/");
 });
+
+test("exclude words: whole words only, case/accents ignored, tidy storage", async () => {
+  const { excludedBy, parseExcludeWords, excludeWordsText } = await import("../src/lib/exclude.js");
+  const w = parseExcludeWords(" Lot,reprint  RP;  lot ,, digital!");
+  assert.deepEqual(w, ["lot", "reprint", "rp", "digital"]);
+  assert.equal(excludeWordsText(w), "lot, reprint, rp, digital");
+  assert.equal(excludedBy("2018 Topps Ohtani RP card", w), "rp");
+  assert.equal(excludedBy("Sharp 2018 Topps Ohtani", w), null, "rp inside a word doesn't count");
+  assert.equal(excludedBy("Lottery Ticket Ohtani", w), null);
+  assert.equal(excludedBy("LOT of 10 Ohtani cards", w), "lot");
+  assert.equal(excludedBy("anything", []), null);
+  assert.equal(parseExcludeWords(Array(30).fill("x").map((x, i) => x + i).join(",")).length, 20);
+});

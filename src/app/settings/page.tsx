@@ -1,8 +1,12 @@
 import { saveSettingsAction } from "@/app/actions";
 import { logout } from "@/app/login/actions";
+import { removeDeviceAction, testPushAction } from "@/app/push-actions";
+import PushSetup from "@/components/PushSetup";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { PageHeader, Panel, Tag } from "@/components/ui";
+import { listPushSubscriptions } from "@/data/db";
 import { loadSettings } from "@/data/source";
+import { vapidPublicKey } from "@/lib/webpush";
 import { DEMAND_TIERS } from "@/lib/config";
 import { CONFIDENCE_CAPS, SCORE_WEIGHTS } from "@/lib/scoring";
 
@@ -16,7 +20,8 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { saved, error } = await searchParams;
-  const { settings: s, source, error: dbError, savedUsdToAud, fx } = await loadSettings();
+  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices] = await Promise.all([loadSettings(), listPushSubscriptions()]);
+  const pushKey = vapidPublicKey();
 
   return (
     <>
@@ -132,6 +137,45 @@ export default async function SettingsPage({
           <p className="mt-3 text-xs text-faint">
             Edit in src/lib/config.ts. Anyone not listed counts as “medium”. This is your judgement, not market data.
           </p>
+        </Panel>
+      </div>
+
+      <div id="alerts" className="scroll-mt-24">
+        <Panel title="Phone notifications" className="mt-6" right={<Tag>{devices.data.length} device{devices.data.length === 1 ? "" : "s"}</Tag>}>
+          <p className="mb-4 text-sm text-muted">
+            Get a notification on your phone when a scan finds a new deal — alongside the email. Turn it on separately on each
+            device you want alerts on.
+          </p>
+          <PushSetup publicKey={pushKey} />
+          {devices.error && !/push_subscriptions/.test(devices.error) && <p className="mt-3 text-xs text-loss">{devices.error}</p>}
+          {devices.error && /push_subscriptions/.test(devices.error) && (
+            <p className="mt-3 text-xs text-warn">Run the Phase 5 SQL in Supabase to finish setting this up (see PROGRESS.md).</p>
+          )}
+          {devices.data.length > 0 && (
+            <>
+              <ul className="mt-5 divide-y divide-line rounded-lg border border-line">
+                {devices.data.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium">{d.label ?? "Device"}</div>
+                      <div className="text-xs text-faint">
+                        Added {new Date(d.createdAt).toLocaleDateString("en-AU")}
+                        {d.lastOkAt ? ` · last delivered ${new Date(d.lastOkAt).toLocaleString("en-AU", { dateStyle: "short", timeStyle: "short" })}` : ""}
+                        {d.lastError ? ` · ⚠ ${d.lastError}` : ""}
+                      </div>
+                    </div>
+                    <form action={removeDeviceAction}>
+                      <input type="hidden" name="id" value={d.id} />
+                      <button className="text-xs text-muted hover:text-loss">Remove</button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+              <form action={testPushAction} className="mt-3">
+                <SubmitButton tone="neutral">Send test notification</SubmitButton>
+              </form>
+            </>
+          )}
         </Panel>
       </div>
 

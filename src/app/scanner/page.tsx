@@ -1,12 +1,20 @@
 import Link from "next/link";
-import { addSavedSearchAction, deleteSavedSearchAction, scanNowAction, toggleSavedSearchAction } from "@/app/actions";
+import {
+  addSavedSearchAction,
+  deleteSavedSearchAction,
+  scanNowAction,
+  toggleSavedSearchAction,
+  updateSavedSearchExcludeAction,
+} from "@/app/actions";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { IconAlert } from "@/components/Icons";
 import { Money, PageHeader, Panel, Pct, StatusRow, Tag } from "@/components/ui";
-import { cardValueMap, lastScanRuns, listRecentHits, listSavedSearches } from "@/data/db";
+import { cardValueMap, lastScanRuns, listPushSubscriptions, listRecentHits, listSavedSearches } from "@/data/db";
+import { pushConfigured } from "@/lib/webpush";
 import { getSettings } from "@/data/source";
 import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/client";
 import { emailConfigured } from "@/lib/email";
+import { excludedBy, excludeWordsText, parseExcludeWords } from "@/lib/exclude";
 import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit } from "@/lib/scan";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +26,7 @@ type Params = {
   category?: string;
   max?: string;
   format?: string;
+  x?: string;
   saved?: string;
   error?: string;
   deals?: string;
@@ -37,6 +46,7 @@ function parseSearch(p: Params): SearchInput | null {
     category: p.category === "pokemon" ? "pokemon" : "sportsCards",
     maxPrice: p.max && Number.isFinite(max) && max > 0 ? max : null,
     format: p.format === "FIXED_PRICE" || p.format === "AUCTION" || p.format === "BEST_OFFER" ? p.format : "ALL",
+    exclude: parseExcludeWords(p.x),
   };
 }
 
@@ -68,20 +78,23 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
   const search = parseSearch(params);
   const onlyDeals = params.deals === "1";
 
-  const [result, values, saved, hits, runs] = await Promise.all([
+  const [result, values, saved, hits, runs, devices] = await Promise.all([
     search && connected ? searchListings(search) : Promise.resolve(null),
     cardValueMap(),
     listSavedSearches(),
     listRecentHits(400),
     lastScanRuns(5),
+    listPushSubscriptions(),
   ]);
 
   // Results are re-priced with TODAY's values + settings, so a value added after a scan counts straight away.
   const now = Date.now();
+  const excludeBySearch = new Map(saved.data.map((x) => [x.id, parseExcludeWords(x.excludeWords)]));
   const showAllAuctions = params.auctions === "all";
   const revalued = hits.data
     .map((h) => revalueHit(h, settings, values.map))
-    .filter((h) => !auctionEnded(h, now)); // ended auctions are gone — never show them
+    .filter((h) => !auctionEnded(h, now)) // ended auctions are gone — never show them
+    .filter((h) => !excludedBy(h.title, excludeBySearch.get(h.searchId) ?? [])); // exclude words apply to earlier results too
   const early = revalued.filter((h) => auctionTooEarly(h, now));
   const visible = showAllAuctions ? revalued : revalued.filter((h) => !auctionTooEarly(h, now));
   const shownHits = (onlyDeals ? visible.filter((h) => h.meetsCriteria) : visible).slice(0, 60);
@@ -148,7 +161,10 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               <option value="ALL">All</option>
             </select>
           </Field>
-          <div className="col-span-2 flex justify-end sm:col-span-6">
+          <Field label="Exclude words" hint="Hide titles containing any of these, e.g. lot, reprint, custom, digital" className="col-span-2 sm:col-span-4">
+            <input name="x" defaultValue={search ? excludeWordsText(search.exclude ?? []) : (params.x ?? "")} placeholder="lot, reprint, custom" maxLength={300} className={inputCls} />
+          </Field>
+          <div className="col-span-2 flex items-end justify-end">
             <SubmitButton tone="neutral">Search newest listings</SubmitButton>
           </div>
         </form>
@@ -176,6 +192,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                 <input type="hidden" name="category" value={search.category} />
                 <input type="hidden" name="format" value={search.format} />
                 <input type="hidden" name="max" value={search.maxPrice ?? ""} />
+                <input type="hidden" name="x" value={excludeWordsText(search.exclude ?? [])} />
                 <Field label="Save this search as" className="flex-1">
                   <input name="name" defaultValue={search.q} maxLength={80} className={inputCls} />
                 </Field>
@@ -243,6 +260,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
             )}
             <p className="mt-3 text-xs text-faint">
               Showing {result.data.items.length} of {result.data.total.toLocaleString("en-AU")} · newest first · source: eBay Browse API
+              {result.data.excluded > 0 ? ` · ${result.data.excluded} hidden by your exclude words` : ""}
             </p>
           </div>
         )}
@@ -276,6 +294,18 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                       “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"} · {FORMAT_LABEL[s.format]}
                       {s.maxPrice ? ` · ≤ ${s.market === "EBAY_AU" ? "A$" : "US$"}${s.maxPrice}` : ""}
                     </div>
+                    <form action={updateSavedSearchExcludeAction} className="mt-1.5 flex items-center gap-2">
+                      <input type="hidden" name="id" value={s.id} />
+                      <input
+                        name="x"
+                        defaultValue={s.excludeWords}
+                        placeholder="Exclude words, e.g. lot, reprint"
+                        aria-label={`Exclude words for ${s.name}`}
+                        maxLength={300}
+                        className="w-56 rounded-md border border-line bg-panel-2 px-2 py-1 text-xs"
+                      />
+                      <button className="text-xs text-accent hover:underline">Save</button>
+                    </form>
                     <div className="text-xs text-faint">
                       Last checked {ago(s.lastRunAt)}
                       {s.lastRunStatus ? ` · ${s.lastRunStatus}` : ""}
@@ -308,6 +338,11 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               detail={lastScheduled ? `Last scheduled scan ${ago(lastScheduled.createdAt)}` : "No scheduled scan has run yet"}
             />
             <StatusRow label="Email alerts" status={emailConfigured() ? "ok" : "off"} detail={emailConfigured() ? "Resend connected" : "Add RESEND_API_KEY + ALERT_EMAIL"} />
+            <StatusRow
+              label="Phone notifications"
+              status={pushConfigured() && devices.data.length > 0 ? "ok" : "off"}
+              detail={!pushConfigured() ? "Add VAPID keys in Vercel" : devices.data.length > 0 ? `${devices.data.length} device${devices.data.length === 1 ? "" : "s"}` : "Turn on in Settings"}
+            />
             <StatusRow label="Card values" status={values.map.size > 0 ? "ok" : "off"} detail={`${values.map.size} saved — needed to spot deals`} />
           </div>
           {runs.data.length > 0 && (

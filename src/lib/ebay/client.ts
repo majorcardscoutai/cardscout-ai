@@ -10,6 +10,7 @@
  * Every function returns { ok: false, error } instead of throwing, so a
  * missing key, an eBay outage or a rate limit shows a clear message.
  */
+import { excludedBy } from "../exclude";
 import type { Aspect } from "./parse";
 
 export type Marketplace = "EBAY_US" | "EBAY_AU";
@@ -228,6 +229,8 @@ export interface SearchInput {
   maxPrice: number | null; // in the marketplace's currency
   format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
   limit?: number;
+  /** Hide listings whose title contains any of these whole words (applied after eBay returns results). */
+  exclude?: string[];
 }
 
 export function buildSearchPath(s: SearchInput): string {
@@ -245,7 +248,9 @@ export function buildSearchPath(s: SearchInput): string {
   return `/buy/browse/v1/item_summary/search?${params.toString()}`;
 }
 
-export async function searchListings(s: SearchInput): Promise<EbayResult<{ total: number; items: EbayListing[] }>> {
+export async function searchListings(
+  s: SearchInput,
+): Promise<EbayResult<{ total: number; items: EbayListing[]; excluded: number }>> {
   if (s.q.trim().length < 3) return { ok: false, error: "Enter at least 3 characters to search." };
   const r = await call<{ total?: number; itemSummaries?: RawItem[] }>(buildSearchPath(s), s.market);
   if (!r.ok) return r;
@@ -253,5 +258,7 @@ export async function searchListings(s: SearchInput): Promise<EbayResult<{ total
   // Remove duplicates (eBay occasionally repeats an item across pages/variations).
   const seen = new Set<string>();
   const unique = items.filter((i) => (seen.has(i.itemId) ? false : (seen.add(i.itemId), true)));
-  return { ok: true, data: { total: r.data.total ?? unique.length, items: unique } };
+  const words = s.exclude ?? [];
+  const kept = words.length ? unique.filter((i) => !excludedBy(i.title, words)) : unique;
+  return { ok: true, data: { total: r.data.total ?? unique.length, items: kept, excluded: unique.length - kept.length } };
 }

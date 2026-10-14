@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   title: "CardScout AI",
   description: "Private trading-card investment analysis",
   robots: { index: false, follow: false }, // private tool — keep out of search engines
+  appleWebApp: { capable: true, title: "CardScout", statusBarStyle: "black-translucent" },
+  icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {

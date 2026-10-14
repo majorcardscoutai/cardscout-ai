@@ -71,7 +71,7 @@ export default function Nav() {
           })}
         </nav>
         <div className="mt-auto rounded-lg border border-warn/30 bg-warn-soft px-3 py-2.5 text-xs leading-relaxed text-warn">
-          Phase 4 · Saved searches are scanned against your Card Values. Top Deals are still demo data until sold prices are connected.
+          Saved searches are scanned every 3 hours against your Card Values. Values are your own estimates until a sold-price source is connected.
         </div>
       </aside>
 
@@ -79,8 +79,8 @@ export default function Nav() {
       <header className="sticky top-0 z-20 border-b border-line bg-bg/95 backdrop-blur md:hidden">
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <Logo />
-          <span className="rounded-full border border-warn/40 bg-warn-soft px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warn">
-            Demo
+          <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-faint">
+            Private
           </span>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-4 pb-3">

@@ -4,6 +4,7 @@ import { cardKey } from "../src/lib/cardKey";
 import { cardFromListing } from "../src/lib/ebay/parse";
 import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit, shouldAlert, type CardValue } from "../src/lib/scan";
 import { DEFAULT_SETTINGS } from "../src/lib/config";
+import { maxPurchasePrice } from "../src/lib/profit";
 import type { EbayListing } from "../src/lib/ebay/client";
 import type { CardIdentity } from "../src/lib/types";
 
@@ -177,4 +178,32 @@ test("a card you confirmed for a listing wins, even when the title is unclear", 
   assert.equal(r.valueUsd, 400);
   // without a value for the confirmed card, nothing is invented
   assert.equal(revalueHit(unclear, DEFAULT_SETTINGS, new Map()).valueUsd, null);
+});
+
+test("pickDeals: live, de-duplicated, excludes applied, near misses found", async () => {
+  const { pickDeals, sortDeals } = await import("../src/lib/deals.js");
+  const now = Date.parse("2026-10-14T00:00:00Z");
+  const mk = (id: string, search: string, price: number, over: Record<string, unknown> = {}) => ({
+    ...evaluateListing(listing({ itemId: id, price: { value: price, currency: "USD" }, shipping: { value: 0, currency: "USD" } }), DEFAULT_SETTINGS, new Map()),
+    id: `row-${id}-${search}`, createdAt: "2026-10-13T00:00:00Z", searchId: search, alerted: false, ...over,
+  });
+  const maxP = maxPurchasePrice(400, 0, DEFAULT_SETTINGS)!;
+  const hits = [
+    mk("1", "s1", 200),
+    mk("1", "s2", 200), // same listing found by a second search → shown once
+    mk("2", "s1", 150, { title: "2018 Topps Update Shohei Ohtani RC #US1 PSA 10 REPRINT" }), // excluded
+    mk("3", "s1", 120, { isAuction: true, endsAt: new Date(now + 72 * 3_600_000).toISOString() }), // too early
+    mk("4", "s1", 100, { isAuction: true, endsAt: new Date(now - 3_600_000).toISOString() }), // ended
+    mk("5", "s1", Math.round(maxP * 1.08)), // valued, just above max
+    mk("6", "s1", Math.round(maxP * 1.5)), // valued, far above max
+  ];
+  const r = pickDeals(hits as any, DEFAULT_SETTINGS, values, [
+    { id: "s1", name: "Ohtani", excludeWords: "reprint" },
+    { id: "s2", name: "Other", excludeWords: "" },
+  ], now);
+  assert.deepEqual(r.deals.map((d: { itemId: string }) => d.itemId), ["1"]);
+  assert.equal(r.deals[0].maxPriceUsd, maxP);
+  assert.deepEqual(r.nearMisses.map((d: { itemId: string }) => d.itemId), ["5"]);
+  assert.equal(r.valuedCount, 3);
+  assert.deepEqual(sortDeals([{ ...r.deals[0], netProfitUsd: 1 }, { ...r.deals[0], netProfitUsd: 9 }] as any, "profit").map((d: any) => d.netProfitUsd), [9, 1]);
 });

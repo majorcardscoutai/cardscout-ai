@@ -378,6 +378,7 @@ export interface SavedSearch {
   category: "sportsCards" | "pokemon";
   format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
   maxPrice: number | null;
+  excludeWords: string;
   active: boolean;
   lastRunAt: string | null;
   lastRunStatus: string | null;
@@ -393,6 +394,7 @@ function mapSearch(r: Record<string, unknown>): SavedSearch {
     category: r.category === "pokemon" ? "pokemon" : "sportsCards",
     format: fmt === "ALL" || fmt === "AUCTION" || fmt === "BEST_OFFER" ? fmt : "FIXED_PRICE",
     maxPrice: numOrNull(r.max_price),
+    excludeWords: typeof r.exclude_words === "string" ? r.exclude_words : "",
     active: Boolean(r.active),
     lastRunAt: r.last_run_at ? String(r.last_run_at) : null,
     lastRunStatus: r.last_run_status ? String(r.last_run_status) : null,
@@ -420,7 +422,18 @@ export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" 
       format: s.format,
       max_price: s.maxPrice,
       active: true,
+      ...(s.excludeWords ? { exclude_words: s.excludeWords } : {}),
     });
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function setSavedSearchExclude(id: string, excludeWords: string): Promise<string | null> {
+  try {
+    const { error } = await db().from("saved_searches").update({ exclude_words: excludeWords }).eq("id", id);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -580,5 +593,78 @@ export async function lastScanRuns(limit = 5): Promise<DbResult<ScanRun[]>> {
     };
   } catch (e) {
     return { data: [], error: message(e) };
+  }
+}
+
+// ---------- Push notification subscriptions (one row per phone/browser) ----------
+
+export interface PushSub {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  label: string | null;
+  createdAt: string;
+  lastOkAt: string | null;
+  lastError: string | null;
+}
+
+export async function listPushSubscriptions(): Promise<DbResult<PushSub[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("push_subscriptions").select("*").order("created_at", { ascending: true });
+    if (error) throw error;
+    return {
+      error: null,
+      data: (data ?? []).map((r: Record<string, unknown>) => ({
+        id: String(r.id),
+        endpoint: String(r.endpoint),
+        p256dh: String(r.p256dh),
+        auth: String(r.auth),
+        label: r.label ? String(r.label) : null,
+        createdAt: String(r.created_at),
+        lastOkAt: r.last_ok_at ? String(r.last_ok_at) : null,
+        lastError: r.last_error ? String(r.last_error) : null,
+      })),
+    };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}
+
+export async function savePushSubscription(s: { endpoint: string; p256dh: string; auth: string; label: string | null }): Promise<string | null> {
+  try {
+    const { error } = await db()
+      .from("push_subscriptions")
+      .upsert({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth, label: s.label, last_error: null }, { onConflict: "endpoint" });
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function deletePushSubscription(by: { id?: string; endpoint?: string }): Promise<string | null> {
+  try {
+    let q = db().from("push_subscriptions").delete();
+    if (by.id) q = q.eq("id", by.id);
+    else if (by.endpoint) q = q.eq("endpoint", by.endpoint);
+    else return "Nothing to remove.";
+    const { error } = await q;
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function markPushResult(id: string, ok: boolean, err: string | null): Promise<void> {
+  try {
+    await db()
+      .from("push_subscriptions")
+      .update(ok ? { last_ok_at: new Date().toISOString(), last_error: null } : { last_error: (err ?? "").slice(0, 300) })
+      .eq("id", id);
+  } catch {
+    // non-fatal
   }
 }

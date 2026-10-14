@@ -1,42 +1,27 @@
 import Link from "next/link";
 import CardThumb from "@/components/CardThumb";
 import { formatMoney } from "@/lib/currency";
-import {
-  ConfidenceBadge,
-  DemoBanner,
-  Money,
-  PageHeader,
-  Panel,
-  Pct,
-  ScoreBadge,
-  StatCard,
-  StatusRow,
-} from "@/components/ui";
-import { cardValueMap, lastScanRuns, listRecentHits } from "@/data/db";
+import { Money, PageHeader, Panel, Pct, StatCard, StatusRow, Tag } from "@/components/ui";
+import { cardValueMap, lastScanRuns } from "@/data/db";
+import { currentDeals, sortDeals } from "@/data/deals";
 import { ebayConfigured } from "@/lib/ebay/client";
-import { auctionEnded, auctionTooEarly, revalueHit } from "@/lib/scan";
-import { getAssessments, listHoldings, listWatchlist, loadSettings } from "@/data/source";
+import { listHoldings, listWatchlist, loadSettings } from "@/data/source";
 
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [{ settings, source, error: settingsError, fx: liveFx }, watch, hold, hits, runs, values] = await Promise.all([
+  const [{ source, error: settingsError, fx: liveFx }, watch, hold, live, runs, values] = await Promise.all([
     loadSettings(),
     listWatchlist(),
     listHoldings(),
-    listRecentHits(400),
+    currentDeals(),
     lastScanRuns(1),
     cardValueMap(),
   ]);
-  const weekAgo = Date.now() - 7 * 86_400_000;
-  // Re-priced with today's Card Values, so values added after a scan count.
-  const dealsThisWeek = hits.data
-    .filter((h) => new Date(h.createdAt).getTime() > weekAgo && !auctionEnded(h) && !auctionTooEarly(h))
-    .map((h) => revalueHit(h, settings, values.map))
-    .filter((h) => h.meetsCriteria).length;
+  const settings = live.settings;
+  const top = sortDeals(live.deals, "profit").slice(0, 4);
   const lastRun = runs.data[0] ?? null;
   const fx = settings.usdToAud;
-  const assessments = getAssessments(settings);
   const holdings = hold.data;
   const portfolioCost = holdings.reduce((s, h) => s + h.purchasePriceUsd + h.purchaseCostsUsd, 0);
   const dbOk = source === "database" && !watch.error && !hold.error;
@@ -45,12 +30,8 @@ export default async function OverviewPage() {
     <>
       <PageHeader
         title="Overview"
-        subtitle="Listings are only flagged when verified sold data supports the price and the numbers clear your ROI and profit rules."
+        subtitle="Live listings are flagged when the price clears your ROI and profit rules against your Card Values."
       />
-      <DemoBanner>
-        &ldquo;Best opportunities&rdquo; below are demonstration listings until automatic sold prices are connected. Scan
-        results, Card Values, watchlist, portfolio and settings are real.
-      </DemoBanner>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Watchlist" value={watch.data.length} sub="cards you're tracking" />
@@ -60,41 +41,53 @@ export default async function OverviewPage() {
           sub={`${holdings.length} cards held · ${formatMoney(portfolioCost * fx, "AUD")}`}
         />
         <StatCard
-          label="Deals found by scans (7 days)"
-          value={dealsThisWeek}
+          label="Live deals right now"
+          value={live.deals.length}
           sub={lastRun ? `Last scan ${new Date(lastRun.createdAt).toLocaleString("en-AU", { dateStyle: "short", timeStyle: "short" })}` : "No scans yet"}
-          tone={dealsThisWeek > 0 ? "gain" : "neutral"}
+          tone={live.deals.length > 0 ? "gain" : "neutral"}
         />
         <StatCard label="Exchange rate" value={fx} sub={liveFx ? `1 USD in AUD · live${liveFx.date ? ` (${liveFx.date})` : ""}` : "1 USD in AUD · backup rate from Settings"} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Panel
-          title="Best opportunities (demo)"
+          title="Best live deals"
           className="lg:col-span-2"
           right={<Link href="/deals" className="text-xs text-accent hover:underline">All deals →</Link>}
         >
-          <ul className="divide-y divide-line">
-            {assessments.slice(0, 4).map((a) => (
-              <li key={a.listing.id}>
-                <Link href={`/deals/${a.listing.id}`} className="flex items-center gap-3 py-3 first:pt-0">
-                  <CardThumb card={a.listing.card} size="sm" />
+          {top.length === 0 ? (
+            <p className="text-sm text-muted">
+              No live listings meet your rules right now.{" "}
+              {values.map.size === 0 ? "Add Card Values for cards you'd buy so scans can price them." : "Scans run every 3 hours."}
+            </p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {top.map((d) => (
+                <li key={d.id} className="flex items-center gap-3 py-3 first:pt-0">
+                  {d.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={d.imageUrl} alt="" className="h-12 w-9 shrink-0 rounded object-cover ring-1 ring-line" />
+                  ) : (
+                    <div className="h-12 w-9 shrink-0 rounded bg-panel-2 ring-1 ring-line" />
+                  )}
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{a.listing.title}</div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <ConfidenceBadge confidence={a.valuation.confidence} />
-                      <Pct value={a.profit?.roiPercent} />
-                      <span className="text-xs text-faint">ROI</span>
+                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="line-clamp-1 text-sm font-medium hover:text-accent">
+                      {d.title}
+                    </a>
+                    <div className="mt-1 flex items-center gap-2 text-xs">
+                      {d.isAuction ? <Tag tone="warn">Auction</Tag> : <Tag>Buy It Now</Tag>}
+                      <Pct value={d.roiPercent} />
+                      <span className="text-faint">ROI</span>
                     </div>
                   </div>
-                  <div className="hidden sm:block">
-                    <Money usd={a.profit?.netProfitUsd} fx={fx} tone="auto" align="right" />
+                  <div className="text-right">
+                    <Money usd={d.priceUsd} fx={fx} size="sm" align="right" />
+                    <div className="mt-0.5"><Money usd={d.netProfitUsd} fx={fx} size="sm" tone="auto" align="right" /></div>
                   </div>
-                  <ScoreBadge score={a.score.total} />
-                </Link>
-              </li>
-            ))}
-          </ul>
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
 
         <Panel title="System status">

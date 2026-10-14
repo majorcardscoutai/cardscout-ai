@@ -26,5 +26,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Everything except Next.js internals and static files.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt).*)"],
+  // The app manifest, service worker and icons must load without a login (the phone fetches them itself).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|manifest.webmanifest|sw.js|icon-192.png|icon-512.png|apple-touch-icon.png).*)"],
 };

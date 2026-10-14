@@ -3,6 +3,7 @@
  * error message. Pure functions (no database, no UI) so they can be tested.
  * All money is converted to USD for storage.
  */
+import { excludeWordsText, parseExcludeWords } from "./exclude";
 import { cardDescription } from "./analysis";
 import type { CardIdentity, Grader, Settings, Sport } from "./types";
 
@@ -270,6 +271,7 @@ export interface SavedSearchInput {
   category: "sportsCards" | "pokemon";
   format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
   maxPrice: number | null;
+  excludeWords: string;
 }
 
 export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {
@@ -288,6 +290,7 @@ export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {
       category: str(fd, "category") === "pokemon" ? "pokemon" : "sportsCards",
       format: fmt === "ALL" || fmt === "AUCTION" || fmt === "BEST_OFFER" ? fmt : "FIXED_PRICE",
       maxPrice: max.value,
+      excludeWords: excludeWordsText(parseExcludeWords(str(fd, "x"))),
     },
   };
 }

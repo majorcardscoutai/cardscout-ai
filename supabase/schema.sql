@@ -120,3 +120,18 @@ alter table public.card_values enable row level security;
 alter table public.saved_searches enable row level security;
 alter table public.scan_hits enable row level security;
 alter table public.scan_runs enable row level security;
+
+-- ---------- Phase 5 (14 Oct 2026): exclude words + push notifications ----------
+alter table public.saved_searches add column if not exists exclude_words text not null default '';
+
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  label text,
+  created_at timestamptz not null default now(),
+  last_ok_at timestamptz,
+  last_error text
+);
+alter table public.push_subscriptions enable row level security;

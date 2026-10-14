@@ -4,6 +4,8 @@
  */
 import { ebayConfigured, searchListings } from "@/lib/ebay/client";
 import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
+import { parseExcludeWords } from "@/lib/exclude";
+import { dealsMessage, pushToAllDevices } from "./notify";
 import { evaluateListing, shouldAlert, type ScanHit } from "@/lib/scan";
 import {
   cardValueMap,
@@ -20,13 +22,14 @@ export interface ScanSummary {
   newListings: number;
   deals: number;
   emailed: number;
+  pushed: number;
   errors: string[];
 }
 
 const MAX_EMAIL_ROWS = 15;
 
 export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Promise<ScanSummary> {
-  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, errors: [] };
+  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, errors: [] };
   if (!ebayConfigured()) {
     summary.errors.push("eBay isn't connected.");
     return summary;
@@ -43,7 +46,7 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
 
   for (const s of searches.data.filter((x) => x.active)) {
     summary.searches++;
-    const r = await searchListings({ q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50 });
+    const r = await searchListings({ q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords) });
     if (!r.ok) {
       summary.errors.push(`${s.name}: ${r.error}`);
       await markSearchRun(s.id, `Error: ${r.error}`);
@@ -79,6 +82,13 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
     );
     if (err) summary.errors.push(err);
     else summary.emailed = best.length;
+  }
+
+  // Phone notifications for the same alert-worthy deals as the email.
+  if (toEmail.length > 0) {
+    const p = await pushToAllDevices(dealsMessage(toEmail));
+    summary.pushed = p.sent;
+    summary.errors.push(...p.errors);
   }
 
   await recordScanRun({
