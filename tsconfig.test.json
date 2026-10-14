@@ -26,6 +26,7 @@
     "tests/valuation-scoring.test.ts",
     "tests/forms.test.ts",
     "tests/ebay.test.ts",
-    "tests/scan.test.ts"
+    "tests/scan.test.ts",
+    "tests/fx.test.ts"
   ]
 }

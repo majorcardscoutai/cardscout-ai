@@ -16,7 +16,7 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { saved, error } = await searchParams;
-  const { settings: s, source, error: dbError } = await loadSettings();
+  const { settings: s, source, error: dbError, savedUsdToAud, fx } = await loadSettings();
 
   return (
     <>
@@ -30,8 +30,15 @@ export default async function SettingsPage({
       >
         <form action={saveSettingsAction} className="space-y-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Exchange rate (1 USD = ? AUD)" hint="Manual for now — check today's rate">
-              <input name="usdToAud" defaultValue={s.usdToAud} inputMode="decimal" required className={inputCls} />
+            <Field
+              label="Backup exchange rate (1 USD = ? AUD)"
+              hint={
+                fx
+                  ? `Live rate in use: ${fx.rate}${fx.date ? ` (ECB, ${fx.date})` : ""}. This one is only used if the live rate is unavailable.`
+                  : "Live rate unavailable right now — this rate is being used."
+              }
+            >
+              <input name="usdToAud" defaultValue={savedUsdToAud ?? s.usdToAud} inputMode="decimal" required className={inputCls} />
             </Field>
             <Field label="Marketplace fee (%)" hint="Check your eBay seller account">
               <input name="feePercent" defaultValue={pct(s.marketplaceFeeRate)} inputMode="decimal" required className={inputCls} />

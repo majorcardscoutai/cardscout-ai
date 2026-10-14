@@ -71,3 +71,9 @@ The risk is in **how** data is obtained, not **which** site it comes from.
 ---
 
 *Noted 2026-10-10. All figures are indicative and must be verified on each provider's own site before relying on them.*
+
+
+## Exchange rate (USD → AUD)
+- **Source:** Frankfurter (frankfurter.dev) — free, no API key, European Central Bank reference rates, updated once per working day.
+- **Use:** converting A$ prices and showing A$ figures. Cached for 6 hours. If it's unavailable or returns an implausible number, the backup rate in Settings is used and the app says so.
+- **Note:** ECB reference rates are mid-market; your bank/PayPal conversion will be slightly worse. Allow for that in your minimum profit.

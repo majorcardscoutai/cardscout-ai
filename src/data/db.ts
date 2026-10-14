@@ -3,6 +3,7 @@
  * Every function returns an error message instead of throwing, so pages can
  * show a clear "database problem" notice rather than crashing.
  */
+import { liveUsdToAud, type LiveFx } from "@/lib/fx";
 import { DEFAULT_SETTINGS } from "@/lib/config";
 import type { HoldingInput, WatchlistInput } from "@/lib/forms";
 import type { CardValue, ScanHit } from "@/lib/scan";
@@ -28,9 +29,21 @@ export interface SettingsLoad {
   settings: Settings;
   source: "database" | "defaults";
   error: string | null;
+  /** The rate saved in Settings — used whenever the live rate isn't available. */
+  savedUsdToAud?: number;
+  /** Live rate details when it is being used. */
+  fx?: LiveFx | null;
 }
 
+/** Settings with today's live USD→AUD rate applied (falls back to your saved rate). */
 export async function loadSettings(): Promise<SettingsLoad> {
+  const [base, live] = await Promise.all([loadSavedSettings(), liveUsdToAud()]);
+  const savedUsdToAud = base.settings.usdToAud;
+  if (!live) return { ...base, savedUsdToAud, fx: null };
+  return { ...base, savedUsdToAud, fx: live, settings: { ...base.settings, usdToAud: live.rate, fxIsManual: false } };
+}
+
+async function loadSavedSettings(): Promise<SettingsLoad> {
   if (!dbConfigured()) return { settings: DEFAULT_SETTINGS, source: "defaults", error: "Database not configured" };
   try {
     const { data, error } = await db().from("settings").select("*").eq("id", 1).maybeSingle();

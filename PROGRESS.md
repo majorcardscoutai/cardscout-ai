@@ -64,7 +64,7 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [x] Scanner Type filter: added "Best Offer (accepts offers)" — eBay buyingOptions:{BEST_OFFER}
 - [ ] Idea: show auction end time / hide early auctions (current bid of US$1 isn't meaningful)
 - [ ] Choose and connect an authorised sold-price source (confirm terms of use and cost first)
-- [ ] Live FX rate
+- [x] Live FX rate (14 Oct 2026)
 - [ ] Rate-limit handling, retries, error states
 
 ## Phase 4 — Automatic scanning 🟡 (code complete 13 Oct 2026; awaiting setup + first real scheduled run)
@@ -101,7 +101,7 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [x] "Add value" on scan + live-search results → Card Values form prefilled from the title (missing fields listed, never guessed), returns to the Scanner after saving — 14 Oct 2026
 - [x] Fix: "Add value" on a listing with an unclear title now links that listing to the card you confirm (scan_hits.card_key), so it gets priced — previously the value saved but the listing couldn't match. 68 unit tests + e2e — 14 Oct 2026
 - [x] Auction filter: auctions with >24h left hidden from scan results and the Overview deal count (toggle "Show them"); ended auctions dropped — 14 Oct 2026. 67 unit tests + e2e
-- [ ] Optional: live FX rate (~10 min)
+- [x] Live FX rate: USD→AUD from Frankfurter (ECB reference rates, free, no key), cached 6h; sanity-checked (0.8–3); Settings rate kept as backup when unavailable; shown on Overview + Settings. 71 unit tests + e2e — 14 Oct 2026
 
 ## Phase 5 — Advanced
 - [ ] AI image analysis (suggest identity for user confirmation)

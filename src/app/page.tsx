@@ -20,7 +20,7 @@ import { getAssessments, listHoldings, listWatchlist, loadSettings } from "@/dat
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [{ settings, source, error: settingsError }, watch, hold, hits, runs, values] = await Promise.all([
+  const [{ settings, source, error: settingsError, fx: liveFx }, watch, hold, hits, runs, values] = await Promise.all([
     loadSettings(),
     listWatchlist(),
     listHoldings(),
@@ -65,7 +65,7 @@ export default async function OverviewPage() {
           sub={lastRun ? `Last scan ${new Date(lastRun.createdAt).toLocaleString("en-AU", { dateStyle: "short", timeStyle: "short" })}` : "No scans yet"}
           tone={dealsThisWeek > 0 ? "gain" : "neutral"}
         />
-        <StatCard label="Exchange rate" value={fx} sub="1 USD in AUD · set in Settings" />
+        <StatCard label="Exchange rate" value={fx} sub={liveFx ? `1 USD in AUD · live${liveFx.date ? ` (${liveFx.date})` : ""}` : "1 USD in AUD · backup rate from Settings"} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
