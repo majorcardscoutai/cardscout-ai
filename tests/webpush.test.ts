@@ -27,7 +27,7 @@ test("a receiving device can decrypt a random message (round trip)", () => {
   const ua = createECDH("prime256v1");
   ua.generateKeys();
   const auth = Buffer.from("0123456789abcdef");
-  const msg = JSON.stringify({ title: "CardScout", body: "2 new deals", url: "/deals" });
+  const msg = JSON.stringify({ title: "CardHawk", body: "2 new deals", url: "/deals" });
   const out = encryptPayload(Buffer.from(msg), ua.getPublicKey("base64url"), auth.toString("base64url"));
   const salt = out.subarray(0, 16);
   const idlen = out[20];

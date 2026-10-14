@@ -1,4 +1,4 @@
-# CardScout AI — Data Sources (licensing & cost note for Phase 3)
+# CardHawk AI — Data Sources (licensing & cost note for Phase 3)
 
 > **Scope:** private, personal use only.
 > Anything commercial — see the subscription footnote at the bottom of `PROGRESS.md` — requires **every licence below to be re-checked** under stricter commercial/redistribution terms before any data is shown to other users.

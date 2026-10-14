@@ -115,7 +115,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
     <>
       <PageHeader
         title="Automatic Scanner"
-        subtitle="Search eBay now, save searches, and let CardScout check them every few hours against your card values."
+        subtitle="Search eBay now, save searches, and let CardHawk check them every few hours against your card values."
         action={
           scheduleHealthy ? (
             <span className="inline-flex items-center gap-2 rounded-full border border-gain/40 bg-gain-soft px-3 py-1 text-xs font-medium text-gain">

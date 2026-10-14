@@ -31,11 +31,11 @@ export function alertEmailHtml(hits: (ScanHit & { searchName: string })[], usdTo
     .join("");
   return `<div style="background:#080b10;padding:24px;font-family:-apple-system,Segoe UI,Arial,sans-serif">
   <div style="max-width:640px;margin:0 auto;background:#0f141b;border:1px solid #1f2733;border-radius:12px;overflow:hidden">
-    <div style="padding:20px 24px;border-bottom:1px solid #1f2733;color:#e6ebf2;font-size:18px;font-weight:700">CardScout AI · ${hits.length} new deal${hits.length === 1 ? "" : "s"}</div>
+    <div style="padding:20px 24px;border-bottom:1px solid #1f2733;color:#e6ebf2;font-size:18px;font-weight:700">CardHawk AI · ${hits.length} new deal${hits.length === 1 ? "" : "s"}</div>
     <table style="width:100%;border-collapse:collapse;font-size:14px">${rows}</table>
     <div style="padding:16px 24px;color:#5a6678;font-size:12px;line-height:1.5">
       Profit is calculated against <b>your own card values</b>, not verified sold data. Check the listing before buying.
-      <br><a href="${esc(appUrl)}/scanner" style="color:#4cc2ff">Open CardScout</a>
+      <br><a href="${esc(appUrl)}/scanner" style="color:#4cc2ff">Open CardHawk</a>
     </div>
   </div>
 </div>`;
@@ -48,7 +48,7 @@ export async function sendAlertEmail(subject: string, html: string): Promise<str
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: process.env.ALERT_FROM ?? "CardScout AI <onboarding@resend.dev>",
+        from: process.env.ALERT_FROM ?? "CardHawk AI <onboarding@resend.dev>",
         to: [process.env.ALERT_EMAIL],
         subject,
         html,

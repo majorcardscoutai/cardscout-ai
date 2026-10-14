@@ -44,7 +44,7 @@ export async function removeDeviceAction(formData: FormData) {
 
 export async function testPushAction() {
   const r = await pushToAllDevices({
-    title: "CardScout test",
+    title: "CardHawk test",
     body: "Notifications are working. Deals will arrive like this.",
     url: "/deals",
     tag: "cardscout-test",

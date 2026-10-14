@@ -21,7 +21,7 @@ export function dealsMessage(hits: ScanHit[]): PushMessage {
   const roi = best.roiPercent !== null ? ` (${Math.round(best.roiPercent)}% ROI)` : "";
   const price = best.priceUsd !== null ? `${formatMoney(best.priceUsd, "USD")}` : "";
   return {
-    title: n === 1 ? "CardScout: new deal" : `CardScout: ${n} new deals`,
+    title: n === 1 ? "CardHawk: new deal" : `CardHawk: ${n} new deals`,
     body: `${best.title.slice(0, 90)} — ${price}${profit}${roi}`,
     url: "/deals",
     tag: "cardscout-deals",

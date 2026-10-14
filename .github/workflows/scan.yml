@@ -1,6 +1,6 @@
-# Runs CardScout's automatic scan every 3 hours (free GitHub Actions).
+# Runs CardHawk's automatic scan every 3 hours (free GitHub Actions).
 # Needs a repository secret called CRON_SECRET with the same value as in Vercel.
-name: CardScout scan
+name: CardHawk scan
 
 on:
   schedule:

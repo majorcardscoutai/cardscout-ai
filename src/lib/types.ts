@@ -1,4 +1,4 @@
-// Shared data shapes for CardScout AI.
+// Shared data shapes for CardHawk AI.
 // All money values are stored in USD (the currency most sold-price data uses)
 // and converted to AUD only for display.
 

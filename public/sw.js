@@ -1,4 +1,4 @@
-/* CardScout service worker — shows deal notifications and opens the app when tapped. */
+/* CardHawk service worker — shows deal notifications and opens the app when tapped. */
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
@@ -9,7 +9,7 @@ self.addEventListener("push", (event) => {
   } catch (e) {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "CardScout";
+  const title = data.title || "CardHawk";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

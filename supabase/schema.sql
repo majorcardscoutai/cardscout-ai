@@ -1,4 +1,4 @@
--- CardScout AI — database tables (Phase 2)
+-- CardHawk AI — database tables (Phase 2)
 -- Paste this whole file into Supabase → SQL Editor → New query → Run.
 -- Safe to run more than once.
 

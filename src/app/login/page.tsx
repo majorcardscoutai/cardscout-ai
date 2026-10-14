@@ -1,7 +1,7 @@
 import { safeNextPath } from "@/lib/auth";
 import { login } from "./actions";
 
-export const metadata = { title: "Sign in · CardScout AI" };
+export const metadata = { title: "Sign in · CardHawk AI" };
 
 export default async function LoginPage({
   searchParams,
@@ -22,10 +22,10 @@ export default async function LoginPage({
       <form action={login} className="w-full max-w-sm rounded-2xl border border-line bg-panel p-6">
         <div className="mb-6 flex items-center gap-2.5">
           <div className="grid h-9 w-9 place-items-center rounded-lg bg-gain/15 ring-1 ring-gain/40">
-            <span className="num text-sm font-bold text-gain">CS</span>
+            <span className="num text-sm font-bold text-gain">CH</span>
           </div>
           <div>
-            <div className="font-semibold">CardScout AI</div>
+            <div className="font-semibold">CardHawk AI</div>
             <div className="text-xs text-faint">Private — sign in to continue</div>
           </div>
         </div>

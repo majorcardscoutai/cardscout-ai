@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 /** Lets the site install to the Home Screen as an app — required for iPhone notifications. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CardScout AI",
-    short_name: "CardScout",
+    name: "CardHawk AI",
+    short_name: "CardHawk",
     description: "Private trading-card deal desk",
     start_url: "/",
     scope: "/",

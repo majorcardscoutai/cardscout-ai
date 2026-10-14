@@ -114,7 +114,7 @@ export default function PushSetup({ publicKey }: { publicKey: string | null }) {
         <div className="rounded-lg border border-warn/30 bg-warn-soft px-3 py-2 text-warn">
           {isIos ? (
             <>
-              On iPhone, notifications only work from the <strong>Home Screen app</strong>: open CardScout from its Home Screen
+              On iPhone, notifications only work from the <strong>Home Screen app</strong>: open CardHawk from its Home Screen
               icon (not Safari), then come back to Settings. Needs iOS 16.4 or later.
             </>
           ) : (
@@ -125,8 +125,8 @@ export default function PushSetup({ publicKey }: { publicKey: string | null }) {
 
       {state === "denied" && (
         <div className="rounded-lg border border-warn/30 bg-warn-soft px-3 py-2 text-warn">
-          Notifications are blocked for CardScout on this device.{" "}
-          {isIos ? "Turn them on in iPhone Settings → Notifications → CardScout." : "Allow them in your browser's site settings."}
+          Notifications are blocked for CardHawk on this device.{" "}
+          {isIos ? "Turn them on in iPhone Settings → Notifications → CardHawk." : "Allow them in your browser's site settings."}
         </div>
       )}
 

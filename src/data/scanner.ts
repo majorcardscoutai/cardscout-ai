@@ -77,7 +77,7 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
     const best = toEmail.sort((a, b) => (b.roiPercent ?? 0) - (a.roiPercent ?? 0)).slice(0, MAX_EMAIL_ROWS);
     const appUrl = process.env.APP_URL ?? "https://cardscout-ai.vercel.app";
     const err = await sendAlertEmail(
-      `CardScout: ${toEmail.length} new deal${toEmail.length === 1 ? "" : "s"}`,
+      `CardHawk: ${toEmail.length} new deal${toEmail.length === 1 ? "" : "s"}`,
       alertEmailHtml(best, settings.usdToAud, appUrl),
     );
     if (err) summary.errors.push(err);

@@ -1,4 +1,4 @@
-# CardScout AI — Progress Log
+# CardHawk AI (formerly CardScout AI) — Progress Log
 
 ## Phase 1 — Dashboard with demonstration data ✅ (verified running on Travis's MacBook, 10 Oct 2026)
 
@@ -132,8 +132,15 @@ node -e "const e=require('crypto').createECDH('prime256v1');e.generateKeys();con
 Add both to Vercel → Settings → Environment Variables (Production), then redeploy. Never paste the private key into chat or browser code. If the keys are ever changed, every device must turn notifications on again.
 
 **iPhone:** needs iOS 16.4+. Remove the old CardScout Home Screen icon, open the site in Safari → Share → Add to Home Screen, open it from the new icon → Settings → Turn on notifications → Allow → Send test notification.
-- [ ] Phone notifications verified on Travis's iPhone
+- [x] Phone notifications verified on Travis's iPhone (test notification received after re-adding the Home Screen icon) — 14 Oct 2026
 
+
+### Renamed to CardHawk AI — 14 Oct 2026
+- Why: "CardScout" clashes — cardscoutai.com (2025, "Buy Smart, Sell Even Better"), cardscout.cards (paid sports-card app with eBay pricing), cardscout.co (TCGPlayer extension). Quick checks found no card-space product named CardHawk.
+- Changed: app name, logo (CH), Home Screen icons/manifest, emails, push notifications, Instagram launch images (@CARDHAWK.AI).
+- Not changed yet (on purpose): GitHub repo, local folder, Vercel URL (cardscout-ai.vercel.app), package name — rename alongside buying the domain so the scheduled scan isn't broken.
+- [ ] Check CardHawk: domains (cardhawk.com.au / cardhawkai.com.au / .au / .com), Instagram handle, trade marks (IP Australia, USPTO, WIPO)
+- [ ] Later: move to own domain; rename Vercel project/repo; update APP_URL + scan.yml URL
 
 ## Phase 5 — Advanced
 - [ ] AI image analysis (suggest identity for user confirmation)
@@ -160,6 +167,12 @@ Extra revenue: eBay Partner Network (affiliate) — noted 14 Oct 2026
 - [ ] Join the eBay Partner Network (free; eBay AU supported). Pick payout currency carefully — can't be changed after applying. Check the collectibles commission rate and per-sale cap on the rate card before relying on it.
 - [ ] Switch scanner/Analyse "view on eBay" links to affiliate links: send the campaign ID to the Browse API so eBay returns `itemAffiliateWebUrl`; fall back to the normal link when it's missing (~15 min)
 - Earns a % of sales when users click through and buy (24 h window; 10 days to win an auction after bidding). Own purchases generally don't count — check the partner agreement — so only worthwhile once other people use the platform. Also strengthens the relationship with eBay when asking about commercial data use.
+
+Brand & name (14 Oct 2026)
+- Trade mark searches for "CardScout" (IP Australia, USPTO, WIPO) — no matches found by Travis.
+- cardscoutai.com is taken (owner/use unchecked); cardscoutai.com.au available — needs an ABN (+ ideally "CardScout AI" business name with ASIC). Consider cardscoutai.au too.
+- [ ] Get ABN → register business name → register cardscoutai.com.au (and .au)
+- [ ] Later (before launch): consider filing own trade mark (software/app class); optional attorney clearance search
 
 Recommended order: get real market-value data sorted and proven first → run privately (maybe with one friend) → switch on subscriptions only once Travis would happily pay for it himself.
 

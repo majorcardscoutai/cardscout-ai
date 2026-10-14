@@ -1,4 +1,4 @@
-# CardScout AI
+# CardHawk AI
 
 A private trading-card investment dashboard. It compares asking prices with **verified sold prices**, works out profit after every cost, and scores each opportunity out of 100.
 

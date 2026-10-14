@@ -8,10 +8,10 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CardScout AI",
+  title: "CardHawk AI",
   description: "Private trading-card investment analysis",
   robots: { index: false, follow: false }, // private tool — keep out of search engines
-  appleWebApp: { capable: true, title: "CardScout", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "CardHawk", statusBarStyle: "black-translucent" },
   icons: { icon: "/icon-192.png", apple: "/apple-touch-icon.png" },
 };
 
