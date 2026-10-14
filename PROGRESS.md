@@ -82,13 +82,53 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 - [x] First real manual scan (13 Oct 2026): saved search "shohei ohtani bowman" → 50 new listings stored, 0 deals (broad search; few cards valued yet)
 - [x] First scheduled run via GitHub Actions (manual "Run workflow") — Success, 13 s, 13 Oct 2026. Runner pinned to ubuntu-24.04 (ubuntu-latest moves to 26 on 19 Oct)
 - [x] Scan results re-priced on display with current Card Values + Settings (`revalueHit`) — values added after a scan now count; deals filter and Overview count use the re-priced results; "card details unclear" shown separately from "no value saved"; Overview status lines updated. 64 unit tests + e2e
-- [x] Fix: eBay search results carry no item specifics, so titles without "baseball"/"NBA" never matched. Sport now inferred from known player or a single team name; stored results are re-read with the current parser on display. 65 unit tests + e2e
+- [x] Fix: eBay search results carry no item specifics, so titles without "baseball"/"NBA" never matched. Sport now inferred from known player or a single team name; stored results are re-read with the current parser on display. 65 unit tests + e2e. Deployed and verified live with FS-1 Ohtani PSA 10 value, 13 Oct 2026
 - [ ] First real alert email (needs a valued card to appear in a scan)
+
+### Mobile app — decided 13 Oct 2026
+- Decision: stay with the home-screen (PWA) version for now — free, already on the phone, does the job. No App Store.
+- If email alerts get missed once deals flow, add web push notifications to the site first (no Apple Developer account, no $99/yr, no App Store review). Preferred over a native app.
+- Native/App Store routes noted if ever needed: Capacitor wrapper (~2–4 weeks, $99/yr Apple account, review may reject "just a website"); full React Native rebuild (~2–3 months). Both reopen the data-licensing question and Apple's 15–30% cut if opened to other users — tied to the SportsCardsPro answer.
+
+### Multi-user access — possible future task (noted 13 Oct 2026)
+- Can also be done on its own (one trusted friend) before Phase 6; it's the first build step of Phase 6.
+- Travis wants the option to give a trusted friend their own access to the site.
+- Current limitation: site uses a single shared password, not real accounts — can't give separate per-person logins today; sharing the password means sharing all of Travis's own data (settings, watchlist, Card Values).
+- Future change: replace the shared password with proper Supabase Auth accounts, each user with their own separate data. Estimated ~half a day of work, not a rebuild.
+- Travis plans to pay the SportsCardsPro monthly licence regardless of their reply. Before enabling other users, confirm the plan's terms allow showing its data to people other than the subscriber (some plans are single-user/personal only), and check eBay API terms for multi-user use. If both allow it, multi-user access can proceed whenever he wants.
+
+### Next session (agreed 13 Oct 2026)
+- [x] "Add value" on scan + live-search results → Card Values form prefilled from the title (missing fields listed, never guessed), returns to the Scanner after saving — 14 Oct 2026
+- [x] Auction filter: auctions with >24h left hidden from scan results and the Overview deal count (toggle "Show them"); ended auctions dropped — 14 Oct 2026. 67 unit tests + e2e
+- [ ] Optional: live FX rate (~10 min)
 
 ## Phase 5 — Advanced
 - [ ] AI image analysis (suggest identity for user confirmation)
 - [ ] Population data from an authorised source
 - [ ] Portfolio analytics (value over time, realised P/L)
+
+## Phase 6 — Go commercial (noted 13 Oct 2026)
+Turn the private tool into a subscription website with individual paid logins. The code is the smaller part (~1–2 weeks); the licensing, business setup and legal responsibility are the larger 80% and are mostly decisions/paperwork, not code.
+
+Build work
+- [ ] Real user accounts via Supabase Auth, replacing the single shared password (~half a day) — see "Multi-user access" above
+- [ ] Tenant separation: each user only ever sees their own data (settings, watchlist, Card Values, saved searches, scan results), enforced with row-level security
+- [ ] Payments/subscriptions (e.g. Stripe): monthly fees, cancellations, access cut off when payment stops
+- [ ] Per-user email alerts: verify a sending domain in Resend (free tier only sends to the account owner's address)
+- [ ] Hosting: Vercel Hobby is for non-commercial use — move to a paid plan before charging; check Supabase plan limits
+- Overall build estimate ~1–2 weeks, not a rebuild — the engine is already separate from the screens and data sources
+
+Go-to-market requirements (the hard 80%)
+- [ ] Data licensing (the real gatekeeper): a personal SportsCardsPro plan is not the same as a commercial licence to show their prices to paying customers — confirm commercial terms, price, and whether they allow it at all. Same check for eBay API terms.
+- [ ] Business setup: terms of service, privacy policy, secure handling of customers' personal data and payments, GST registration once turnover requires it (Australia), support and liability when the site breaks
+- [ ] Honesty rules become a legal matter: never fabricate sold prices or population figures; always label confidence and what is verified vs estimated — customers are paying for and relying on these numbers
+
+Extra revenue: eBay Partner Network (affiliate) — noted 14 Oct 2026
+- [ ] Join the eBay Partner Network (free; eBay AU supported). Pick payout currency carefully — can't be changed after applying. Check the collectibles commission rate and per-sale cap on the rate card before relying on it.
+- [ ] Switch scanner/Analyse "view on eBay" links to affiliate links: send the campaign ID to the Browse API so eBay returns `itemAffiliateWebUrl`; fall back to the normal link when it's missing (~15 min)
+- Earns a % of sales when users click through and buy (24 h window; 10 days to win an auction after bidding). Own purchases generally don't count — check the partner agreement — so only worthwhile once other people use the platform. Also strengthens the relationship with eBay when asking about commercial data use.
+
+Recommended order: get real market-value data sorted and proven first → run privately (maybe with one friend) → switch on subscriptions only once Travis would happily pay for it himself.
 
 ## Open decisions
 - Sold-price source: **decided 11 Oct 2026 — Option A (free) for now.** Travis enters resale estimates from eBay sold listings manually. Revisit paid PriceCharting/SportsCardsPro (US$49+/month) after a few weeks of real use.
@@ -97,4 +137,4 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 
 ---
 
-<sub>Footnote — possible future idea (deferred, not part of the current plan): opening CardScout AI to other users as a paid subscription. The current build keeps this feasible — Supabase supports user accounts and per-user data separation, Vercel hosting scales without changes, and the valuation/scoring engine is kept separate from data sources and screens. The deciding factor would be data-source licensing for commercial use (eBay API terms and any paid sold-price provider), not the code. Revisit only after the private tool is proven.</sub>
+<sub>The earlier subscription footnote is now Phase 6 above.</sub>

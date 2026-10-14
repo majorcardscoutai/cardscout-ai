@@ -111,3 +111,14 @@ export function shouldAlert(h: ScanHit, now = new Date()): boolean {
   const hoursLeft = (new Date(h.endsAt).getTime() - now.getTime()) / 3_600_000;
   return hoursLeft > 0 && hoursLeft <= 24;
 }
+
+/** Auction with more than a day left: the current bid says nothing about the final price yet. */
+export function auctionTooEarly(h: { isAuction: boolean; endsAt: string | null }, now = Date.now()): boolean {
+  if (!h.isAuction || !h.endsAt) return false;
+  return new Date(h.endsAt).getTime() - now > 24 * 3_600_000;
+}
+
+/** Auction that has already finished — no longer buyable. */
+export function auctionEnded(h: { isAuction: boolean; endsAt: string | null }, now = Date.now()): boolean {
+  return h.isAuction && !!h.endsAt && new Date(h.endsAt).getTime() <= now;
+}

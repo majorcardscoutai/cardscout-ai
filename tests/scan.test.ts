@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cardKey } from "../src/lib/cardKey";
 import { cardFromListing } from "../src/lib/ebay/parse";
-import { evaluateListing, revalueHit, shouldAlert, type CardValue } from "../src/lib/scan";
+import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit, shouldAlert, type CardValue } from "../src/lib/scan";
 import { DEFAULT_SETTINGS } from "../src/lib/config";
 import type { EbayListing } from "../src/lib/ebay/client";
 import type { CardIdentity } from "../src/lib/types";
@@ -146,4 +146,26 @@ test("title-only search results: sport comes from a known player or team", () =>
   const stored = { ...evaluateListing(listing({ title: "2019 TOPPS CHROME FUTURE STARS #FS-1 SHOHEI OHTANI PSA 10", aspects: [] }), DEFAULT_SETTINGS, new Map()), cardKey: null };
   const vals = new Map<string, CardValue>([[want!, { id: "v2", key: want!, title: "FS-1", valueUsd: 400, updatedAt: "2026-10-13" }]]);
   assert.equal(revalueHit(stored, DEFAULT_SETTINGS, vals).valueUsd, 400);
+});
+
+test("auction timing: early auctions hidden, ended auctions dropped, Buy It Now untouched", () => {
+  const now = Date.parse("2026-10-14T00:00:00Z");
+  const at = (h: number) => new Date(now + h * 3_600_000).toISOString();
+  assert.equal(auctionTooEarly({ isAuction: true, endsAt: at(72) }, now), true);
+  assert.equal(auctionTooEarly({ isAuction: true, endsAt: at(5) }, now), false);
+  assert.equal(auctionTooEarly({ isAuction: false, endsAt: at(72) }, now), false);
+  assert.equal(auctionTooEarly({ isAuction: true, endsAt: null }, now), false);
+  assert.equal(auctionEnded({ isAuction: true, endsAt: at(-1) }, now), true);
+  assert.equal(auctionEnded({ isAuction: true, endsAt: at(1) }, now), false);
+  assert.equal(auctionEnded({ isAuction: false, endsAt: at(-1) }, now), false);
+});
+
+test("Add value prefill: the FS-1 title fills every field", () => {
+  const s = cardFromListing("2019 TOPPS CHROME FUTURE STARS #FS-1 SHOHEI OHTANI PSA 10");
+  assert.deepEqual(s.missing, []);
+  assert.equal(s.card.sport, "MLB");
+  assert.equal(s.card.cardNumber, "FS-1");
+  assert.equal(s.card.grade, 10);
+  const raw = cardFromListing("Samuel Basallo Topps Chrome refractor");
+  assert.ok(raw.missing.includes("card number"), "missing fields are reported, never guessed");
 });

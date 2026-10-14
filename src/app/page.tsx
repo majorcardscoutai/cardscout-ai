@@ -14,7 +14,7 @@ import {
 } from "@/components/ui";
 import { cardValueMap, lastScanRuns, listRecentHits } from "@/data/db";
 import { ebayConfigured } from "@/lib/ebay/client";
-import { revalueHit } from "@/lib/scan";
+import { auctionEnded, auctionTooEarly, revalueHit } from "@/lib/scan";
 import { getAssessments, listHoldings, listWatchlist, loadSettings } from "@/data/source";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export default async function OverviewPage() {
   const weekAgo = Date.now() - 7 * 86_400_000;
   // Re-priced with today's Card Values, so values added after a scan count.
   const dealsThisWeek = hits.data
-    .filter((h) => new Date(h.createdAt).getTime() > weekAgo)
+    .filter((h) => new Date(h.createdAt).getTime() > weekAgo && !auctionEnded(h) && !auctionTooEarly(h))
     .map((h) => revalueHit(h, settings, values.map))
     .filter((h) => h.meetsCriteria).length;
   const lastRun = runs.data[0] ?? null;

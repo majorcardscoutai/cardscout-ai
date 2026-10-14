@@ -4,6 +4,7 @@ import { CardFields, CurrencyPicker, DbError, Field, Flash, inputCls, SubmitButt
 import { Money, PageHeader, Panel, Tag } from "@/components/ui";
 import { listCardValues } from "@/data/db";
 import { loadSettings } from "@/data/source";
+import { cardFromListing } from "@/lib/ebay/parse";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,12 @@ function age(iso: string): string {
 export default async function CardValuesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; from?: string }>;
 }) {
-  const { saved, error } = await searchParams;
+  const { saved, error, from: rawFrom } = await searchParams;
+  // "Add value" from a scan result: prefill the form from the listing title (a suggestion to check, never final).
+  const from = rawFrom ? rawFrom.slice(0, 200) : null;
+  const suggestion = from ? cardFromListing(from) : null;
   const [{ settings }, values] = await Promise.all([loadSettings(), listCardValues()]);
   const fx = settings.usdToAud;
 
@@ -72,9 +76,31 @@ export default async function CardValuesPage({
         </div>
       )}
 
+      <div id="add" className="scroll-mt-24">
       <Panel title="Add a card value" right={<Tag>{values.data.length} saved</Tag>}>
+        {suggestion && from && (
+          <div className="mb-5 rounded-xl border border-line bg-panel-2 px-4 py-3 text-sm">
+            <div className="text-xs text-faint">Filled in from the listing title — check every field against the card:</div>
+            <div className="mt-1 font-medium">{from}</div>
+            {suggestion.missing.length > 0 && (
+              <div className="mt-2 text-xs text-warn">
+                The title doesn&apos;t say: <strong>{suggestion.missing.join(", ")}</strong>. Fill these in yourself — open the
+                listing if you&apos;re not sure.
+              </div>
+            )}
+            <div className="mt-2 text-xs text-faint">
+              Use what this card <strong>sells</strong> for (eBay sold listings), not asking prices.
+            </div>
+          </div>
+        )}
         <form action={addCardValueAction} className="space-y-5">
-          <CardFields />
+          {from && (
+            <>
+              <input type="hidden" name="from" value={from} />
+              <input type="hidden" name="returnTo" value="/scanner" />
+            </>
+          )}
+          <CardFields key={from ?? "blank"} card={suggestion?.card} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <CurrencyPicker defaultValue="USD" />
             <Field label="Your value (what it typically sells for)">
@@ -89,8 +115,9 @@ export default async function CardValuesPage({
           </div>
         </form>
       </Panel>
+      </div>
       <p className="mt-3 text-xs text-faint">
-        Tip: in the Manual Scanner, tick “Remember this resale as my value” when saving to the watchlist — it lands here
+        Tip: click <strong>Add value</strong> on any Automatic Scanner result to fill this in from the listing. Or in the Manual Scanner, tick “Remember this resale as my value” when saving to the watchlist — it lands here
         automatically. Saving the same card again updates its value.
       </p>
     </>

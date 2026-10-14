@@ -136,15 +136,23 @@ export async function loadListingAction(formData: FormData) {
 // ---------- Card values ----------
 
 export async function addCardValueAction(formData: FormData) {
+  // When opened from a scan result ("Add value"), keep the listing title so errors don't lose the prefill,
+  // and go back to the scanner afterwards so the new value shows straight away.
+  const from = String(formData.get("from") ?? "").slice(0, 200);
+  const returnTo = formData.get("returnTo") === "/scanner" ? "/scanner" : "/values";
+  const errPath = from ? `/values?from=${encodeURIComponent(from)}&error=` : "/values?error=";
+  function fail(msg: string): never {
+    redirect(`${errPath}${encodeURIComponent(msg)}#add`);
+  }
   const { settings } = await loadSettings();
   const parsed = parseCardValueForm(formData, settings.usdToAud);
-  if (!parsed.ok) back("/values", "error", parsed.error);
+  if (!parsed.ok) fail(parsed.error);
   const key = cardKey(parsed.value.card);
-  if (!key) back("/values", "error", "Some card details are missing.");
+  if (!key) fail("Some card details are missing.");
   const error = await upsertCardValue({ key, ...parsed.value });
-  if (error) back("/values", "error", `Couldn't save: ${error}`);
+  if (error) fail(`Couldn't save: ${error}`);
   revalidatePath("/", "layout");
-  back("/values", "saved", `Saved your value for ${parsed.value.title}.`);
+  back(returnTo, "saved", `Saved your value for ${parsed.value.title}.`);
 }
 
 export async function updateCardValueAction(formData: FormData) {

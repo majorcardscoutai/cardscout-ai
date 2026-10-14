@@ -7,7 +7,7 @@ import { cardValueMap, lastScanRuns, listRecentHits, listSavedSearches } from "@
 import { getSettings } from "@/data/source";
 import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/client";
 import { emailConfigured } from "@/lib/email";
-import { evaluateListing, revalueHit } from "@/lib/scan";
+import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit } from "@/lib/scan";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -21,7 +21,12 @@ type Params = {
   saved?: string;
   error?: string;
   deals?: string;
+  auctions?: string;
 };
+
+function addValueHref(title: string): string {
+  return `/values?from=${encodeURIComponent(title.slice(0, 200))}#add`;
+}
 
 function parseSearch(p: Params): SearchInput | null {
   if (!p.q) return null;
@@ -72,9 +77,22 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
   ]);
 
   // Results are re-priced with TODAY's values + settings, so a value added after a scan counts straight away.
-  const revalued = hits.data.map((h) => revalueHit(h, settings, values.map));
-  const shownHits = (onlyDeals ? revalued.filter((h) => h.meetsCriteria) : revalued).slice(0, 60);
-  const dealCount = revalued.filter((h) => h.meetsCriteria).length;
+  const now = Date.now();
+  const showAllAuctions = params.auctions === "all";
+  const revalued = hits.data
+    .map((h) => revalueHit(h, settings, values.map))
+    .filter((h) => !auctionEnded(h, now)); // ended auctions are gone — never show them
+  const early = revalued.filter((h) => auctionTooEarly(h, now));
+  const visible = showAllAuctions ? revalued : revalued.filter((h) => !auctionTooEarly(h, now));
+  const shownHits = (onlyDeals ? visible.filter((h) => h.meetsCriteria) : visible).slice(0, 60);
+  const dealCount = visible.filter((h) => h.meetsCriteria).length;
+  const qs = (o: { deals?: boolean; auctions?: boolean }) => {
+    const p = new URLSearchParams();
+    if (o.deals) p.set("deals", "1");
+    if (o.auctions) p.set("auctions", "all");
+    const str = p.toString();
+    return str ? `/scanner?${str}` : "/scanner";
+  };
 
   const lastScheduled = runs.data.find((r) => r.trigger === "schedule" || r.trigger === "daily") ?? null;
   const scheduleHealthy = lastScheduled !== null && Date.now() - new Date(lastScheduled.createdAt).getTime() < 4 * 3_600_000;
@@ -212,6 +230,11 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                         <Link href={`/analyse?item=${l.itemId}&market=${search.market}`} className="mt-1 block text-xs text-accent hover:underline">
                           Analyse →
                         </Link>
+                        {h.valueUsd === null && (
+                          <Link href={addValueHref(l.title)} className="mt-1 block text-xs text-gain hover:underline">
+                            + Add value
+                          </Link>
+                        )}
                       </div>
                     </li>
                   );
@@ -304,7 +327,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
         title="Latest scan results"
         className="mt-6"
         right={
-          <Link href={onlyDeals ? "/scanner" : "/scanner?deals=1"} className="text-xs text-accent hover:underline">
+          <Link href={qs({ deals: !onlyDeals, auctions: showAllAuctions })} className="text-xs text-accent hover:underline">
             {onlyDeals ? "Show all" : `Show deals only (${dealCount})`}
           </Link>
         }
@@ -313,6 +336,22 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           Profit and &ldquo;Deal&rdquo; are recalculated with your current Card Values and Settings each time this page opens. Older
           listings may have sold since they were found.
         </p>
+        {early.length > 0 && (
+          <p className="mb-3 text-xs text-faint">
+            {showAllAuctions ? (
+              <>
+                Showing {early.length} auction{early.length === 1 ? "" : "s"} with more than a day left — their current bids aren&apos;t
+                meaningful yet.{" "}
+                <Link href={qs({ deals: onlyDeals })} className="text-accent hover:underline">Hide them</Link>
+              </>
+            ) : (
+              <>
+                {early.length} auction{early.length === 1 ? "" : "s"} hidden until the last 24 hours (early bids don&apos;t show the real price).{" "}
+                <Link href={qs({ deals: onlyDeals, auctions: true })} className="text-accent hover:underline">Show them</Link>
+              </>
+            )}
+          </p>
+        )}
         <DbError error={hits.error} />
         {shownHits.length === 0 ? (
           <p className="text-sm text-muted">
@@ -361,6 +400,11 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                   <Link href={`/analyse?item=${h.itemId}`} className="mt-1 block text-xs text-accent hover:underline">
                     Analyse →
                   </Link>
+                  {h.valueUsd === null && (
+                    <Link href={addValueHref(h.title)} className="mt-1 block text-xs text-gain hover:underline">
+                      + Add value
+                    </Link>
+                  )}
                 </div>
               </li>
             ))}
