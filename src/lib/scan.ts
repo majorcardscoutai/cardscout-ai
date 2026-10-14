@@ -85,7 +85,9 @@ export function evaluateListing(l: EbayListing, settings: Settings, values: Map<
 export function revalueHit<T extends ScanHit>(h: T, settings: Settings, values: Map<string, CardValue>): T {
   // Re-read the title with today's parser (search results never carry item specifics),
   // so parser improvements also apply to listings found earlier.
-  const key = cardKey(cardFromListing(h.title).card) ?? h.cardKey;
+  // A key you confirmed for this listing ("Add value") wins when you have a value for it.
+  const parsed = cardKey(cardFromListing(h.title).card);
+  const key = h.cardKey && values.has(h.cardKey) ? h.cardKey : parsed ?? h.cardKey;
   h = { ...h, cardKey: key };
   const v = key ? values.get(key) ?? null : null;
   const shippingUsd = settings.inboundShippingMode === "fixed" ? settings.inboundShippingFixedUsd : h.shippingUsd;

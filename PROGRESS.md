@@ -99,6 +99,7 @@ Notes: resale values and holding values are **your estimates** (labelled as such
 
 ### Next session (agreed 13 Oct 2026)
 - [x] "Add value" on scan + live-search results → Card Values form prefilled from the title (missing fields listed, never guessed), returns to the Scanner after saving — 14 Oct 2026
+- [x] Fix: "Add value" on a listing with an unclear title now links that listing to the card you confirm (scan_hits.card_key), so it gets priced — previously the value saved but the listing couldn't match. 68 unit tests + e2e — 14 Oct 2026
 - [x] Auction filter: auctions with >24h left hidden from scan results and the Overview deal count (toggle "Show them"); ended auctions dropped — 14 Oct 2026. 67 unit tests + e2e
 - [ ] Optional: live FX rate (~10 min)
 

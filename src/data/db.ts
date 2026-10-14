@@ -336,6 +336,15 @@ export async function updateCardValueAmount(id: string, valueUsd: number): Promi
   }
 }
 
+/** Record the card you confirmed for a listing (all saved searches that found it). Non-fatal. */
+export async function linkHitsToCard(itemId: string, key: string): Promise<void> {
+  try {
+    await db().from("scan_hits").update({ card_key: key }).eq("item_id", itemId);
+  } catch {
+    // non-fatal: the value is saved either way
+  }
+}
+
 export async function deleteCardValue(id: string): Promise<string | null> {
   try {
     const { error } = await db().from("card_values").delete().eq("id", id);

@@ -21,6 +21,7 @@ import {
   updateCardValueAmount,
   updateHolding,
   updateWatchlist,
+  linkHitsToCard,
   upsertCardValue,
 } from "@/data/db";
 import { runAllScans } from "@/data/scanner";
@@ -151,6 +152,10 @@ export async function addCardValueAction(formData: FormData) {
   if (!key) fail("Some card details are missing.");
   const error = await upsertCardValue({ key, ...parsed.value });
   if (error) fail(`Couldn't save: ${error}`);
+  // You've confirmed what card this listing is — remember that for the listing itself,
+  // so it matches even when its title alone isn't clear enough.
+  const item = String(formData.get("item") ?? "");
+  if (/^\d{9,15}$/.test(item)) await linkHitsToCard(item, key);
   revalidatePath("/", "layout");
   back(returnTo, "saved", `Saved your value for ${parsed.value.title}.`);
 }

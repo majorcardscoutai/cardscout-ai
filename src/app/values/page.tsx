@@ -18,9 +18,10 @@ function age(iso: string): string {
 export default async function CardValuesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string; from?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; from?: string; item?: string }>;
 }) {
-  const { saved, error, from: rawFrom } = await searchParams;
+  const { saved, error, from: rawFrom, item: rawItem } = await searchParams;
+  const item = rawItem && /^\d{9,15}$/.test(rawItem) ? rawItem : null;
   // "Add value" from a scan result: prefill the form from the listing title (a suggestion to check, never final).
   const from = rawFrom ? rawFrom.slice(0, 200) : null;
   const suggestion = from ? cardFromListing(from) : null;
@@ -88,6 +89,11 @@ export default async function CardValuesPage({
                 listing if you&apos;re not sure.
               </div>
             )}
+            {item && (
+              <div className="mt-2 text-xs text-faint">
+                Saving also links <strong>this listing</strong> to the card you confirm here, even where its title is unclear.
+              </div>
+            )}
             <div className="mt-2 text-xs text-faint">
               Use what this card <strong>sells</strong> for (eBay sold listings), not asking prices.
             </div>
@@ -98,6 +104,7 @@ export default async function CardValuesPage({
             <>
               <input type="hidden" name="from" value={from} />
               <input type="hidden" name="returnTo" value="/scanner" />
+              {item && <input type="hidden" name="item" value={item} />}
             </>
           )}
           <CardFields key={from ?? "blank"} card={suggestion?.card} />

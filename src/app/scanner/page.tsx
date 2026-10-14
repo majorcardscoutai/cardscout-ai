@@ -24,8 +24,8 @@ type Params = {
   auctions?: string;
 };
 
-function addValueHref(title: string): string {
-  return `/values?from=${encodeURIComponent(title.slice(0, 200))}#add`;
+function addValueHref(title: string, itemId: string): string {
+  return `/values?from=${encodeURIComponent(title.slice(0, 200))}&item=${encodeURIComponent(itemId)}#add`;
 }
 
 function parseSearch(p: Params): SearchInput | null {
@@ -231,7 +231,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                           Analyse →
                         </Link>
                         {h.valueUsd === null && (
-                          <Link href={addValueHref(l.title)} className="mt-1 block text-xs text-gain hover:underline">
+                          <Link href={addValueHref(l.title, l.itemId)} className="mt-1 block text-xs text-gain hover:underline">
                             + Add value
                           </Link>
                         )}
@@ -401,7 +401,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                     Analyse →
                   </Link>
                   {h.valueUsd === null && (
-                    <Link href={addValueHref(h.title)} className="mt-1 block text-xs text-gain hover:underline">
+                    <Link href={addValueHref(h.title, h.itemId)} className="mt-1 block text-xs text-gain hover:underline">
                       + Add value
                     </Link>
                   )}

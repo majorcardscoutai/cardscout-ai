@@ -169,3 +169,12 @@ test("Add value prefill: the FS-1 title fills every field", () => {
   const raw = cardFromListing("Samuel Basallo Topps Chrome refractor");
   assert.ok(raw.missing.includes("card number"), "missing fields are reported, never guessed");
 });
+
+test("a card you confirmed for a listing wins, even when the title is unclear", () => {
+  const confirmed = cardKey(ohtani)!;
+  const unclear = { ...evaluateListing(listing({ title: "Ohtani rookie PSA 10 nice!!", aspects: [] }), DEFAULT_SETTINGS, new Map()), cardKey: confirmed };
+  const r = revalueHit(unclear, DEFAULT_SETTINGS, values);
+  assert.equal(r.valueUsd, 400);
+  // without a value for the confirmed card, nothing is invented
+  assert.equal(revalueHit(unclear, DEFAULT_SETTINGS, new Map()).valueUsd, null);
+});
