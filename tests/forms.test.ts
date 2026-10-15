@@ -155,3 +155,13 @@ test("exclude words: whole words only, case/accents ignored, tidy storage", asyn
   assert.equal(excludedBy("anything", []), null);
   assert.equal(parseExcludeWords(Array(30).fill("x").map((x, i) => x + i).join(",")).length, 20);
 });
+
+test("waitlist sign-up: valid email, interests, honeypot", async () => {
+  const { parseWaitlistForm } = await import("../src/lib/forms.js");
+  const fd = (o: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) f.set(k, v); return f; };
+  const ok = parseWaitlistForm(fd({ email: "  Travis@Example.COM ", i_NBA: "on", i_Pokemon: "on" }));
+  assert.ok(ok.ok); if (ok.ok) { assert.equal(ok.value.email, "travis@example.com"); assert.deepEqual(ok.value.interests, ["NBA", "Pokemon"]); }
+  for (const bad of ["", "nope", "a@b", "a b@c.com", "x@y.c", "a@b.com<script>"]) assert.equal(parseWaitlistForm(fd({ email: bad })).ok, false, bad);
+  const bot = parseWaitlistForm(fd({ email: "bot@spam.com", company: "Acme" }));
+  assert.equal(bot.ok, false); assert.equal((bot as { spam?: boolean }).spam, true);
+});

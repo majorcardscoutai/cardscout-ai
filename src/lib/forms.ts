@@ -294,3 +294,21 @@ export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {
     },
   };
 }
+
+// ---------- Waitlist (public sign-up on the login page) ----------
+
+export interface WaitlistInput {
+  email: string;
+  interests: string[]; // "NBA" | "MLB" | "Pokemon"
+}
+
+const EMAIL = /^[^\s@<>()[\]\\,;:"]+@[^\s@<>()[\]\\,;:"]+\.[a-z]{2,}$/i;
+
+/** Validates a waitlist sign-up. `spam: true` = the hidden honeypot field was filled (a bot). */
+export function parseWaitlistForm(fd: FormData): Parsed<WaitlistInput> & { spam?: boolean } {
+  if (str(fd, "company")) return { ok: false, error: "spam", spam: true };
+  const email = str(fd, "email").toLowerCase();
+  if (!email || email.length > 254 || !EMAIL.test(email)) return { ok: false, error: "Please enter a valid email address." };
+  const interests = (["NBA", "MLB", "Pokemon"] as const).filter((k) => fd.get(`i_${k}`) === "on");
+  return { ok: true, value: { email, interests } };
+}

@@ -139,3 +139,13 @@ alter table public.push_subscriptions enable row level security;
 -- ---------- 15 Oct 2026: listing freshness (eBay licence §8.1.3) ----------
 alter table public.scan_hits add column if not exists checked_at timestamptz;
 alter table public.scan_hits add column if not exists status text not null default 'live';
+
+-- ---------- 15 Oct 2026: waitlist (public sign-up on the login page) ----------
+create table if not exists public.waitlist (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  interests text not null default '',
+  source text,
+  created_at timestamptz not null default now()
+);
+alter table public.waitlist enable row level security;

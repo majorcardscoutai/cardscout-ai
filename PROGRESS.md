@@ -177,6 +177,12 @@ Brand & name (14 Oct 2026)
 
 Recommended order: get real market-value data sorted and proven first → run privately (maybe with one friend) → switch on subscriptions only once Travis would happily pay for it himself.
 
+## Waitlist — built 15 Oct 2026
+- Sign-in page now has "Join the waitlist" under the password box: email + optional NBA/MLB/Pokémon, hidden bot trap, duplicates ignored, consent line. Settings → Waitlist shows sign-ups and a CSV download (/api/waitlist, login only). 81 unit tests + e2e.
+- **Waitlist SQL (one-time):** see bottom of supabase/schema.sql (`create table public.waitlist …`, RLS on).
+- [ ] Deployed + SQL run
+- Note: the sign-in page is the public link to share (e.g. Instagram bio) until there's a separate landing page/domain.
+
 ## eBay commercial use — checked 15 Oct 2026
 - Read eBay API License Agreement (version dated 3 Sep 2025). Default Browse API limit 5,000 calls/day; higher via Application Growth Check.
 - Needs eBay's written OK before charging users: §9.5 (no using eBay Content, alone or with third-party info, "to suggest or model prices for items listed on eBay Site" — max price / opening offer / value comparison may be caught) and §8.1.2 (eBay Content in a Public Display not combined with non-eBay Content).
@@ -186,7 +192,7 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - [ ] Join eBay Partner Network (may give a better support route)
 - [x] 6-hour freshness fix built (15 Oct 2026): each scan re-checks up to 60 valued listings on eBay (getItem; 40 s budget), updates price/shipping/end time, marks sold/ended (404, out of stock, auction over); pages show only listings found or re-checked in the last 6 hours (older hidden with a note); a re-checked listing that newly qualifies (e.g. price drop) alerts once. 80 unit tests + e2e.
   - **Freshness SQL (one-time):** `alter table public.scan_hits add column if not exists checked_at timestamptz; alter table public.scan_hits add column if not exists status text not null default 'live';`
-  - [ ] Deployed + SQL run
+  - [x] Deployed + SQL run; verified live 15 Oct 2026: "11 re-checked (4 sold/ended)" on first scan
 
 ## Open decisions
 - Sold-price source: **decided 11 Oct 2026 — Option A (free) for now.** Travis enters resale estimates from eBay sold listings manually. Revisit paid PriceCharting/SportsCardsPro (US$49+/month) after a few weeks of real use.

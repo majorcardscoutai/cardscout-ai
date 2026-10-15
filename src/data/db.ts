@@ -703,3 +703,43 @@ export async function markPushResult(id: string, ok: boolean, err: string | null
     // non-fatal
   }
 }
+
+// ---------- Waitlist ----------
+
+export interface WaitlistEntry {
+  email: string;
+  interests: string[];
+  createdAt: string;
+}
+
+/** Adds an email to the waitlist. Signing up twice is fine (kept once). */
+export async function addToWaitlist(w: { email: string; interests: string[] }): Promise<string | null> {
+  if (!dbConfigured()) return "Database not configured";
+  try {
+    const { error } = await db()
+      .from("waitlist")
+      .upsert({ email: w.email, interests: w.interests.join(","), source: "login-page" }, { onConflict: "email", ignoreDuplicates: true });
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function listWaitlist(): Promise<DbResult<WaitlistEntry[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("waitlist").select("*").order("created_at", { ascending: false }).limit(5000);
+    if (error) throw error;
+    return {
+      error: null,
+      data: (data ?? []).map((r: Record<string, unknown>) => ({
+        email: String(r.email),
+        interests: r.interests ? String(r.interests).split(",").filter(Boolean) : [],
+        createdAt: String(r.created_at),
+      })),
+    };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}

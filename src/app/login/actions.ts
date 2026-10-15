@@ -2,7 +2,9 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { addToWaitlist } from "@/data/db";
 import { AUTH_COOKIE, SESSION_DAYS, safeNextPath, sessionToken } from "@/lib/auth";
+import { parseWaitlistForm } from "@/lib/forms";
 
 export async function login(formData: FormData) {
   const password = process.env.APP_PASSWORD;
@@ -32,4 +34,19 @@ export async function logout() {
   const jar = await cookies();
   jar.delete(AUTH_COOKIE);
   redirect("/login");
+}
+
+/** Public: join the waitlist from the login page. No login needed. */
+export async function joinWaitlist(formData: FormData) {
+  const parsed = parseWaitlistForm(formData);
+  // Bots that fill the hidden field get a normal-looking "thanks" and nothing is saved.
+  if (!parsed.ok && parsed.spam) redirect("/login?joined=1#waitlist");
+  if (!parsed.ok) redirect(`/login?wl=${encodeURIComponent(parsed.error)}#waitlist`);
+  await new Promise((r) => setTimeout(r, 300)); // gentle brake on rapid automated sign-ups
+  const err = await addToWaitlist(parsed.value);
+  if (err) {
+    console.error("waitlist:", err);
+    redirect(`/login?wl=${encodeURIComponent("Sorry — sign-ups aren't working right now. Please try again later.")}#waitlist`);
+  }
+  redirect("/login?joined=1#waitlist");
 }

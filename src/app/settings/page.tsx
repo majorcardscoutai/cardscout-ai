@@ -4,7 +4,7 @@ import { removeDeviceAction, testPushAction } from "@/app/push-actions";
 import PushSetup from "@/components/PushSetup";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { PageHeader, Panel, Tag } from "@/components/ui";
-import { listPushSubscriptions } from "@/data/db";
+import { listPushSubscriptions, listWaitlist } from "@/data/db";
 import { loadSettings } from "@/data/source";
 import { vapidPublicKey } from "@/lib/webpush";
 import { DEMAND_TIERS } from "@/lib/config";
@@ -20,7 +20,11 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { saved, error } = await searchParams;
-  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices] = await Promise.all([loadSettings(), listPushSubscriptions()]);
+  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices, waitlist] = await Promise.all([
+    loadSettings(),
+    listPushSubscriptions(),
+    listWaitlist(),
+  ]);
   const pushKey = vapidPublicKey();
 
   return (
@@ -178,6 +182,40 @@ export default async function SettingsPage({
           )}
         </Panel>
       </div>
+
+      <Panel
+        title="Waitlist"
+        className="mt-6"
+        right={<Tag>{waitlist.data.length} sign-up{waitlist.data.length === 1 ? "" : "s"}</Tag>}
+      >
+        <p className="mb-3 text-sm text-muted">
+          People who joined from the sign-in page. Only you can see this.{" "}
+          {waitlist.data.length > 0 && (
+            <a href="/api/waitlist" className="text-accent hover:underline">
+              Download CSV
+            </a>
+          )}
+        </p>
+        {waitlist.error && /waitlist/.test(waitlist.error) ? (
+          <p className="text-xs text-warn">Run the waitlist SQL in Supabase to switch this on (see PROGRESS.md).</p>
+        ) : waitlist.error ? (
+          <p className="text-xs text-loss">{waitlist.error}</p>
+        ) : waitlist.data.length === 0 ? (
+          <p className="text-sm text-faint">No sign-ups yet. Share your sign-in page link (e.g. in your Instagram bio).</p>
+        ) : (
+          <ul className="divide-y divide-line rounded-lg border border-line text-sm">
+            {waitlist.data.slice(0, 25).map((w) => (
+              <li key={w.email} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span className="min-w-0 truncate">{w.email}</span>
+                <span className="shrink-0 text-xs text-faint">
+                  {w.interests.length ? `${w.interests.map((i) => (i === "Pokemon" ? "Pokémon" : i)).join(", ")} · ` : ""}
+                  {new Date(w.createdAt).toLocaleDateString("en-AU")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
 
       <Panel title="Security" className="mt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
