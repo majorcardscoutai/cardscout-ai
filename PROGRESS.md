@@ -181,6 +181,7 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - Sign-in page now has "Join the waitlist" under the password box: email + optional NBA/MLB/Pokémon, hidden bot trap, duplicates ignored, consent line. Settings → Waitlist shows sign-ups and a CSV download (/api/waitlist, login only). 81 unit tests + e2e.
 - **Waitlist SQL (one-time):** see bottom of supabase/schema.sql (`create table public.waitlist …`, RLS on).
 - [ ] Deployed + SQL run
+- Promo video (15 s, muted loop) shown on the sign-in page above the waitlist: public/media/cardhawk-promo.mp4 + poster; /media/ excluded from the login check.
 - Note: the sign-in page is the public link to share (e.g. Instagram bio) until there's a separate landing page/domain.
 
 ## eBay commercial use — checked 15 Oct 2026

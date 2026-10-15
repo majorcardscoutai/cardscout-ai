@@ -42,6 +42,21 @@ export default async function LoginPage({
           </button>
         </form>
 
+        <figure className="overflow-hidden rounded-2xl border border-line bg-panel">
+          <video
+            className="mx-auto block max-h-[70vh] w-full object-contain"
+            src="/media/cardhawk-promo.mp4"
+            poster="/media/cardhawk-promo-poster.jpg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-label="How CardHawk works: save a search, get a deal alert on your phone, see the real profit, tap through to buy on eBay"
+          />
+          <figcaption className="px-4 py-2 text-center text-[11px] text-faint">How it works · illustrative example</figcaption>
+        </figure>
+
         <section id="waitlist" className="scroll-mt-10 rounded-2xl border border-gain/30 bg-panel p-6">
           {joined ? (
             <div className="text-center">
