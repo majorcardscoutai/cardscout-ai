@@ -12,6 +12,7 @@ export function emailConfigured(): boolean {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 
+/** `usdToAud` 0 = show US$ only (buyers outside Australia). */
 export function alertEmailHtml(hits: (ScanHit & { searchName: string })[], usdToAud: number, appUrl: string): string {
   const rows = hits
     .map(
@@ -21,7 +22,7 @@ export function alertEmailHtml(hits: (ScanHit & { searchName: string })[], usdTo
     <div style="color:#8492a6;font-size:12px;margin-top:4px">${esc(h.searchName)}${h.isAuction ? " · Auction ending soon" : ""} · compared with your value ${h.valueUsd !== null ? formatMoney(h.valueUsd, "USD") : ""}</div>
   </td>
   <td style="padding:12px;border-bottom:1px solid #1f2733;text-align:right;white-space:nowrap;color:#e6ebf2">
-    ${h.priceUsd !== null ? formatMoney(h.priceUsd, "USD") : "—"}<div style="color:#5a6678;font-size:12px">${h.priceUsd !== null ? formatMoney(h.priceUsd * usdToAud, "AUD") : ""}</div>
+    ${h.priceUsd !== null ? formatMoney(h.priceUsd, "USD") : "—"}<div style="color:#5a6678;font-size:12px">${h.priceUsd !== null && usdToAud > 0 ? formatMoney(h.priceUsd * usdToAud, "AUD") : ""}</div>
   </td>
   <td style="padding:12px;border-bottom:1px solid #1f2733;text-align:right;white-space:nowrap;color:#22c55e;font-weight:600">
     ${h.netProfitUsd !== null ? "+" + formatMoney(h.netProfitUsd, "USD") : "—"}<div style="font-size:12px">${h.roiPercent !== null ? h.roiPercent.toFixed(1) + "% ROI" : ""}</div>

@@ -5,6 +5,7 @@ import { Money, PageHeader, Panel, Tag } from "@/components/ui";
 import { listCardValues } from "@/data/db";
 import { loadSettings } from "@/data/source";
 import { cardFromListing } from "@/lib/ebay/parse";
+import { displayFx } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export default async function CardValuesPage({
   const from = rawFrom ? rawFrom.slice(0, 200) : null;
   const suggestion = from ? cardFromListing(from) : null;
   const [{ settings }, values] = await Promise.all([loadSettings(), listCardValues()]);
-  const fx = settings.usdToAud;
+  const fx = displayFx(settings); // A$ shown for Australian buyers only
 
   return (
     <>

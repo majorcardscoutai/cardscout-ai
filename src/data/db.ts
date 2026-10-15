@@ -7,6 +7,7 @@ import { liveUsdToAud, type LiveFx } from "@/lib/fx";
 import { DEFAULT_SETTINGS } from "@/lib/config";
 import type { HoldingInput, WatchlistInput } from "@/lib/forms";
 import type { RecheckUpdate } from "@/lib/freshness";
+import { parseRegion } from "@/lib/region";
 import type { CardValue, ScanHit } from "@/lib/scan";
 import { db, dbConfigured } from "@/lib/supabase";
 import type { CardIdentity, Holding, Settings, WatchlistEntry } from "@/lib/types";
@@ -68,6 +69,9 @@ async function loadSavedSettings(): Promise<SettingsLoad> {
           data.inbound_shipping_fixed_usd === undefined || data.inbound_shipping_fixed_usd === null
             ? 0
             : num(data.inbound_shipping_fixed_usd),
+        buyerRegion: parseRegion(data.buyer_region),
+        shipToCountry: data.ship_to_country ? String(data.ship_to_country) : null,
+        shipToPostcode: data.ship_to_postcode ? String(data.ship_to_postcode) : null,
       },
     };
   } catch (e) {
@@ -91,6 +95,9 @@ export async function saveSettings(s: Settings): Promise<string | null> {
         min_profit_usd: s.minProfitUsd,
         inbound_shipping_mode: s.inboundShippingMode,
         inbound_shipping_fixed_usd: s.inboundShippingFixedUsd,
+        buyer_region: s.buyerRegion,
+        ship_to_country: s.shipToCountry,
+        ship_to_postcode: s.shipToPostcode,
         updated_at: new Date().toISOString(),
       });
     if (error) throw error;
@@ -709,16 +716,22 @@ export async function markPushResult(id: string, ok: boolean, err: string | null
 export interface WaitlistEntry {
   email: string;
   interests: string[];
+  region: string | null;
   createdAt: string;
 }
 
 /** Adds an email to the waitlist. Signing up twice is fine (kept once). */
-export async function addToWaitlist(w: { email: string; interests: string[] }): Promise<string | null> {
+export async function addToWaitlist(w: { email: string; interests: string[]; region?: string | null }): Promise<string | null> {
   if (!dbConfigured()) return "Database not configured";
   try {
-    const { error } = await db()
+    const row = { email: w.email, interests: w.interests.join(","), source: "login-page" };
+    let { error } = await db()
       .from("waitlist")
-      .upsert({ email: w.email, interests: w.interests.join(","), source: "login-page" }, { onConflict: "email", ignoreDuplicates: true });
+      .upsert({ ...row, region: w.region ?? null }, { onConflict: "email", ignoreDuplicates: true });
+    // Region column not added yet (one-time SQL) — still save the sign-up.
+    if (error && /region/.test(message(error))) {
+      ({ error } = await db().from("waitlist").upsert(row, { onConflict: "email", ignoreDuplicates: true }));
+    }
     if (error) throw error;
     return null;
   } catch (e) {
@@ -736,6 +749,7 @@ export async function listWaitlist(): Promise<DbResult<WaitlistEntry[]>> {
       data: (data ?? []).map((r: Record<string, unknown>) => ({
         email: String(r.email),
         interests: r.interests ? String(r.interests).split(",").filter(Boolean) : [],
+        region: r.region ? String(r.region) : null,
         createdAt: String(r.created_at),
       })),
     };

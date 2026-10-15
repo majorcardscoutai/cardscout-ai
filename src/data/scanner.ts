@@ -6,6 +6,7 @@ import { ebayConfigured, getListing, searchListings } from "@/lib/ebay/client";
 import { pickRechecks, recheckUpdate } from "@/lib/freshness";
 import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
 import { parseExcludeWords } from "@/lib/exclude";
+import { displayFx, shipToFor } from "@/lib/region";
 import { dealsMessage, pushToAllDevices } from "./notify";
 import { evaluateListing, revalueHit, shouldAlert, type ScanHit } from "@/lib/scan";
 import {
@@ -56,7 +57,7 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
 
   for (const s of searches.data.filter((x) => x.active)) {
     summary.searches++;
-    const r = await searchListings({ q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords) });
+    const r = await searchListings({ q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), shipTo: shipToFor(settings) });
     if (!r.ok) {
       summary.errors.push(`${s.name}: ${r.error}`);
       await markSearchRun(s.id, `Error: ${r.error}`);
@@ -92,7 +93,7 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
       const already = new Set(toEmail.map((h) => h.itemId));
       for (const h of pickRechecks(recent.data, settings, values.map)) {
         if (Date.now() - started > RECHECK_TIME_BUDGET_MS) break;
-        const r = await getListing(h.itemId, marketBySearch.get(h.searchId) ?? "EBAY_US");
+        const r = await getListing(h.itemId, marketBySearch.get(h.searchId) ?? "EBAY_US", shipToFor(settings));
         if (!r.ok && r.code === 429) break;
         if (!r.ok && r.code !== 404) continue; // temporary problem — try again next scan
         const u = recheckUpdate(r.ok ? r.data : null, settings.usdToAud);
@@ -131,7 +132,7 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
     const appUrl = process.env.APP_URL ?? "https://cardscout-ai.vercel.app";
     const err = await sendAlertEmail(
       `CardHawk: ${toEmail.length} new deal${toEmail.length === 1 ? "" : "s"}`,
-      alertEmailHtml(best, settings.usdToAud, appUrl),
+      alertEmailHtml(best, displayFx(settings), appUrl),
     );
     if (err) summary.errors.push(err);
     else summary.emailed = best.length;

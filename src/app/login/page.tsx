@@ -69,13 +69,27 @@ export default async function LoginPage({
             <form action={joinWaitlist}>
               <div className="text-lg font-semibold">Join the waitlist</div>
               <p className="mt-1 text-sm text-muted">
-                CardHawk finds underpriced trading cards on eBay and shows the real profit after fees, GST and shipping. Be
+                CardHawk finds underpriced trading cards on eBay and shows the real cost after fees, taxes and shipping. Be
                 first to know when it opens to more collectors.
               </p>
               <label className="mt-4 block">
                 <span className="text-xs text-muted">Email</span>
                 <input type="email" name="email" required maxLength={254} autoComplete="email" placeholder="you@example.com" className={inputCls} />
               </label>
+              <fieldset className="mt-4">
+                <legend className="text-xs text-muted">Where are you based?</legend>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    ["AU", "Australia"],
+                    ["US", "United States"],
+                    ["OTHER", "Rest of the world"],
+                  ].map(([k, label]) => (
+                    <label key={k} className="flex items-center gap-2 rounded-lg border border-line bg-panel-2 px-3 py-2 text-sm">
+                      <input type="radio" name="region" value={k} required className="h-4 w-4 accent-gain" /> {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <fieldset className="mt-4">
                 <legend className="text-xs text-muted">What do you collect? (optional)</legend>
                 <div className="mt-2 flex flex-wrap gap-2">

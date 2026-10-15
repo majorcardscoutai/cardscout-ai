@@ -6,6 +6,7 @@ import { calculateProfit, maxPurchasePrice, recommendedOpeningOffer } from "@/li
 import type { CardIdentity, Settings } from "@/lib/types";
 import { CardFields, CurrencyPicker, Field, inputCls, SubmitButton } from "./FormBits";
 import { Money, Pct } from "./ui";
+import { displayFx, taxLabel } from "@/lib/region";
 
 /**
  * Manual Scanner form: card details + prices → live profit check → save.
@@ -23,9 +24,10 @@ export interface ManualPrefill {
 }
 
 export default function ManualAnalysis({ settings, prefill }: { settings: Settings; prefill?: ManualPrefill }) {
-  const fx = settings.usdToAud;
+  const fx = settings.usdToAud; // converts A$ entries
+  const showFx = displayFx(settings); // A$ shown for Australian buyers only
   const fromListing = prefill?.askingUsd !== undefined && prefill?.askingUsd !== null;
-  const [currency, setCurrency] = useState<"USD" | "AUD">(fromListing ? "USD" : "AUD");
+  const [currency, setCurrency] = useState<"USD" | "AUD">(fromListing || settings.buyerRegion !== "AU" ? "USD" : "AUD");
   const [asking, setAsking] = useState(fromListing ? String(prefill?.askingUsd) : "");
   const [shipping, setShipping] = useState(
     prefill?.shippingUsd !== undefined && prefill?.shippingUsd !== null ? String(prefill.shippingUsd) : "",
@@ -116,7 +118,7 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
               <div>
                 <div className="text-xs text-muted">Net profit</div>
-                <Money usd={result.netProfitUsd} fx={fx} tone="auto" size="lg" />
+                <Money usd={result.netProfitUsd} fx={showFx} tone="auto" size="lg" />
               </div>
               <div>
                 <div className="text-xs text-muted">ROI</div>
@@ -124,23 +126,23 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
               </div>
               <div>
                 <div className="text-xs text-muted">Total acquisition cost</div>
-                <Money usd={result.totalAcquisitionCostUsd} fx={fx} size="lg" />
+                <Money usd={result.totalAcquisitionCostUsd} fx={showFx} size="lg" />
               </div>
               <div>
                 <div className="text-xs text-muted">Marketplace fees</div>
-                <Money usd={result.marketplaceFeesUsd} fx={fx} />
+                <Money usd={result.marketplaceFeesUsd} fx={showFx} />
               </div>
               <div>
                 <div className="text-xs text-muted">Max profitable price</div>
-                <Money usd={maxPrice} fx={fx} />
+                <Money usd={maxPrice} fx={showFx} />
               </div>
               <div>
                 <div className="text-xs text-muted">Opening offer (rule of thumb)</div>
-                <Money usd={offer} fx={fx} />
+                <Money usd={offer} fx={showFx} />
               </div>
             </div>
             <p className="mt-4 text-xs text-faint">
-              Includes import GST {settings.importTaxRate * 100}%, fees {(settings.marketplaceFeeRate * 100).toFixed(2)}% + US$
+              Includes {taxLabel(settings.buyerRegion).toLowerCase()} {Math.round(settings.importTaxRate * 1000) / 10}%, fees {(settings.marketplaceFeeRate * 100).toFixed(2)}% + US$
               {settings.marketplaceFixedFeeUsd}, shipping to buyer US${settings.outboundShippingUsd}, other costs US$
               {settings.otherCostsUsd}. Change these in Settings.
             </p>

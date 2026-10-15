@@ -20,6 +20,9 @@ export const DEFAULT_SETTINGS: Settings = {
   minProfitUsd: 25,
   inboundShippingMode: "ebay",
   inboundShippingFixedUsd: 0,
+  buyerRegion: "AU",
+  shipToCountry: null,
+  shipToPostcode: null,
 };
 
 /**

@@ -8,16 +8,18 @@ import { loadSettings } from "@/data/source";
 import { cardKey } from "@/lib/cardKey";
 import { ebayConfigured, getListing, toUsd, type EbayListing, type Marketplace } from "@/lib/ebay/client";
 import { cardFromListing, type CardSuggestion } from "@/lib/ebay/parse";
+import { displayFx, isImport, shipToCountry, shipToFor, taxLabel } from "@/lib/region";
+import type { Settings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-function riskFlags(l: EbayListing): string[] {
+function riskFlags(l: EbayListing, settings: Settings): string[] {
   const flags: string[] = [];
   if (l.sellerFeedbackScore !== null && l.sellerFeedbackScore < 50) flags.push("Seller has fewer than 50 feedback ratings");
   if (l.sellerFeedbackPercent !== null && l.sellerFeedbackPercent < 98.5) flags.push("Seller positive feedback below 98.5%");
   if (l.returnsAccepted === false) flags.push("Returns not accepted");
   if (l.isAuction) flags.push("Auction — the price shown is the current bid and will likely rise");
-  if (l.country && l.country !== "AU") flags.push(`Ships from ${l.country} — import GST applies`);
+  if (isImport(l.country, settings)) flags.push(`Ships from ${l.country} — ${taxLabel(settings.buyerRegion).toLowerCase()} may apply`);
   return flags;
 }
 
@@ -28,7 +30,9 @@ export default async function ManualScannerPage({
 }) {
   const { saved, error, item, market } = await searchParams;
   const { settings, error: dbError } = await loadSettings();
-  const fx = settings.usdToAud;
+  const fx = settings.usdToAud; // for converting eBay AU prices
+  const showFx = displayFx(settings); // A$ shown for Australian buyers only
+  const shipCountry = shipToCountry(settings);
   const connected = ebayConfigured();
 
   let listing: EbayListing | null = null;
@@ -38,7 +42,7 @@ export default async function ManualScannerPage({
 
   if (item) {
     const mkt: Marketplace = market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US";
-    const r = await getListing(item, mkt);
+    const r = await getListing(item, mkt, shipToFor(settings));
     if (r.ok) {
       listing = r.data;
       suggestion = cardFromListing(listing.title, listing.aspects);
@@ -108,19 +112,19 @@ export default async function ManualScannerPage({
               <div className="flex flex-wrap gap-6">
                 <div>
                   <div className="text-xs text-muted">{listing.isAuction ? "Current bid" : "Asking price"}</div>
-                  <Money usd={toUsd(listing.price, fx)} fx={fx} />
+                  <Money usd={toUsd(listing.price, fx)} fx={showFx} />
                 </div>
                 <div>
                   <div className="text-xs text-muted">
-                    {settings.inboundShippingMode === "fixed" ? "Shipping (parcel locker)" : "Shipping to AU"}
+                    {settings.inboundShippingMode === "fixed" ? "Shipping (parcel locker)" : `Shipping to ${shipCountry}`}
                   </div>
                   {settings.inboundShippingMode === "fixed" ? (
                     <>
-                      <Money usd={settings.inboundShippingFixedUsd} fx={fx} />
-                      <div className="text-[11px] text-faint">Your setting · eBay quotes {listing.shipping ? `${listing.shipping.currency} ${listing.shipping.value}` : "n/a"} to AU</div>
+                      <Money usd={settings.inboundShippingFixedUsd} fx={showFx} />
+                      <div className="text-[11px] text-faint">Your setting · eBay quotes {listing.shipping ? `${listing.shipping.currency} ${listing.shipping.value}` : "n/a"} to {shipCountry}</div>
                     </>
                   ) : listing.shipping ? (
-                    <Money usd={toUsd(listing.shipping, fx)} fx={fx} />
+                    <Money usd={toUsd(listing.shipping, fx)} fx={showFx} />
                   ) : (
                     <span className="text-sm text-faint">Not stated — check listing</span>
                   )}
@@ -139,9 +143,9 @@ export default async function ManualScannerPage({
               ) : (
                 <p className="text-sm text-muted">Card details filled in from the listing — check them, especially parallel and grade.</p>
               )}
-              {riskFlags(listing).length > 0 && (
+              {riskFlags(listing, settings).length > 0 && (
                 <ul className="space-y-1 text-xs text-loss">
-                  {riskFlags(listing).map((f) => (
+                  {riskFlags(listing, settings).map((f) => (
                     <li key={f}>• {f}</li>
                   ))}
                 </ul>

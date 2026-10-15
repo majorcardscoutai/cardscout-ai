@@ -149,3 +149,9 @@ create table if not exists public.waitlist (
   created_at timestamptz not null default now()
 );
 alter table public.waitlist enable row level security;
+
+-- ---------- 16 Oct 2026: buyer region (worldwide) ----------
+alter table public.settings add column if not exists buyer_region text not null default 'AU';
+alter table public.settings add column if not exists ship_to_country text;
+alter table public.settings add column if not exists ship_to_postcode text;
+alter table public.waitlist add column if not exists region text;

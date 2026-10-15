@@ -71,6 +71,7 @@ export function Money({
   align = "left",
 }: {
   usd: number | null | undefined;
+  /** USD→AUD rate for the A$ line; 0 = show US$ only (buyers outside Australia). */
   fx: number;
   tone?: "neutral" | "auto";
   size?: "sm" | "md" | "lg";
@@ -88,7 +89,7 @@ export function Money({
         {usd > 0 && tone === "auto" ? "+" : ""}
         {formatMoney(usd, "USD")}
       </span>
-      <span className="num text-[11px] text-faint">{formatMoney(usd * fx, "AUD")}</span>
+      {fx > 0 && <span className="num text-[11px] text-faint">{formatMoney(usd * fx, "AUD")}</span>}
     </span>
   );
 }

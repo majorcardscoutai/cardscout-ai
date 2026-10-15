@@ -5,6 +5,7 @@ import { DbError, Flash } from "@/components/FormBits";
 import { Money, PageHeader, Pct, Tag } from "@/components/ui";
 import { listWatchlist, loadSettings } from "@/data/source";
 import { calculateProfit, maxPurchasePrice } from "@/lib/profit";
+import { displayFx } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function WatchlistPage({
 }) {
   const { saved, error } = await searchParams;
   const [{ settings }, { data: items, error: dbError }] = await Promise.all([loadSettings(), listWatchlist()]);
-  const fx = settings.usdToAud;
+  const fx = displayFx(settings); // A$ shown for Australian buyers only
 
   return (
     <>

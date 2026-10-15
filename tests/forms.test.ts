@@ -165,3 +165,31 @@ test("waitlist sign-up: valid email, interests, honeypot", async () => {
   const bot = parseWaitlistForm(fd({ email: "bot@spam.com", company: "Acme" }));
   assert.equal(bot.ok, false); assert.equal((bot as { spam?: boolean }).spam, true);
 });
+
+test("buyer region: settings form, eBay shipping location, tax label, A$ display", async () => {
+  const R = await import("../src/lib/region.js");
+  const { parseSettingsForm, parseWaitlistForm } = await import("../src/lib/forms.js");
+  const { DEFAULT_SETTINGS } = await import("../src/lib/config.js");
+  const fd = (o: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) f.set(k, v); return f; };
+  const base = { usdToAud: "1.5", feePercent: "13.25", fixedFee: "0.4", outboundShipping: "5", importTaxPercent: "10", otherCosts: "2", minRoi: "20", minProfit: "25" };
+
+  let p = parseSettingsForm(fd(base));
+  assert.ok(p.ok); if (p.ok) { assert.equal(p.value.buyerRegion, "AU"); assert.equal(p.value.shipToCountry, null); }
+  p = parseSettingsForm(fd({ ...base, buyerRegion: "US", shipToPostcode: "10001", shipToCountry: "GB" }));
+  assert.ok(p.ok); if (p.ok) { assert.equal(p.value.buyerRegion, "US"); assert.equal(p.value.shipToPostcode, "10001"); assert.equal(p.value.shipToCountry, null); }
+  assert.equal(parseSettingsForm(fd({ ...base, buyerRegion: "US", shipToPostcode: "1234" })).ok, false, "bad ZIP");
+  assert.equal(parseSettingsForm(fd({ ...base, buyerRegion: "OTHER" })).ok, false, "country required");
+  p = parseSettingsForm(fd({ ...base, buyerRegion: "OTHER", shipToCountry: "gb", shipToPostcode: "10001" }));
+  assert.ok(p.ok); if (p.ok) { assert.equal(p.value.shipToCountry, "GB"); assert.equal(p.value.shipToPostcode, null); }
+
+  const au = DEFAULT_SETTINGS, us = { ...au, buyerRegion: "US" as const, shipToPostcode: "10001" }, gb = { ...au, buyerRegion: "OTHER" as const, shipToCountry: "GB" };
+  assert.equal(R.contextualLocation(R.shipToFor(au)), "contextualLocation=country%3DAU", "unchanged for Australia");
+  assert.equal(R.contextualLocation(R.shipToFor(us)), "contextualLocation=country%3DUS%2Czip%3D10001");
+  assert.equal(R.contextualLocation(R.shipToFor(gb)), "contextualLocation=country%3DGB");
+  assert.equal(R.taxLabel("AU"), "Import GST"); assert.equal(R.taxLabel("US"), "Sales tax"); assert.equal(R.taxLabel("OTHER"), "Import tax / VAT");
+  assert.equal(R.displayFx(au), 1.5); assert.equal(R.displayFx(us), 0); assert.equal(R.displayFx(gb), 0);
+  assert.equal(R.isImport("US", au), true); assert.equal(R.isImport("US", us), false); assert.equal(R.isImport("GB", gb), false); assert.equal(R.isImport("JP", gb), true);
+
+  const w = parseWaitlistForm(fd({ email: "a@b.com", region: "US" })); assert.ok(w.ok); if (w.ok) assert.equal(w.value.region, "US");
+  const w2 = parseWaitlistForm(fd({ email: "a@b.com", region: "MARS" })); assert.ok(w2.ok); if (w2.ok) assert.equal(w2.value.region, null);
+});

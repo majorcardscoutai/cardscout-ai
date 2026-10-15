@@ -5,6 +5,7 @@ import { CardFields, CurrencyPicker, DbError, Field, Flash, inputCls, SubmitButt
 import { Money, PageHeader, Panel, Pct, StatCard, Tag } from "@/components/ui";
 import { listHoldings, loadSettings } from "@/data/source";
 import { formatMoney } from "@/lib/currency";
+import { displayFx } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function PortfolioPage({
 }) {
   const { saved, error } = await searchParams;
   const [{ settings }, { data: holdings, error: dbError }] = await Promise.all([loadSettings(), listHoldings()]);
-  const fx = settings.usdToAud;
+  const fx = displayFx(settings); // A$ shown for Australian buyers only
 
   const totalCost = holdings.reduce((s, h) => s + h.purchasePriceUsd + h.purchaseCostsUsd, 0);
   const valued = holdings.filter((h) => h.estimatedValueUsd !== null);
@@ -36,11 +37,11 @@ export default async function PortfolioPage({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Cards held" value={holdings.length} />
-        <StatCard label="Total cost basis" value={formatMoney(totalCost, "USD")} sub={formatMoney(totalCost * fx, "AUD")} />
+        <StatCard label="Total cost basis" value={formatMoney(totalCost, "USD")} sub={fx > 0 ? formatMoney(totalCost * fx, "AUD") : "US$"} />
         <StatCard
           label="Est. value (valued cards)"
           value={formatMoney(valuedValue, "USD")}
-          sub={`${formatMoney(valuedValue * fx, "AUD")} · ${valued.length} of ${holdings.length} cards`}
+          sub={`${fx > 0 ? `${formatMoney(valuedValue * fx, "AUD")} · ` : ""}${valued.length} of ${holdings.length} cards`}
         />
         <StatCard
           label="Unrealised gain / loss"
@@ -115,7 +116,7 @@ export default async function PortfolioPage({
             <Field label="Purchase price">
               <input name="purchasePrice" required inputMode="decimal" className={inputCls} />
             </Field>
-            <Field label="Extra costs" hint="Shipping, GST, grading…">
+            <Field label="Extra costs" hint="Shipping, taxes, grading…">
               <input name="purchaseCosts" inputMode="decimal" className={inputCls} />
             </Field>
             <Field label="Date bought">

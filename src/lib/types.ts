@@ -75,13 +75,19 @@ export interface Settings {
   marketplaceFeeRate: number; // e.g. 0.1325 = 13.25 %
   marketplaceFixedFeeUsd: number; // per-order fixed fee
   outboundShippingUsd: number; // what it costs you to ship when reselling
-  importTaxRate: number; // GST on imported low-value goods (AU) — 0.10
+  importTaxRate: number; // AU import GST 0.10 · US sales tax · elsewhere import VAT/duty
   otherCostsUsd: number; // supplies, grading, etc.
   minRoiPercent: number;
   minProfitUsd: number;
   /** How shipping to you is counted: eBay's quoted shipping, or a fixed amount per card (parcel locker). */
   inboundShippingMode: "ebay" | "fixed";
   inboundShippingFixedUsd: number;
+  /** Where you buy from: shipping quotes, tax label and A$ display follow this. */
+  buyerRegion: "AU" | "US" | "OTHER";
+  /** Two-letter country for "Rest of the world" (e.g. GB). */
+  shipToCountry: string | null;
+  /** Optional US ZIP code for more accurate eBay shipping quotes. */
+  shipToPostcode: string | null;
 }
 
 export interface Holding {

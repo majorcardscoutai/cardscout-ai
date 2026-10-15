@@ -49,6 +49,9 @@ export async function saveSettingsAction(formData: FormData) {
   const parsed = parseSettingsForm(formData);
   if (!parsed.ok) back("/settings", "error", parsed.error);
   const error = await saveSettings(parsed.value);
+  if (error && /buyer_region|ship_to_/.test(error)) {
+    back("/settings", "error", "Your database needs a quick update first: run the 'buyer region' SQL (see PROGRESS.md) in Supabase → SQL Editor.");
+  }
   if (error && /inbound_shipping/.test(error)) {
     back("/settings", "error", "Your database needs a quick update first: run the 'parcel locker' SQL from supabase/schema.sql in Supabase → SQL Editor.");
   }

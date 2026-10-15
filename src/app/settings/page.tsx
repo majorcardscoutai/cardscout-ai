@@ -7,6 +7,7 @@ import { PageHeader, Panel, Tag } from "@/components/ui";
 import { listPushSubscriptions, listWaitlist } from "@/data/db";
 import { loadSettings } from "@/data/source";
 import { vapidPublicKey } from "@/lib/webpush";
+import { OTHER_COUNTRIES, REGION_LABELS, taxHint, taxLabel } from "@/lib/region";
 import { DEMAND_TIERS } from "@/lib/config";
 import { CONFIDENCE_CAPS, SCORE_WEIGHTS } from "@/lib/scoring";
 
@@ -38,6 +39,40 @@ export default async function SettingsPage({
         right={<Tag tone={source === "database" ? "default" : "warn"}>{source === "database" ? "Saved in database" : "Defaults (not saved)"}</Tag>}
       >
         <form action={saveSettingsAction} className="space-y-5">
+          <fieldset className="rounded-lg border border-line p-4">
+            <legend className="px-1 text-sm font-medium">Where you buy from</legend>
+            <p className="mb-3 text-xs text-faint">
+              Sets where eBay quotes shipping to, what the tax line means, and whether amounts also show in A$.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {(["AU", "US", "OTHER"] as const).map((r) => (
+                <label key={r} className="flex items-start gap-3 rounded-lg bg-panel-2 p-3 ring-1 ring-line">
+                  <input type="radio" name="buyerRegion" value={r} defaultChecked={s.buyerRegion === r} className="mt-1 accent-gain" />
+                  <span>
+                    <span className="block text-sm">{REGION_LABELS[r]}</span>
+                    <span className="block text-xs text-faint">
+                      {r === "AU" ? "US$ + A$ · import GST" : r === "US" ? "US$ · sales tax" : "US$ · import tax / VAT"}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <Field label="Your country" hint="Only for Rest of the world">
+                <select name="shipToCountry" defaultValue={s.shipToCountry ?? ""} className={inputCls}>
+                  <option value="">Choose…</option>
+                  {OTHER_COUNTRIES.map(([c, n]) => (
+                    <option key={c} value={c}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="US ZIP code (optional)" hint="Only for United States — makes eBay's shipping quotes more accurate">
+                <input name="shipToPostcode" defaultValue={s.shipToPostcode ?? ""} inputMode="numeric" maxLength={5} className={inputCls} />
+              </Field>
+            </div>
+          </fieldset>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field
               label="Backup exchange rate (1 USD = ? AUD)"
@@ -58,7 +93,7 @@ export default async function SettingsPage({
             <Field label="Shipping to buyer (US$)" hint="Your cost to post when reselling">
               <input name="outboundShipping" defaultValue={s.outboundShippingUsd} inputMode="decimal" required className={inputCls} />
             </Field>
-            <Field label="Import GST (%)" hint="0 for domestic purchases">
+            <Field label={`${taxLabel(s.buyerRegion)} (%)`} hint={taxHint(s.buyerRegion)}>
               <input name="importTaxPercent" defaultValue={pct(s.importTaxRate)} inputMode="decimal" required className={inputCls} />
             </Field>
             <Field label="Other costs per card (US$)" hint="Sleeves, top-loaders, packaging">
@@ -84,7 +119,7 @@ export default async function SettingsPage({
                 />
                 <span>
                   <span className="block text-sm">Use eBay&apos;s quoted shipping</span>
-                  <span className="block text-xs text-faint">The seller&apos;s shipping cost to Australia, per card.</span>
+                  <span className="block text-xs text-faint">The seller&apos;s shipping cost to you ({REGION_LABELS[s.buyerRegion]}), per card.</span>
                 </span>
               </label>
               <label className="flex items-start gap-3 rounded-lg bg-panel-2 p-3 ring-1 ring-line">
@@ -208,6 +243,7 @@ export default async function SettingsPage({
               <li key={w.email} className="flex items-center justify-between gap-3 px-3 py-2">
                 <span className="min-w-0 truncate">{w.email}</span>
                 <span className="shrink-0 text-xs text-faint">
+                  {w.region ? `${w.region === "OTHER" ? "Rest of world" : w.region} · ` : ""}
                   {w.interests.length ? `${w.interests.map((i) => (i === "Pokemon" ? "Pokémon" : i)).join(", ")} · ` : ""}
                   {new Date(w.createdAt).toLocaleDateString("en-AU")}
                 </span>

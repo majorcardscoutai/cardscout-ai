@@ -6,6 +6,7 @@ import { cardValueMap, lastScanRuns } from "@/data/db";
 import { currentDeals, sortDeals } from "@/data/deals";
 import { ebayConfigured } from "@/lib/ebay/client";
 import { listHoldings, listWatchlist, loadSettings } from "@/data/source";
+import { displayFx, REGION_LABELS } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function OverviewPage() {
   const settings = live.settings;
   const top = sortDeals(live.deals, "profit").slice(0, 4);
   const lastRun = runs.data[0] ?? null;
-  const fx = settings.usdToAud;
+  const fx = displayFx(settings); // A$ shown for Australian buyers only
   const holdings = hold.data;
   const portfolioCost = holdings.reduce((s, h) => s + h.purchasePriceUsd + h.purchaseCostsUsd, 0);
   const dbOk = source === "database" && !watch.error && !hold.error;
@@ -38,7 +39,7 @@ export default async function OverviewPage() {
         <StatCard
           label="Portfolio cost basis"
           value={formatMoney(portfolioCost, "USD")}
-          sub={`${holdings.length} cards held · ${formatMoney(portfolioCost * fx, "AUD")}`}
+          sub={`${holdings.length} cards held${fx > 0 ? ` · ${formatMoney(portfolioCost * fx, "AUD")}` : ""}`}
         />
         <StatCard
           label="Live deals right now"
@@ -46,7 +47,11 @@ export default async function OverviewPage() {
           sub={lastRun ? `Last scan ${new Date(lastRun.createdAt).toLocaleString("en-AU", { dateStyle: "short", timeStyle: "short" })}` : "No scans yet"}
           tone={live.deals.length > 0 ? "gain" : "neutral"}
         />
-        <StatCard label="Exchange rate" value={fx} sub={liveFx ? `1 USD in AUD · live${liveFx.date ? ` (${liveFx.date})` : ""}` : "1 USD in AUD · backup rate from Settings"} />
+        {settings.buyerRegion === "AU" ? (
+          <StatCard label="Exchange rate" value={settings.usdToAud} sub={liveFx ? `1 USD in AUD · live${liveFx.date ? ` (${liveFx.date})` : ""}` : "1 USD in AUD · backup rate from Settings"} />
+        ) : (
+          <StatCard label="Buying from" value={REGION_LABELS[settings.buyerRegion]} sub="Amounts in US$ · change in Settings" />
+        )}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">

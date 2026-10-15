@@ -11,6 +11,7 @@
  * missing key, an eBay outage or a rate limit shows a clear message.
  */
 import { excludedBy } from "../exclude";
+import { contextualLocation, type ShipTo } from "../region";
 import type { Aspect } from "./parse";
 
 export type Marketplace = "EBAY_US" | "EBAY_AU";
@@ -112,7 +113,7 @@ function networkMessage(e: unknown): string {
   return "Couldn't reach eBay. Check your connection and try again.";
 }
 
-async function call<T>(path: string, market: Marketplace): Promise<EbayResult<T>> {
+async function call<T>(path: string, market: Marketplace, shipTo: ShipTo = { country: "AU" }): Promise<EbayResult<T>> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await getToken(attempt > 0);
     if (!token.ok) return token;
@@ -122,8 +123,8 @@ async function call<T>(path: string, market: Marketplace): Promise<EbayResult<T>
         headers: {
           Authorization: `Bearer ${token.data}`,
           "X-EBAY-C-MARKETPLACE-ID": market,
-          // Ask eBay for shipping costs to Australia.
-          "X-EBAY-C-ENDUSERCTX": "contextualLocation=country%3DAU",
+          // Ask eBay for shipping costs to where the buyer is (Settings → Where you buy from).
+          "X-EBAY-C-ENDUSERCTX": contextualLocation(shipTo),
           Accept: "application/json",
         },
       });
@@ -220,9 +221,13 @@ export function toUsd(m: EbayMoney | null, usdToAud: number): number | null {
 
 // ---------- Public functions ----------
 
-export async function getListing(itemId: string, market: Marketplace = "EBAY_US"): Promise<EbayResult<EbayListing>> {
+export async function getListing(
+  itemId: string,
+  market: Marketplace = "EBAY_US",
+  shipTo?: ShipTo,
+): Promise<EbayResult<EbayListing>> {
   if (!/^\d{9,15}$/.test(itemId)) return { ok: false, error: "That doesn't look like an eBay item number." };
-  const r = await call<RawItem>(`/buy/browse/v1/item/get_item_by_legacy_id?legacy_item_id=${itemId}`, market);
+  const r = await call<RawItem>(`/buy/browse/v1/item/get_item_by_legacy_id?legacy_item_id=${itemId}`, market, shipTo);
   return r.ok ? { ok: true, data: mapItem(r.data) } : r;
 }
 
@@ -235,6 +240,8 @@ export interface SearchInput {
   limit?: number;
   /** Hide listings whose title contains any of these whole words (applied after eBay returns results). */
   exclude?: string[];
+  /** Where to quote shipping to (defaults to Australia). */
+  shipTo?: ShipTo;
 }
 
 export function buildSearchPath(s: SearchInput): string {
@@ -256,7 +263,7 @@ export async function searchListings(
   s: SearchInput,
 ): Promise<EbayResult<{ total: number; items: EbayListing[]; excluded: number }>> {
   if (s.q.trim().length < 3) return { ok: false, error: "Enter at least 3 characters to search." };
-  const r = await call<{ total?: number; itemSummaries?: RawItem[] }>(buildSearchPath(s), s.market);
+  const r = await call<{ total?: number; itemSummaries?: RawItem[] }>(buildSearchPath(s), s.market, s.shipTo);
   if (!r.ok) return r;
   const items = (r.data.itemSummaries ?? []).map(mapItem);
   // Remove duplicates (eBay occasionally repeats an item across pages/variations).

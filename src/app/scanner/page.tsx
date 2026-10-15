@@ -17,6 +17,7 @@ import { emailConfigured } from "@/lib/email";
 import { excludedBy, excludeWordsText, parseExcludeWords } from "@/lib/exclude";
 import { isEnded, isFresh } from "@/lib/freshness";
 import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit } from "@/lib/scan";
+import { displayFx, shipToFor } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -74,13 +75,13 @@ const FORMAT_LABEL = { ALL: "All", FIXED_PRICE: "Buy It Now", AUCTION: "Auction"
 export default async function AutomaticScannerPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
   const settings = await getSettings();
-  const fx = settings.usdToAud;
+  const fx = displayFx(settings); // A$ shown for Australian buyers only
   const connected = ebayConfigured();
   const search = parseSearch(params);
   const onlyDeals = params.deals === "1";
 
   const [result, values, saved, hits, runs, devices] = await Promise.all([
-    search && connected ? searchListings(search) : Promise.resolve(null),
+    search && connected ? searchListings({ ...search, shipTo: shipToFor(settings) }) : Promise.resolve(null),
     cardValueMap(),
     listSavedSearches(),
     listRecentHits(400),

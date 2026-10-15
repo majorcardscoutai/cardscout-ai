@@ -4,6 +4,7 @@
  * All money is converted to USD for storage.
  */
 import { excludeWordsText, parseExcludeWords } from "./exclude";
+import { OTHER_COUNTRIES, parseRegion, type BuyerRegion } from "./region";
 import { cardDescription } from "./analysis";
 import type { CardIdentity, Grader, Settings, Sport } from "./types";
 
@@ -220,7 +221,7 @@ export function parseSettingsForm(fd: FormData): Parsed<Settings> {
     ["marketplaceFeeRate", "feePercent", "Marketplace fee", { min: 0, max: 50 }, 100],
     ["marketplaceFixedFeeUsd", "fixedFee", "Fixed fee", { min: 0, max: 50 }, 1],
     ["outboundShippingUsd", "outboundShipping", "Shipping to buyer", { min: 0, max: 500 }, 1],
-    ["importTaxRate", "importTaxPercent", "Import GST", { min: 0, max: 50 }, 100],
+    ["importTaxRate", "importTaxPercent", "Tax on purchases", { min: 0, max: 50 }, 100],
     ["otherCostsUsd", "otherCosts", "Other costs", { min: 0, max: 500 }, 1],
     ["minRoiPercent", "minRoi", "Minimum ROI", { min: 0, max: 1000 }, 1],
     ["minProfitUsd", "minProfit", "Minimum profit", { min: 0, max: 100000 }, 1],
@@ -240,6 +241,15 @@ export function parseSettingsForm(fd: FormData): Parsed<Settings> {
   });
   if (!fixed.ok) return fixed;
   out.inboundShippingFixedUsd = fixed.value ?? 0;
+  // Where you buy from.
+  out.buyerRegion = parseRegion(str(fd, "buyerRegion"));
+  const country = str(fd, "shipToCountry").toUpperCase();
+  if (out.buyerRegion === "OTHER" && !OTHER_COUNTRIES.some(([c]) => c === country))
+    return { ok: false, error: "Choose your country for \"Rest of the world\"." };
+  out.shipToCountry = out.buyerRegion === "OTHER" ? country : null;
+  const zip = str(fd, "shipToPostcode");
+  if (out.buyerRegion === "US" && zip && !/^\d{5}$/.test(zip)) return { ok: false, error: "US ZIP code should be 5 digits (or leave it blank)." };
+  out.shipToPostcode = out.buyerRegion === "US" && zip ? zip : null;
   return { ok: true, value: out as Settings };
 }
 
@@ -300,6 +310,7 @@ export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {
 export interface WaitlistInput {
   email: string;
   interests: string[]; // "NBA" | "MLB" | "Pokemon"
+  region: BuyerRegion | null; // where they'd buy from (optional)
 }
 
 const EMAIL = /^[^\s@<>()[\]\\,;:"]+@[^\s@<>()[\]\\,;:"]+\.[a-z]{2,}$/i;
@@ -310,5 +321,7 @@ export function parseWaitlistForm(fd: FormData): Parsed<WaitlistInput> & { spam?
   const email = str(fd, "email").toLowerCase();
   if (!email || email.length > 254 || !EMAIL.test(email)) return { ok: false, error: "Please enter a valid email address." };
   const interests = (["NBA", "MLB", "Pokemon"] as const).filter((k) => fd.get(`i_${k}`) === "on");
-  return { ok: true, value: { email, interests } };
+  const r = str(fd, "region");
+  const region = r === "AU" || r === "US" || r === "OTHER" ? r : null;
+  return { ok: true, value: { email, interests, region } };
 }

@@ -3,6 +3,7 @@ import { DbError } from "@/components/FormBits";
 import { formatMoney } from "@/lib/currency";
 import { Money, PageHeader, Panel, Pct, Tag } from "@/components/ui";
 import { currentDeals, sortDeals, type DealHit, type DealSort } from "@/data/deals";
+import { displayFx } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ function DealRow({ d, fx, rank }: { d: DealHit; fx: number; rank?: number }) {
             <span>· found {ago(d.createdAt)}</span>
             {!d.meetsCriteria && d.maxPriceUsd !== null && d.maxPriceUsd > 0 && (
               <span className="rounded-md bg-panel-2 px-1.5 py-0.5 text-ink">
-                Your max: {formatMoney(d.maxPriceUsd, "USD")} · {formatMoney(d.maxPriceUsd * fx, "AUD")}
+                Your max: {formatMoney(d.maxPriceUsd, "USD")}{fx > 0 ? ` · ${formatMoney(d.maxPriceUsd * fx, "AUD")}` : ""}
               </span>
             )}
           </div>
@@ -83,7 +84,7 @@ export default async function TopDealsPage({ searchParams }: { searchParams: Pro
   const { sort: rawSort } = await searchParams;
   const sort: DealSort = SORTS.some((s) => s.key === rawSort) ? (rawSort as DealSort) : "profit";
   const { settings, deals, nearMisses, valuedCount, error } = await currentDeals();
-  const fx = settings.usdToAud;
+  const fx = displayFx(settings); // A$ shown for Australian buyers only
   const rows = sortDeals(deals, sort);
 
   return (
