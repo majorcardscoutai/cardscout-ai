@@ -6,6 +6,7 @@
 import { liveUsdToAud, type LiveFx } from "@/lib/fx";
 import { DEFAULT_SETTINGS } from "@/lib/config";
 import type { HoldingInput, WatchlistInput } from "@/lib/forms";
+import type { RecheckUpdate } from "@/lib/freshness";
 import type { CardValue, ScanHit } from "@/lib/scan";
 import { db, dbConfigured } from "@/lib/supabase";
 import type { CardIdentity, Holding, Settings, WatchlistEntry } from "@/lib/types";
@@ -476,6 +477,10 @@ export interface StoredHit extends ScanHit {
   createdAt: string;
   searchId: string;
   alerted: boolean;
+  /** Last time the listing was confirmed on eBay (null = only when first found). */
+  checkedAt: string | null;
+  /** "ended" once eBay says it sold or ended. */
+  status: string | null;
 }
 
 export async function existingItemIds(searchId: string, itemIds: string[]): Promise<Set<string>> {
@@ -527,6 +532,8 @@ export async function listRecentHits(limit = 60, onlyDeals = false): Promise<DbR
         createdAt: String(r.created_at),
         searchId: String(r.search_id),
         alerted: Boolean(r.alerted),
+        checkedAt: r.checked_at ? String(r.checked_at) : null,
+        status: r.status ? String(r.status) : null,
         itemId: String(r.item_id),
         title: String(r.title),
         url: String(r.url),
@@ -546,6 +553,34 @@ export async function listRecentHits(limit = 60, onlyDeals = false): Promise<DbR
     };
   } catch (e) {
     return { data: [], error: message(e) };
+  }
+}
+
+/** Store the result of re-checking one eBay item (all saved searches that found it). */
+export async function updateHitsForItem(itemId: string, u: RecheckUpdate): Promise<string | null> {
+  const row: Record<string, unknown> = { checked_at: u.checkedAt, status: u.status };
+  if (u.status === "live") {
+    if (u.priceUsd !== undefined) row.price_usd = u.priceUsd;
+    if (u.shippingUsd !== undefined) row.shipping_usd = u.shippingUsd;
+    if (u.endsAt !== undefined) row.ends_at = u.endsAt;
+    if (u.title !== undefined) row.title = u.title;
+    if (u.imageUrl !== undefined) row.image_url = u.imageUrl;
+    if (u.isAuction !== undefined) row.is_auction = u.isAuction;
+  }
+  try {
+    const { error } = await db().from("scan_hits").update(row).eq("item_id", itemId);
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function markItemAlerted(itemId: string): Promise<void> {
+  try {
+    await db().from("scan_hits").update({ alerted: true }).eq("item_id", itemId);
+  } catch {
+    // non-fatal
   }
 }
 

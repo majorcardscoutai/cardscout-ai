@@ -15,6 +15,7 @@ import { getSettings } from "@/data/source";
 import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/client";
 import { emailConfigured } from "@/lib/email";
 import { excludedBy, excludeWordsText, parseExcludeWords } from "@/lib/exclude";
+import { isEnded, isFresh } from "@/lib/freshness";
 import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit } from "@/lib/scan";
 
 export const dynamic = "force-dynamic";
@@ -94,9 +95,14 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
   const revalued = hits.data
     .map((h) => revalueHit(h, settings, values.map))
     .filter((h) => !auctionEnded(h, now)) // ended auctions are gone — never show them
+    .filter((h) => !isEnded(h)) // sold or ended on eBay
     .filter((h) => !excludedBy(h.title, excludeBySearch.get(h.searchId) ?? [])); // exclude words apply to earlier results too
-  const early = revalued.filter((h) => auctionTooEarly(h, now));
-  const visible = showAllAuctions ? revalued : revalued.filter((h) => !auctionTooEarly(h, now));
+  // eBay's licence: listing details shown must be under 6 hours old. Older results are hidden
+  // until a scan re-checks them (valued cards are re-checked automatically).
+  const stale = revalued.filter((h) => !isFresh(h, now)).length;
+  const freshOnly = revalued.filter((h) => isFresh(h, now));
+  const early = freshOnly.filter((h) => auctionTooEarly(h, now));
+  const visible = showAllAuctions ? freshOnly : freshOnly.filter((h) => !auctionTooEarly(h, now));
   const shownHits = (onlyDeals ? visible.filter((h) => h.meetsCriteria) : visible).slice(0, 60);
   const dealCount = visible.filter((h) => h.meetsCriteria).length;
   const qs = (o: { deals?: boolean; auctions?: boolean }) => {
@@ -371,6 +377,12 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           Profit and &ldquo;Deal&rdquo; are recalculated with your current Card Values and Settings each time this page opens. Older
           listings may have sold since they were found.
         </p>
+        {stale > 0 && (
+          <p className="mb-3 text-xs text-faint">
+            {stale} older result{stale === 1 ? "" : "s"} hidden — eBay only allows listing details under 6 hours old. Cards with a
+            value are re-checked on every scan and come back if they&apos;re still for sale.
+          </p>
+        )}
         {early.length > 0 && (
           <p className="mb-3 text-xs text-faint">
             {showAllAuctions ? (
@@ -391,8 +403,10 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
         {shownHits.length === 0 ? (
           <p className="text-sm text-muted">
             {onlyDeals
-              ? "No found listings meet your rules with your current Card Values."
-              : "No scan results yet. Save a search, then click Scan now."}
+              ? "No current listings meet your rules with your current Card Values."
+              : stale > 0
+                ? "No results from the last 6 hours. The next scan will bring in new listings."
+                : "No scan results yet. Save a search, then click Scan now."}
           </p>
         ) : (
           <ul className="divide-y divide-line">

@@ -2,19 +2,23 @@
  * Runs every active saved search: eBay → de-duplicate → value → score → save → email.
  * Called by the scheduled endpoint (/api/cron/scan) and the "Scan now" button.
  */
-import { ebayConfigured, searchListings } from "@/lib/ebay/client";
+import { ebayConfigured, getListing, searchListings } from "@/lib/ebay/client";
+import { pickRechecks, recheckUpdate } from "@/lib/freshness";
 import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
 import { parseExcludeWords } from "@/lib/exclude";
 import { dealsMessage, pushToAllDevices } from "./notify";
-import { evaluateListing, shouldAlert, type ScanHit } from "@/lib/scan";
+import { evaluateListing, revalueHit, shouldAlert, type ScanHit } from "@/lib/scan";
 import {
   cardValueMap,
   existingItemIds,
   insertHits,
+  listRecentHits,
+  markItemAlerted,
   listSavedSearches,
   loadSettings,
   markSearchRun,
   recordScanRun,
+  updateHitsForItem,
 } from "./db";
 
 export interface ScanSummary {
@@ -23,13 +27,19 @@ export interface ScanSummary {
   deals: number;
   emailed: number;
   pushed: number;
+  /** Listings re-checked on eBay this scan, and how many turned out sold/ended. */
+  rechecked: number;
+  ended: number;
   errors: string[];
 }
 
 const MAX_EMAIL_ROWS = 15;
+/** Stop re-checking after this long so the whole scan fits in the 60-second limit. */
+const RECHECK_TIME_BUDGET_MS = 40_000;
 
 export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Promise<ScanSummary> {
-  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, errors: [] };
+  const started = Date.now();
+  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, errors: [] };
   if (!ebayConfigured()) {
     summary.errors.push("eBay isn't connected.");
     return summary;
@@ -71,6 +81,49 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
       summary.errors.push(`${s.name}: ${msg}`);
       await markSearchRun(s.id, `Error: ${msg}`);
     }
+  }
+
+  // Re-check valued listings on eBay so displayed details stay under 6 hours old
+  // (eBay API licence §8.1.3), sold/ended listings drop out, and price drops can alert.
+  try {
+    const recent = await listRecentHits(1000);
+    if (!recent.error) {
+      const marketBySearch = new Map(searches.data.map((x) => [x.id, x.market]));
+      const already = new Set(toEmail.map((h) => h.itemId));
+      for (const h of pickRechecks(recent.data, settings, values.map)) {
+        if (Date.now() - started > RECHECK_TIME_BUDGET_MS) break;
+        const r = await getListing(h.itemId, marketBySearch.get(h.searchId) ?? "EBAY_US");
+        if (!r.ok && r.code === 429) break;
+        if (!r.ok && r.code !== 404) continue; // temporary problem — try again next scan
+        const u = recheckUpdate(r.ok ? r.data : null, settings.usdToAud);
+        const err = await updateHitsForItem(h.itemId, u);
+        if (err) {
+          summary.errors.push(
+            /checked_at|status/.test(err) ? "Listing re-check needs the one-time SQL update (see PROGRESS.md)." : `Re-check: ${err}`,
+          );
+          break;
+        }
+        summary.rechecked++;
+        if (u.status === "ended") {
+          summary.ended++;
+          continue;
+        }
+        // A re-checked listing that now qualifies (e.g. the price dropped) alerts once.
+        const now = revalueHit(
+          { ...h, priceUsd: u.priceUsd ?? h.priceUsd, shippingUsd: u.shippingUsd ?? h.shippingUsd, endsAt: u.endsAt ?? h.endsAt, isAuction: u.isAuction ?? h.isAuction, title: u.title ?? h.title },
+          settings,
+          values.map,
+        );
+        const alertedBefore = recent.data.some((x) => x.itemId === h.itemId && x.alerted);
+        if (!alertedBefore && !already.has(h.itemId) && shouldAlert(now)) {
+          toEmail.push({ ...now, searchName: searches.data.find((x) => x.id === h.searchId)?.name ?? "Search" });
+          already.add(h.itemId);
+          await markItemAlerted(h.itemId);
+        }
+      }
+    }
+  } catch (e) {
+    summary.errors.push(`Re-check: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   if (toEmail.length > 0 && emailConfigured()) {

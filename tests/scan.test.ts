@@ -185,7 +185,7 @@ test("pickDeals: live, de-duplicated, excludes applied, near misses found", asyn
   const now = Date.parse("2026-10-14T00:00:00Z");
   const mk = (id: string, search: string, price: number, over: Record<string, unknown> = {}) => ({
     ...evaluateListing(listing({ itemId: id, price: { value: price, currency: "USD" }, shipping: { value: 0, currency: "USD" } }), DEFAULT_SETTINGS, new Map()),
-    id: `row-${id}-${search}`, createdAt: "2026-10-13T00:00:00Z", searchId: search, alerted: false, ...over,
+    id: `row-${id}-${search}`, createdAt: new Date(now - 3_600_000).toISOString(), searchId: search, alerted: false, ...over,
   });
   const maxP = maxPurchasePrice(400, 0, DEFAULT_SETTINGS)!;
   const hits = [
@@ -206,4 +206,56 @@ test("pickDeals: live, de-duplicated, excludes applied, near misses found", asyn
   assert.deepEqual(r.nearMisses.map((d: { itemId: string }) => d.itemId), ["5"]);
   assert.equal(r.valuedCount, 3);
   assert.deepEqual(sortDeals([{ ...r.deals[0], netProfitUsd: 1 }, { ...r.deals[0], netProfitUsd: 9 }] as any, "profit").map((d: any) => d.netProfitUsd), [9, 1]);
+});
+
+test("freshness: only listings confirmed in the last 6 hours are shown; sold/ended dropped", async () => {
+  const { isFresh, isEnded, pickRechecks, recheckUpdate, MAX_RECHECKS_PER_SCAN } = await import("../src/lib/freshness.js");
+  const now = Date.parse("2026-10-15T12:00:00Z");
+  const ago = (h: number) => new Date(now - h * 3_600_000).toISOString();
+  assert.equal(isFresh({ createdAt: ago(5) }, now), true);
+  assert.equal(isFresh({ createdAt: ago(7) }, now), false);
+  assert.equal(isFresh({ createdAt: ago(48), checkedAt: ago(1) }, now), true, "re-checked recently = fresh again");
+  assert.equal(isFresh({ createdAt: ago(1), status: "ended" }, now), false);
+  assert.equal(isEnded({ createdAt: ago(1), status: "ended" }), true);
+
+  const base = (id: string, price: number, over: Record<string, unknown> = {}) => ({
+    ...evaluateListing(listing({ itemId: id, price: { value: price, currency: "USD" }, shipping: { value: 0, currency: "USD" } }), DEFAULT_SETTINGS, new Map()),
+    id: "r" + id, searchId: "s1", alerted: false, createdAt: ago(3), checkedAt: null as string | null, status: null as string | null, ...over,
+  });
+  const unvalued = { ...base("9", 100), title: "Mystery lot of cards", cardKey: null };
+  const hits = [
+    base("1", 200),                                  // valued deal, 3h old → re-check
+    base("1", 200, { id: "dup", searchId: "s2" }),   // same eBay item, other search → once
+    base("2", 330),                                  // valued, above max → re-check, after deals
+    base("3", 200, { checkedAt: ago(1) }),           // checked 1h ago → skip
+    base("4", 200, { status: "ended" }),             // ended → skip
+    base("5", 200, { createdAt: ago(24 * 20) }),     // found 20 days ago → skip
+    unvalued,                                        // no value → skip
+  ];
+  const picked = pickRechecks(hits as any, DEFAULT_SETTINGS, values, now);
+  assert.deepEqual(picked.map((h: any) => h.itemId), ["1", "2"]);
+  assert.equal(pickRechecks(hits as any, DEFAULT_SETTINGS, values, now, 1).length, 1);
+  assert.ok(MAX_RECHECKS_PER_SCAN >= 20);
+
+  const n = new Date(now);
+  assert.equal(recheckUpdate(null, 1.5, n).status, "ended", "404 = gone");
+  assert.equal(recheckUpdate(listing({ available: false }), 1.5, n).status, "ended", "sold out");
+  assert.equal(recheckUpdate(listing({ isAuction: true, endsAt: ago(1) }), 1.5, n).status, "ended", "auction over");
+  const live = recheckUpdate(listing({ price: { value: 300, currency: "AUD" }, shipping: { value: 15, currency: "AUD" } }), 1.5, n);
+  assert.equal(live.status, "live"); assert.equal(live.priceUsd, 200); assert.equal(live.shippingUsd, 10);
+  assert.equal(live.checkedAt, n.toISOString());
+});
+
+test("Top Deals hides listings not confirmed in the last 6 hours", async () => {
+  const { pickDeals } = await import("../src/lib/deals.js");
+  const now = Date.now();
+  const mk = (over: Record<string, unknown>) => ({
+    ...evaluateListing(listing({ price: { value: 200, currency: "USD" }, shipping: { value: 0, currency: "USD" } }), DEFAULT_SETTINGS, new Map()),
+    id: "x", searchId: "s1", alerted: false, createdAt: new Date(now - 3_600_000).toISOString(), ...over,
+  });
+  const s = [{ id: "s1", name: "S", excludeWords: "" }];
+  assert.equal(pickDeals([mk({})] as any, DEFAULT_SETTINGS, values, s, now).deals.length, 1);
+  assert.equal(pickDeals([mk({ createdAt: new Date(now - 7 * 3_600_000).toISOString() })] as any, DEFAULT_SETTINGS, values, s, now).deals.length, 0);
+  assert.equal(pickDeals([mk({ createdAt: new Date(now - 7 * 3_600_000).toISOString(), checkedAt: new Date(now - 600_000).toISOString() })] as any, DEFAULT_SETTINGS, values, s, now).deals.length, 1);
+  assert.equal(pickDeals([mk({ status: "ended" })] as any, DEFAULT_SETTINGS, values, s, now).deals.length, 0);
 });

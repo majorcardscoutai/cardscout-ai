@@ -135,3 +135,7 @@ create table if not exists public.push_subscriptions (
   last_error text
 );
 alter table public.push_subscriptions enable row level security;
+
+-- ---------- 15 Oct 2026: listing freshness (eBay licence §8.1.3) ----------
+alter table public.scan_hits add column if not exists checked_at timestamptz;
+alter table public.scan_hits add column if not exists status text not null default 'live';

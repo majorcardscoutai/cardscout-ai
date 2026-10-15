@@ -177,10 +177,24 @@ Brand & name (14 Oct 2026)
 
 Recommended order: get real market-value data sorted and proven first → run privately (maybe with one friend) → switch on subscriptions only once Travis would happily pay for it himself.
 
+## eBay commercial use — checked 15 Oct 2026
+- Read eBay API License Agreement (version dated 3 Sep 2025). Default Browse API limit 5,000 calls/day; higher via Application Growth Check.
+- Needs eBay's written OK before charging users: §9.5 (no using eBay Content, alone or with third-party info, "to suggest or model prices for items listed on eBay Site" — max price / opening offer / value comparison may be caught) and §8.1.2 (eBay Content in a Public Display not combined with non-eBay Content).
+- Must fix now (applies to personal use too): §8.1.3 — displayed listing info no more than 6 hours older than eBay. Plan: refresh deals with getItem on each scan; hide/flag listings not refreshed within 6h.
+- Developer support activated (15 Oct). AI support chat could not open a ticket. Question posted publicly on the eBay Developer Forums (15 Oct) — awaiting eBay staff reply.
+- [ ] eBay answer on §9.5 / §8.1.2 / paid subscriptions
+- [ ] Join eBay Partner Network (may give a better support route)
+- [x] 6-hour freshness fix built (15 Oct 2026): each scan re-checks up to 60 valued listings on eBay (getItem; 40 s budget), updates price/shipping/end time, marks sold/ended (404, out of stock, auction over); pages show only listings found or re-checked in the last 6 hours (older hidden with a note); a re-checked listing that newly qualifies (e.g. price drop) alerts once. 80 unit tests + e2e.
+  - **Freshness SQL (one-time):** `alter table public.scan_hits add column if not exists checked_at timestamptz; alter table public.scan_hits add column if not exists status text not null default 'live';`
+  - [ ] Deployed + SQL run
+
 ## Open decisions
 - Sold-price source: **decided 11 Oct 2026 — Option A (free) for now.** Travis enters resale estimates from eBay sold listings manually. Revisit paid PriceCharting/SportsCardsPro (US$49+/month) after a few weeks of real use.
 - Default fee rate for the marketplace you'll resell on (eBay AU vs eBay US)
-- Automatic market values: emailed SportsCardsPro (13 Oct) re API price, combined PriceCharting coverage, grades, limits, parallels — awaiting reply
+- Automatic market values: SportsCardsPro replied 15 Oct 2026 (Brady Haugh) — **commercial use approved**: Legendary subscription (US$50/mo) until CardHawk revenue reaches US$1,000/mo, with attribution (logo or text link to their product page); above that, formal Commercial Agreement at 8% of top-line revenue. Keep this email as written permission.
+  - API: token param `t`; /api/product (id or q) and /api/products (q, 20 results); 1 call/sec; prices in pennies; caching allowed (purge if subscription ends); CSV full guide daily (Legendary). Fields: loose=ungraded, cib=7/7.5, new=8/8.5, graded=9, box-only=9.5, manual-only=PSA 10, bgs-10, condition-17=CGC 10, condition-18=SGC 10; sales-volume = units/yr. Grades 7–9.5 are not grader-specific.
+  - [ ] Asked (15 Oct): one subscription for both SportsCardsPro + PriceCharting? revenue definition (affiliate included?)? OK in email/push alerts?
+  - [ ] Then: subscribe, add token to Vercel, build provider values (lookup + daily cache + match confirmation + attribution)
 
 ---
 

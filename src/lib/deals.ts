@@ -5,11 +5,12 @@
  * The same listing found by two searches appears once.
  */
 import { excludedBy, parseExcludeWords } from "./exclude";
+import { isFresh } from "./freshness";
 import { auctionEnded, auctionTooEarly, revalueHit, type ScanHit } from "./scan";
 import type { Settings } from "./types";
 
 /** A saved scan result (same shape as the database row type). */
-export type StoredHit = ScanHit & { id: string; createdAt: string; searchId: string; alerted: boolean };
+export type StoredHit = ScanHit & { id: string; createdAt: string; searchId: string; alerted: boolean; checkedAt?: string | null; status?: string | null };
 
 export interface PickedDeals {
   deals: DealHit[];
@@ -47,6 +48,7 @@ export function pickDeals(
     if (seen.has(raw.itemId)) continue;
     const m = meta.get(raw.searchId);
     if (auctionEnded(raw, now) || auctionTooEarly(raw, now)) continue;
+    if (!isFresh(raw, now)) continue; // eBay details must be under 6 hours old (§8.1.3); sold/ended dropped
     if (m && excludedBy(raw.title, m.exclude)) continue;
     seen.add(raw.itemId);
     const h = revalueHit(raw, settings, values);

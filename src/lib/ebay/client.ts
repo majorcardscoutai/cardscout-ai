@@ -38,6 +38,8 @@ export interface EbayListing {
   endsAt: string | null;
   aspects: Aspect[];
   condition: string | null;
+  /** false when eBay says it's sold out (only set by the single-item lookup). */
+  available?: boolean;
 }
 
 export type EbayResult<T> = { ok: true; data: T } | { ok: false; error: string; code?: number };
@@ -165,6 +167,7 @@ interface RawItem {
   itemEndDate?: string;
   localizedAspects?: { name?: string; value?: string }[];
   condition?: string;
+  estimatedAvailabilities?: { estimatedAvailabilityStatus?: string }[];
 }
 
 function money(m: RawMoney): EbayMoney | null {
@@ -203,6 +206,7 @@ export function mapItem(raw: RawItem): EbayListing {
       .filter((a) => a.name && a.value)
       .map((a) => ({ name: a.name as string, value: a.value as string })),
     condition: raw.condition ?? null,
+    available: raw.estimatedAvailabilities?.[0]?.estimatedAvailabilityStatus !== "OUT_OF_STOCK",
   };
 }
 
