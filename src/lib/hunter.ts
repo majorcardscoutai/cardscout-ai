@@ -27,6 +27,9 @@ export interface HunterConfig {
   minSales: number;
   excludeWords: string;
   market: "EBAY_US" | "EBAY_AU";
+  /** Hunter-only minimums (null = use Settings). Profit in US$. */
+  minRoi: number | null;
+  minProfit: number | null;
 }
 
 export const DEFAULT_HUNTER: HunterConfig = {
@@ -38,7 +41,18 @@ export const DEFAULT_HUNTER: HunterConfig = {
   minSales: 12,
   excludeWords: "lot, reprint, custom, digital, proxy, break",
   market: "EBAY_US",
+  minRoi: null,
+  minProfit: null,
 };
+
+/** Settings with the Hunter's own ROI/profit minimums applied (where set). */
+export function hunterRules<T extends { minRoiPercent: number; minProfitUsd: number }>(settings: T, c: Pick<HunterConfig, "minRoi" | "minProfit">): T {
+  return {
+    ...settings,
+    minRoiPercent: c.minRoi ?? settings.minRoiPercent,
+    minProfitUsd: c.minProfit ?? settings.minProfitUsd,
+  };
+}
 
 /** Listings per search per run (eBay's maximum page size). */
 export const HUNTER_PAGE_SIZE = 200;
@@ -91,6 +105,10 @@ export function parseHunterForm(fd: FormData): HunterFormResult {
   let minSales = num("minSales");
   if (Number.isNaN(minSales)) minSales = 0;
   if (!Number.isInteger(minSales) || minSales < 0 || minSales > 10_000) return { ok: false, error: "Sales per year must be a whole number (0 = no limit)." };
+  const minRoi = num("minRoi");
+  if (!Number.isNaN(minRoi) && (!Number.isFinite(minRoi) || minRoi < 0 || minRoi > 1000)) return { ok: false, error: "Minimum ROI must be between 0 and 1000%." };
+  const minProfit = num("minProfit");
+  if (!Number.isNaN(minProfit) && (!Number.isFinite(minProfit) || minProfit < 0 || minProfit > 100_000)) return { ok: false, error: "Minimum profit must be 0 or more." };
   const sports = HUNTER_SPORTS.filter((s) => fd.get(`s_${s}`) === "on");
   const enabled = fd.get("enabled") === "on";
   if (enabled && sports.length === 0) return { ok: false, error: "Tick at least one of Baseball, Basketball or Pokémon." };
@@ -105,6 +123,8 @@ export function parseHunterForm(fd: FormData): HunterFormResult {
       minSales,
       excludeWords: excludeWordsText(parseExcludeWords(String(fd.get("x") ?? ""))),
       market: fd.get("market") === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
+      minRoi: Number.isNaN(minRoi) ? null : Math.round(minRoi * 10) / 10,
+      minProfit: Number.isNaN(minProfit) ? null : Math.round(minProfit * 100) / 100,
     },
   };
 }

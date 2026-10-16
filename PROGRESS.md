@@ -223,6 +223,7 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - Liquidity: hunter finds only shown/alerted when the price guide says the card sells ≥ "Minimum sales per year" (default 12); hidden ones counted on the page. Your own Card Values always pass.
 - Runs every hour via .github/workflows/hunt.yml (/api/cron/scan?only=hunter, same CRON_SECRET), plus "Hunt now". Saved searches stay 3-hourly.
 - Limits: price guide 1 lookup/sec → ~20 new cards valued per run; cache grows (daily refresh). eBay calls ≈ 72 searches + re-checks/day, well under 5,000. Next step for scale: SportsCardsPro daily CSV download of the whole guide.
+- Hunter has its own Minimum ROI (%) and Minimum profit (US$) — blank = Settings rules. Used for Hunter finds, alerts and Top Deals; saved searches keep Settings' rules. Columns hunter_config.min_roi / min_profit.
 - **Profit Hunter SQL (one-time):** bottom of supabase/schema.sql (`alter table saved_searches add column kind …; create table hunter_config …`).
 - 94 unit tests + e2e (hunter: setup/validation, hunt now, broad search URL, valuation + alert, hourly cron, sales filter, Top Deals, off, missing SQL).
 - [ ] Deployed + SQL run + hunter turned on + first hourly run seen in GitHub Actions

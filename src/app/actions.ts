@@ -265,7 +265,7 @@ export async function saveHunterAction(formData: FormData) {
   const parsed = parseHunterForm(formData);
   if (!parsed.ok) back("/hunter", "error", parsed.error);
   const error = await saveHunterConfig(parsed.value);
-  if (error && /hunter_config|kind/.test(error))
+  if (error && /hunter_config|kind|min_roi|min_profit/.test(error))
     back("/hunter", "error", "The Profit Hunter needs a one-time database update — run the Profit Hunter SQL in Supabase (see PROGRESS.md), then save again.");
   if (error) back("/hunter", "error", `Couldn't save: ${error}`);
   revalidatePath("/", "layout");

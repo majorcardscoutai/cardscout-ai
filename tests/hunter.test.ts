@@ -50,3 +50,16 @@ test("hunter form", () => {
   bad({ enabled: "on", budget: "100" }, /Tick at least one/);
   const off = parseHunterForm(fd({ budget: "100" })); assert.ok(off.ok); if (off.ok) assert.equal(off.value.enabled, false);
 });
+
+test("hunter's own ROI / profit minimums (blank = Settings)", async () => {
+  const { hunterRules } = await import("../src/lib/hunter.js");
+  const s = { minRoiPercent: 20, minProfitUsd: 25 };
+  assert.deepEqual(hunterRules(s, { minRoi: null, minProfit: null }), s);
+  assert.deepEqual(hunterRules(s, { minRoi: 40, minProfit: null }), { minRoiPercent: 40, minProfitUsd: 25 });
+  assert.deepEqual(hunterRules(s, { minRoi: 0, minProfit: 50 }), { minRoiPercent: 0, minProfitUsd: 50 });
+  const r = parseHunterForm(fd({ budget: "300", minRoi: "35", minProfit: "$40" }));
+  assert.ok(r.ok); if (r.ok) { assert.equal(r.value.minRoi, 35); assert.equal(r.value.minProfit, 40); }
+  const blank = parseHunterForm(fd({ budget: "300", minRoi: "", minProfit: "" }));
+  assert.ok(blank.ok); if (blank.ok) { assert.equal(blank.value.minRoi, null); assert.equal(blank.value.minProfit, null); }
+  const bad = parseHunterForm(fd({ budget: "300", minRoi: "-5" })); assert.equal(bad.ok, false);
+});

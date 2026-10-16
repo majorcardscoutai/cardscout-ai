@@ -14,7 +14,7 @@ import { parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
 import { dealsMessage, pushToAllDevices } from "./notify";
 import { evaluateListing, revalueHit, shouldAlert, type ScanHit } from "@/lib/scan";
-import { hunterSearchInput, liquidEnough, parseHunterSport } from "@/lib/hunter";
+import { hunterRules, hunterSearchInput, liquidEnough, parseHunterSport } from "@/lib/hunter";
 import {
   cardValueMap,
   existingItemIds,
@@ -114,8 +114,9 @@ export async function runAllScans(
           })
           .filter((x): x is { key: string; card: CardIdentity } => x !== null),
       );
+      const rules = isHunter ? hunterRules(settings, hunterCfg) : settings;
       const hits = fresh.map((l) => {
-        const h = evaluateListing(l, settings, values.map);
+        const h = evaluateListing(l, rules, values.map);
         // Profit Hunter: only alert on cards that sell often enough to flip.
         const liquid = !isHunter || liquidEnough(h.cardKey ? values.map.get(h.cardKey) : null, hunterCfg.minSales);
         return { ...h, alerted: shouldAlert(h) && liquid };
@@ -177,7 +178,7 @@ export async function runAllScans(
         // A re-checked listing that now qualifies (e.g. the price dropped) alerts once.
         const now = revalueHit(
           { ...h, priceUsd: u.priceUsd ?? h.priceUsd, shippingUsd: u.shippingUsd ?? h.shippingUsd, endsAt: u.endsAt ?? h.endsAt, isAuction: u.isAuction ?? h.isAuction, title: u.title ?? h.title },
-          settings,
+          hunterIds.has(h.searchId) ? hunterRules(settings, hunterCfg) : settings,
           values.map,
         );
         const alertedBefore = recent.data.some((x) => x.itemId === h.itemId && x.alerted);

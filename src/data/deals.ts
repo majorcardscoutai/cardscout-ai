@@ -4,7 +4,7 @@
  * Profit Hunter finds only count when the card sells often enough (Hunter → sales per year).
  */
 import { pickDeals, type DealHit, type PickedDeals } from "@/lib/deals";
-import { liquidEnough, type HunterConfig } from "@/lib/hunter";
+import { hunterRules, liquidEnough, type HunterConfig } from "@/lib/hunter";
 import { isFresh } from "@/lib/freshness";
 import type { Settings } from "@/lib/types";
 import { cardValueMap, listRecentHits, listSavedSearches, loadHunterConfig, loadSettings, type SavedSearch } from "./db";
@@ -25,19 +25,24 @@ export async function currentDeals(): Promise<CurrentDeals> {
     loadHunterConfig(),
   ]);
   const hunterIds = new Set(searches.data.filter((x) => x.kind === "hunter").map((x) => x.id));
-  const ok = (d: DealHit) => !hunterIds.has(d.searchId) || liquidEnough(d.cardKey ? values.map.get(d.cardKey) : null, hunter.config.minSales);
-  const picked = pickDeals(hits.data, settings, values.map, searches.data);
+  const liquid = (d: DealHit) => liquidEnough(d.cardKey ? values.map.get(d.cardKey) : null, hunter.config.minSales);
+  // Your searches use Settings' rules; Profit Hunter finds use the Hunter's own minimums (if set).
+  const mine = pickDeals(hits.data.filter((h) => !hunterIds.has(h.searchId)), settings, values.map, searches.data);
+  const hunted = pickDeals(hits.data.filter((h) => hunterIds.has(h.searchId)), hunterRules(settings, hunter.config), values.map, searches.data);
+  const seen = new Set(mine.deals.map((d) => d.itemId));
   return {
     settings,
     error: hits.error ?? values.error ?? null,
-    ...picked,
-    deals: picked.deals.filter(ok),
-    nearMisses: picked.nearMisses.filter(ok),
+    deals: [...mine.deals, ...hunted.deals.filter((d) => liquid(d) && !seen.has(d.itemId))],
+    nearMisses: [...mine.nearMisses, ...hunted.nearMisses.filter(liquid)].sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0)),
+    valuedCount: mine.valuedCount + hunted.valuedCount,
   };
 }
 
 export interface HunterView {
   settings: Settings;
+  /** The ROI/profit minimums the Hunter is using (its own, or Settings'). */
+  rules: { minRoiPercent: number; minProfitUsd: number };
   config: HunterConfig;
   /** false until you've saved the Hunter once (or the SQL hasn't been run). */
   saved: boolean;
@@ -64,11 +69,13 @@ export async function hunterView(): Promise<HunterView> {
   const mine = searches.data.filter((x) => x.kind === "hunter");
   const ids = new Set(mine.map((x) => x.id));
   const hunterHits = hits.data.filter((h) => ids.has(h.searchId));
-  const picked = pickDeals(hunterHits, settings, values.map, mine);
+  const picked = pickDeals(hunterHits, hunterRules(settings, hunter.config), values.map, mine);
   const liquid = (d: DealHit) => liquidEnough(d.cardKey ? values.map.get(d.cardKey) : null, hunter.config.minSales);
   const live = hunterHits.filter((h) => isFresh(h));
+  const rules = hunterRules(settings, hunter.config);
   return {
     settings,
+    rules: { minRoiPercent: rules.minRoiPercent, minProfitUsd: rules.minProfitUsd },
     config: hunter.config,
     saved: hunter.saved,
     configError: hunter.error,

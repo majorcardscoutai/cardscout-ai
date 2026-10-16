@@ -189,3 +189,5 @@ create table if not exists public.hunter_config (
   updated_at timestamptz not null default now()
 );
 alter table public.hunter_config enable row level security;
+alter table public.hunter_config add column if not exists min_roi numeric;
+alter table public.hunter_config add column if not exists min_profit numeric;

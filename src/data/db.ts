@@ -610,6 +610,8 @@ export async function loadHunterConfig(): Promise<{ config: HunterConfig; saved:
         minSales: numOrNull(r.min_sales) ?? 0,
         excludeWords: typeof r.exclude_words === "string" ? r.exclude_words : "",
         market: r.market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
+        minRoi: numOrNull(r.min_roi),
+        minProfit: numOrNull(r.min_profit),
       },
     };
   } catch (e) {
@@ -631,6 +633,8 @@ export async function saveHunterConfig(c: HunterConfig): Promise<string | null> 
         min_sales: c.minSales,
         exclude_words: c.excludeWords,
         market: c.market,
+        min_roi: c.minRoi,
+        min_profit: c.minProfit,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "id" },

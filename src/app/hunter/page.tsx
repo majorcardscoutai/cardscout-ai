@@ -75,6 +75,12 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
         <Stat label="With a market value" value={String(v.valued)} />
         <Stat label="Budget" value={`${cur}${config.minPrice > 0 ? `${config.minPrice}–` : "0–"}${config.budget}`} />
       </div>
+      <p className="-mt-3 mb-6 text-xs text-muted">
+        Flagging cards with at least <span className="text-ink">{v.rules.minRoiPercent}% ROI</span> and{" "}
+        <span className="text-ink">US${v.rules.minProfitUsd} profit</span>
+        {config.minRoi === null && config.minProfit === null ? " (your Settings rules)" : ""}
+        {config.minSales > 0 ? `, selling at least ${config.minSales} times a year` : ""}.
+      </p>
 
       <Panel
         title={`Profitable finds (${rows.length})`}
@@ -176,6 +182,12 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
             <Field label={`Min price (${cur})`} hint="Skips cheap cards that rarely profit after fees">
               <input name="minPrice" inputMode="decimal" defaultValue={String(config.minPrice)} className={inputCls} />
             </Field>
+            <Field label="Minimum ROI (%)" hint={`Blank = Settings (${v.settings.minRoiPercent}%)`}>
+              <input name="minRoi" inputMode="decimal" defaultValue={config.minRoi === null ? "" : String(config.minRoi)} placeholder={String(v.settings.minRoiPercent)} className={inputCls} />
+            </Field>
+            <Field label="Minimum profit (US$)" hint={`Blank = Settings (US$${v.settings.minProfitUsd})`}>
+              <input name="minProfit" inputMode="decimal" defaultValue={config.minProfit === null ? "" : String(config.minProfit)} placeholder={String(v.settings.minProfitUsd)} className={inputCls} />
+            </Field>
             <Field label="Minimum sales per year" hint="0 = no limit">
               <input name="minSales" inputMode="numeric" defaultValue={String(config.minSales)} className={inputCls} />
             </Field>
@@ -188,7 +200,7 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
             </label>
           </div>
           <p className="text-xs text-faint">
-            Profit uses your ROI and profit rules, fees and costs from <Link href="/settings" className="underline">Settings</Link>. Auctions only count in
+            Profit is after fees, shipping, tax and other costs from <Link href="/settings" className="underline">Settings</Link>. Auctions only count in
             their last 24 hours.
           </p>
           <div className="flex justify-end">
