@@ -1,4 +1,5 @@
 import { safeNextPath } from "@/lib/auth";
+import { WAITLIST_GOALS } from "@/lib/forms";
 import { joinWaitlist, login } from "./actions";
 import HawkLogo from "@/components/HawkLogo";
 
@@ -86,6 +87,20 @@ export default async function LoginPage({
                   ].map(([k, label]) => (
                     <label key={k} className="flex items-center gap-2 rounded-lg border border-line bg-panel-2 px-3 py-2 text-sm">
                       <input type="radio" name="region" value={k} required className="h-4 w-4 accent-gain" /> {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset className="mt-4">
+                <legend className="text-xs text-muted">What&apos;s your main goal? (tick any that apply)</legend>
+                <div className="mt-2 grid gap-2">
+                  {WAITLIST_GOALS.map(([k, label, sub]) => (
+                    <label key={k} className="flex items-start gap-2.5 rounded-lg border border-line bg-panel-2 px-3 py-2">
+                      <input type="checkbox" name={`g_${k}`} className="mt-0.5 h-4 w-4 shrink-0 accent-gain" />
+                      <span>
+                        <span className="block text-sm">{label}</span>
+                        <span className="block text-[11px] text-faint">{sub}</span>
+                      </span>
                     </label>
                   ))}
                 </div>

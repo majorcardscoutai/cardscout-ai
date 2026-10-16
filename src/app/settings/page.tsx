@@ -8,6 +8,7 @@ import { listPushSubscriptions, listWaitlist } from "@/data/db";
 import { loadSettings } from "@/data/source";
 import { vapidPublicKey } from "@/lib/webpush";
 import { OTHER_COUNTRIES, REGION_LABELS, taxHint, taxLabel } from "@/lib/region";
+import { WAITLIST_GOALS } from "@/lib/forms";
 import { DEMAND_TIERS } from "@/lib/config";
 import { CONFIDENCE_CAPS, SCORE_WEIGHTS } from "@/lib/scoring";
 
@@ -226,6 +227,12 @@ export default async function SettingsPage({
         <p className="mb-3 text-sm text-muted">
           People who joined from the sign-in page. Only you can see this.{" "}
           {waitlist.data.length > 0 && (
+            <span className="text-faint">
+              Goals:{" "}
+              {WAITLIST_GOALS.map(([k, label]) => `${label} ${waitlist.data.filter((w) => w.goals.includes(k)).length}`).join(" · ")}.{" "}
+            </span>
+          )}
+          {waitlist.data.length > 0 && (
             <a href="/api/waitlist" className="text-accent hover:underline">
               Download CSV
             </a>
@@ -244,6 +251,7 @@ export default async function SettingsPage({
                 <span className="min-w-0 truncate">{w.email}</span>
                 <span className="shrink-0 text-xs text-faint">
                   {w.region ? `${w.region === "OTHER" ? "Rest of world" : w.region} · ` : ""}
+                  {w.goals.length ? `${w.goals.map((g) => WAITLIST_GOALS.find(([k]) => k === g)?.[1] ?? g).join(", ")} · ` : ""}
                   {w.interests.length ? `${w.interests.map((i) => (i === "Pokemon" ? "Pokémon" : i)).join(", ")} · ` : ""}
                   {new Date(w.createdAt).toLocaleDateString("en-AU")}
                 </span>

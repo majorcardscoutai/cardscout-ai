@@ -311,7 +311,15 @@ export interface WaitlistInput {
   email: string;
   interests: string[]; // "NBA" | "MLB" | "Pokemon"
   region: BuyerRegion | null; // where they'd buy from (optional)
+  goals: string[]; // "collecting" | "investing" | "flipping" | "business"
 }
+
+export const WAITLIST_GOALS: [string, string, string][] = [
+  ["collecting", "Collecting", "Buying cards to keep for my collection"],
+  ["investing", "Investing", "Buying and holding cards as they grow in value"],
+  ["flipping", "Flipping", "Buying cards to resell for a profit"],
+  ["business", "Card business", "I run a shop, do breaks or sell full-time"],
+];
 
 const EMAIL = /^[^\s@<>()[\]\\,;:"]+@[^\s@<>()[\]\\,;:"]+\.[a-z]{2,}$/i;
 
@@ -323,5 +331,6 @@ export function parseWaitlistForm(fd: FormData): Parsed<WaitlistInput> & { spam?
   const interests = (["NBA", "MLB", "Pokemon"] as const).filter((k) => fd.get(`i_${k}`) === "on");
   const r = str(fd, "region");
   const region = r === "AU" || r === "US" || r === "OTHER" ? r : null;
-  return { ok: true, value: { email, interests, region } };
+  const goals = WAITLIST_GOALS.map(([k]) => k).filter((k) => fd.get(`g_${k}`) === "on");
+  return { ok: true, value: { email, interests, region, goals } };
 }

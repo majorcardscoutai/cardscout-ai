@@ -717,19 +717,25 @@ export interface WaitlistEntry {
   email: string;
   interests: string[];
   region: string | null;
+  goals: string[];
   createdAt: string;
 }
 
 /** Adds an email to the waitlist. Signing up twice is fine (kept once). */
-export async function addToWaitlist(w: { email: string; interests: string[]; region?: string | null }): Promise<string | null> {
+export async function addToWaitlist(w: {
+  email: string;
+  interests: string[];
+  region?: string | null;
+  goals?: string[];
+}): Promise<string | null> {
   if (!dbConfigured()) return "Database not configured";
   try {
     const row = { email: w.email, interests: w.interests.join(","), source: "login-page" };
     let { error } = await db()
       .from("waitlist")
-      .upsert({ ...row, region: w.region ?? null }, { onConflict: "email", ignoreDuplicates: true });
-    // Region column not added yet (one-time SQL) — still save the sign-up.
-    if (error && /region/.test(message(error))) {
+      .upsert({ ...row, region: w.region ?? null, goals: (w.goals ?? []).join(",") }, { onConflict: "email", ignoreDuplicates: true });
+    // Newer columns not added yet (one-time SQL) — still save the sign-up.
+    if (error && /region|goals/.test(message(error))) {
       ({ error } = await db().from("waitlist").upsert(row, { onConflict: "email", ignoreDuplicates: true }));
     }
     if (error) throw error;
@@ -750,6 +756,7 @@ export async function listWaitlist(): Promise<DbResult<WaitlistEntry[]>> {
         email: String(r.email),
         interests: r.interests ? String(r.interests).split(",").filter(Boolean) : [],
         region: r.region ? String(r.region) : null,
+        goals: r.goals ? String(r.goals).split(",").filter(Boolean) : [],
         createdAt: String(r.created_at),
       })),
     };

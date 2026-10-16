@@ -155,3 +155,4 @@ alter table public.settings add column if not exists buyer_region text not null 
 alter table public.settings add column if not exists ship_to_country text;
 alter table public.settings add column if not exists ship_to_postcode text;
 alter table public.waitlist add column if not exists region text;
+alter table public.waitlist add column if not exists goals text not null default '';

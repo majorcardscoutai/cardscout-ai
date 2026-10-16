@@ -182,7 +182,8 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - Waitlist asks "Where are you based?" (AU / US / Rest of world); shown in Settings and the CSV (based_in). Sign-ups still save if the region column isn't added yet.
 - **Region SQL (one-time):** `alter table public.settings add column if not exists buyer_region text not null default 'AU'; alter table public.settings add column if not exists ship_to_country text; alter table public.settings add column if not exists ship_to_postcode text; alter table public.waitlist add column if not exists region text;`
 - Still Australia-flavoured / later for paying users: per-user region (Phase 6 accounts), eBay UK/CA/DE sites, local currencies other than A$/US$, live FX for other currencies.
-- 82 unit tests + e2e. [ ] Deployed + SQL run
+- Waitlist also asks "What's your main goal?" (tick any): Collecting / Investing / Flipping / Card business — counts shown in Settings → Waitlist, `goals` column in CSV. SQL adds `alter table public.waitlist add column if not exists goals text not null default '';`
+- 83 unit tests + e2e. [ ] Deployed + SQL run
 
 ## Waitlist — built 15 Oct 2026
 - Sign-in page now has "Join the waitlist" under the password box: email + optional NBA/MLB/Pokémon, hidden bot trap, duplicates ignored, consent line. Settings → Waitlist shows sign-ups and a CSV download (/api/waitlist, login only). 81 unit tests + e2e.

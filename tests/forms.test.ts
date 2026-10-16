@@ -193,3 +193,12 @@ test("buyer region: settings form, eBay shipping location, tax label, A$ display
   const w = parseWaitlistForm(fd({ email: "a@b.com", region: "US" })); assert.ok(w.ok); if (w.ok) assert.equal(w.value.region, "US");
   const w2 = parseWaitlistForm(fd({ email: "a@b.com", region: "MARS" })); assert.ok(w2.ok); if (w2.ok) assert.equal(w2.value.region, null);
 });
+
+test("waitlist goals: any combination, unknown ignored", async () => {
+  const { parseWaitlistForm, WAITLIST_GOALS } = await import("../src/lib/forms.js");
+  const fd = (o: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) f.set(k, v); return f; };
+  assert.deepEqual(WAITLIST_GOALS.map(([k]) => k), ["collecting", "investing", "flipping", "business"]);
+  const w = parseWaitlistForm(fd({ email: "a@b.com", g_flipping: "on", g_business: "on", g_hacker: "on" }));
+  assert.ok(w.ok); if (w.ok) assert.deepEqual(w.value.goals, ["flipping", "business"]);
+  const none = parseWaitlistForm(fd({ email: "a@b.com" })); assert.ok(none.ok); if (none.ok) assert.deepEqual(none.value.goals, []);
+});
