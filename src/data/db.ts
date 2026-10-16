@@ -321,6 +321,8 @@ export async function cardValueMap(): Promise<{ map: Map<string, CardValue>; err
   const map = new Map<string, CardValue>();
   for (const a of auto.data) {
     if (a.status !== "matched" || a.valueUsd === null) continue;
+    // Parallel matched before the exact-parallel rule — don't trust it until it's looked up again.
+    if (a.card?.parallel && new Date(a.fetchedAt).getTime() < Date.parse("2026-10-16T03:00:00Z")) continue;
     map.set(a.key, {
       id: `auto:${a.key}`,
       key: a.key,

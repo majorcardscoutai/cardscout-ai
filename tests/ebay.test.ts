@@ -64,7 +64,7 @@ test("Pokémon X/Y is a card number, not a print run", () => {
   assert.equal(s.card.sport, "Pokemon");
   assert.equal(s.card.cardNumber, "4/102");
   assert.equal(s.card.serialNumbered, undefined);
-  assert.equal(s.card.parallel, "Holo");
+  assert.equal(s.card.parallel, undefined, "plain Holo describes a Pokémon card; it is not a parallel");
 });
 
 test("serial-numbered sports cards are detected", () => {

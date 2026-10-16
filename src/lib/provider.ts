@@ -105,8 +105,11 @@ export function scoreProduct(card: Partial<CardIdentity>, p: ProviderProduct): M
   if (!par && bracket) return { ok: false, extra: 99, reason: `product is a parallel (${bracket})` };
   if (par) {
     if (!bracket) return { ok: false, extra: 99, reason: "product is the base card" };
-    const bt = new Set(tokens(bracket));
-    if (!tokens(par).every((t) => bt.has(t))) return { ok: false, extra: 99, reason: `different parallel (${bracket})` };
+    // Exact: "Refractor" ≠ "Gold Refractor" (print-run numbers like "/50" are checked separately below).
+    const words = (x: string) => new Set(tokens(x).filter((t) => !/^\d+$/.test(t.replace("/", ""))));
+    const bt = words(bracket);
+    const pt = words(par);
+    if (bt.size !== pt.size || ![...pt].every((t) => bt.has(t))) return { ok: false, extra: 99, reason: `different parallel (${bracket})` };
   }
   if (card.serialNumbered && !(bracket ?? "").includes(String(card.serialNumbered)))
     return { ok: false, extra: 99, reason: "print run not confirmed" };

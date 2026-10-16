@@ -103,3 +103,23 @@ test("apostrophes don't matter; no-match explains the closest products", () => {
   const none = pickProduct(best, []);
   if (!none.ok) assert.match(none.detail, /found nothing/);
 });
+
+test("parallels must match exactly; Pokémon sets, reverse holo, 1st Edition", async () => {
+  const { cardFromListing } = await import("../src/lib/ebay/parse.js");
+  const refr: CardIdentity = { ...ohtani, set: "Topps Chrome", cardNumber: "BCP-1", parallel: "Refractor" };
+  assert.equal(scoreProduct(refr, P("r", "Shohei Ohtani [Refractor] #BCP-1", "Baseball Cards 2018 Topps Chrome")).ok, true);
+  assert.equal(scoreProduct(refr, P("g", "Shohei Ohtani [Gold Refractor] #BCP-1", "Baseball Cards 2018 Topps Chrome")).ok, false, "Refractor ≠ Gold Refractor");
+  assert.equal(scoreProduct({ ...refr, parallel: "Gold Refractor", serialNumbered: 50 }, P("g", "Shohei Ohtani [Gold Refractor /50] #BCP-1", "Baseball Cards 2018 Topps Chrome")).ok, true);
+  const read = (t: string) => cardFromListing(t).card;
+  assert.equal(read("2023 Topps Chrome Jackson Holliday #BCP-1 Emerald Refractor PSA 10").parallel, "Emerald Refractor");
+  let c = read("Charizard EX #12 PSA 9 Holo Graded 2016 Pokémon XY Evolutions English");
+  assert.equal(c.set, "Evolutions"); assert.equal(c.parallel, undefined); assert.equal(c.cardNumber, "12");
+  c = read("2016 Pokemon Xy Evolutions #11 Charizard-Rev.Foil Evolutions PSA 7");
+  assert.equal(c.parallel, "Reverse Holo"); assert.equal(c.cardNumber, "11");
+  c = read("1999 Pokemon Base Set 1st Edition Holo Charizard 4/102 PSA 9");
+  assert.equal(c.set, "Base Set"); assert.equal(c.parallel, "1st Edition");
+  const zard = { ...ohtani, sport: "Pokemon", player: "Charizard", year: 2016, set: "Evolutions", cardNumber: "11", parallel: "Reverse Holo" } as CardIdentity;
+  assert.equal(scoreProduct(zard, P("z", "Charizard [Reverse Holo] #11", "Pokemon Evolutions")).ok, true);
+  assert.equal(scoreProduct(zard, P("z2", "Charizard #11", "Pokemon Evolutions")).ok, false, "reverse holo never priced as the regular card");
+  assert.equal(read("2023 Topps Chrome Football CJ Stroud #200 PSA 10").sport, undefined, "football is not covered");
+});

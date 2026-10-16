@@ -42,7 +42,7 @@ export interface CardSuggestion {
   sources: Record<string, "item specifics" | "title">;
 }
 
-const SETS_RAW = [
+const SPORTS_SETS = [
   // Baseball / multi-sport
   "Topps Chrome Update", "Topps Chrome Sapphire", "Topps Chrome", "Topps Update", "Topps Series 1", "Topps Series 2",
   "Topps Heritage", "Topps Finest", "Topps Stadium Club", "Stadium Club", "Topps Allen & Ginter", "Allen & Ginter",
@@ -56,22 +56,49 @@ const SETS_RAW = [
   "Mosaic", "National Treasures", "Flawless", "Noir", "Obsidian", "Spectra", "Chronicles", "Revolution",
   "Court Kings", "Contenders Optic", "Contenders", "Hoops", "Crown Royale",
   "Upper Deck Exquisite", "SP Authentic", "Upper Deck", "Fleer Ultra", "Fleer", "Skybox",
-  // Pokémon
-  "Base Set 2", "Base Set", "Jungle", "Fossil", "Team Rocket", "Gym Heroes", "Gym Challenge", "Neo Genesis",
-  "Neo Discovery", "Neo Revelation", "Neo Destiny", "Expedition", "Aquapolis", "Skyridge", "Evolving Skies",
-  "Hidden Fates", "Shining Fates", "Celebrations", "Crown Zenith", "Brilliant Stars", "Astral Radiance", "Lost Origin",
-  "Silver Tempest", "Fusion Strike", "Vivid Voltage", "Champion's Path", "Paldea Evolved", "Obsidian Flames",
-  "Paradox Rift", "Paldean Fates", "Temporal Forces", "Twilight Masquerade", "Shrouded Fable", "Stellar Crown",
-  "Surging Sparks", "Prismatic Evolutions", "Journey Together", "Destined Rivals", "Black Bolt", "White Flare", "151",
-  "Mega Evolution", "Phantasmal Flames", "Pokemon GO", "Vending", "Neo Genesis",
-  // Pokémon series names — only used when no more specific set is in the title (see POKEMON_SERIES).
-  "Scarlet & Violet", "Scarlet and Violet", "Sword & Shield", "Sword and Shield", "Sun & Moon", "Sun and Moon",
 ];
-/** Series names: "Scarlet & Violet 151" is the 151 set, not the Scarlet & Violet base set. */
-const POKEMON_SERIES = new Set(["Scarlet & Violet", "Scarlet and Violet", "Sword & Shield", "Sword and Shield", "Sun & Moon", "Sun and Moon"]);
+
+/** English Pokémon sets (oldest → newest). Only used for Pokémon titles. */
+const POKEMON_SETS = [
+  "Base Set 2", "Base Set", "Jungle", "Fossil", "Team Rocket", "Gym Heroes", "Gym Challenge", "Neo Genesis",
+  "Neo Discovery", "Neo Revelation", "Neo Destiny", "Legendary Collection", "Expedition", "Aquapolis", "Skyridge",
+  "EX Ruby & Sapphire", "Sandstorm", "Team Magma vs Team Aqua", "Hidden Legends", "FireRed & LeafGreen",
+  "Team Rocket Returns", "Unseen Forces", "Delta Species", "Legend Maker", "Holon Phantoms", "Crystal Guardians",
+  "Dragon Frontiers", "Power Keepers", "Mysterious Treasures", "Secret Wonders", "Great Encounters", "Majestic Dawn",
+  "Legends Awakened", "Stormfront", "Rising Rivals", "Supreme Victors", "HeartGold SoulSilver", "Unleashed",
+  "Undaunted", "Triumphant", "Call of Legends", "Emerging Powers", "Noble Victories", "Next Destinies",
+  "Dark Explorers", "Dragons Exalted", "Dragon Vault", "Boundaries Crossed", "Plasma Storm", "Plasma Freeze",
+  "Plasma Blast", "Legendary Treasures", "Flashfire", "Furious Fists", "Phantom Forces", "Primal Clash",
+  "Double Crisis", "Roaring Skies", "Ancient Origins", "BREAKthrough", "BREAKpoint", "Generations", "Fates Collide",
+  "Steam Siege", "Evolutions", "Guardians Rising", "Burning Shadows", "Shining Legends", "Crimson Invasion",
+  "Ultra Prism", "Forbidden Light", "Celestial Storm", "Dragon Majesty", "Lost Thunder", "Team Up",
+  "Detective Pikachu", "Unbroken Bonds", "Unified Minds", "Hidden Fates", "Cosmic Eclipse", "Rebel Clash",
+  "Darkness Ablaze", "Champion's Path", "Vivid Voltage", "Shining Fates", "Battle Styles", "Chilling Reign",
+  "Evolving Skies", "Celebrations", "Fusion Strike", "Brilliant Stars", "Astral Radiance", "Pokemon GO",
+  "Lost Origin", "Silver Tempest", "Crown Zenith", "Paldea Evolved", "Obsidian Flames", "151", "Paradox Rift",
+  "Paldean Fates", "Temporal Forces", "Twilight Masquerade", "Shrouded Fable", "Stellar Crown", "Surging Sparks",
+  "Prismatic Evolutions", "Journey Together", "Destined Rivals", "Black Bolt", "White Flare", "Mega Evolution",
+  "Phantasmal Flames",
+  // Series names — only used when no more specific set is in the title (see POKEMON_SERIES).
+  "Scarlet & Violet", "Scarlet and Violet", "Sword & Shield", "Sword and Shield", "Sun & Moon", "Sun and Moon",
+  "Black & White", "Black and White", "Diamond & Pearl", "Diamond and Pearl", "XY", "Platinum",
+];
+/** Series names: "Scarlet & Violet 151" is the 151 set; "XY Evolutions" is Evolutions. */
+const POKEMON_SERIES = new Set([
+  "Scarlet & Violet", "Scarlet and Violet", "Sword & Shield", "Sword and Shield", "Sun & Moon", "Sun and Moon",
+  "Black & White", "Black and White", "Diamond & Pearl", "Diamond and Pearl", "XY", "Platinum",
+]);
 // Most specific first: "Bowman's Best" must win over "Bowman", "Obsidian Flames" over "Obsidian".
-const SETS = [...SETS_RAW].sort((a, b) => b.length - a.length);
+const byLength = (a: string, b: string) => b.length - a.length;
+const SETS_FOR: Record<"sports" | "pokemon" | "any", string[]> = {
+  sports: [...SPORTS_SETS].sort(byLength),
+  pokemon: [...POKEMON_SETS].sort(byLength),
+  any: [...SPORTS_SETS, ...POKEMON_SETS].sort(byLength),
+};
 const setRegex = (s: string) => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]?")}(?![\\w'’])`, "i");
+
+const COLOUR_PARALLEL =
+  /\b(?:sky blue|neon green|gold|orange|red|blue|green|purple|pink|black|aqua|teal|emerald|sapphire|yellow|silver|sepia|magenta|fuchsia|bronze|copper|ruby|negative|camo|white|rose gold)(?:\s+(?:wave|shimmer|mojo|speckle|sparkle|lava|ice|cracked ice|hyper|disco|mini diamond|geometric|scope|atomic|pulsar|velocity))?\s+(?:refractor|prizm|shimmer|wave|mojo|lava|ice|speckle|sparkle|xfractor|x-fractor)\b/i;
 
 /** Item-specific values that mean "no parallel". */
 export const BASE_WORDS = /^(base|base set|base card|base cards|none|n\/a|na|no|standard|regular|not applicable|-)$/i;
@@ -80,7 +107,7 @@ const PARALLELS = [
   "Silver Prizm", "Gold Prizm", "Black Prizm", "Red Prizm", "Blue Prizm", "Green Prizm", "Purple Prizm",
   "Gold Refractor", "Orange Refractor", "Blue Refractor", "Green Refractor", "Red Refractor", "Purple Refractor",
   "Black Refractor", "Superfractor", "X-Fractor", "Xfractor", "Prism Refractor", "Refractor", "Silver",
-  "Gold", "1st Edition Holo", "Reverse Holo", "Holo", "Shadowless",
+  "Gold", "1st Edition Holo", "1st Edition", "Reverse Holo", "Holo", "Shadowless",
 ];
 
 const KNOWN_PLAYERS = [
@@ -142,7 +169,7 @@ function sportFromPlayerOrTeam(player: string | undefined, title: string): Sport
 /** Words that are never part of a player/character name in a listing title. */
 const NAME_STOP = new Set(
   (
-    "rc rookie rookies card cards gem mint mt nm near psa bgs sgc cgc beckett graded grade slab slabbed baseball basketball mlb nba " +
+    "rc rookie rookies card cards gem mint mt nm near psa bgs sgc cgc beckett graded grade slab slabbed baseball basketball mlb nba football nfl soccer hockey nhl " +
     "pokemon pokémon tcg english japanese korean chinese holo reverse foil full art secret rare ultra illustration special promo first edition " +
     "base set sp ssp short print insert inserts parallel variation var variant image photo case hit hits sharp centered pop low invest hot hof mvp " +
     "all star allstar debut logo lot lots read new the and of w with x game used numbered limited team usa world champion champions award league " +
@@ -234,7 +261,8 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
   const setAspect = aspect(aspects, "Set", "Set Name", "Product Line");
   if (setAspect) set("set", setAspect, "item specifics");
   else {
-    const found = SETS.filter((s) => setRegex(s).test(title));
+    const list = sport === "Pokemon" ? SETS_FOR.pokemon : sport === "MLB" || sport === "NBA" ? SETS_FOR.sports : SETS_FOR.any;
+    const found = list.filter((s) => setRegex(s).test(title));
     // Prefer a specific set over a Pokémon series name when both appear.
     const known = found.find((s) => !POKEMON_SERIES.has(s)) ?? found[0];
     if (known) set("set", known, "title");
@@ -257,8 +285,18 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
   const parAspect = aspect(aspects, "Parallel/Variety", "Parallel", "Variety", "Finish");
   if (parAspect && !BASE_WORDS.test(parAspect.trim())) set("parallel", parAspect, "item specifics");
   else {
-    const known = PARALLELS.find((p) => new RegExp(`\\b${p}\\b`, "i").test(title));
-    if (known) set("parallel", known, "title");
+    // "Rev Foil", "Rev. Holo", "Reverse Foil" = Reverse Holo (priced separately from the regular card).
+    const reverse = /\brev(?:erse)?\.?\s*-?\s*(?:holo|foil)\b/i.test(title);
+    // Colour + finish parallels ("Emerald Refractor", "Gold Wave Refractor", "Silver Prizm") are read in full.
+    const colour = title.match(COLOUR_PARALLEL);
+    const known = reverse
+      ? "Reverse Holo"
+      : colour
+        ? colour[0].replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\B\w+/g, (w) => w.toLowerCase())
+        : PARALLELS.find((p) => new RegExp(`\\b${p}\\b`, "i").test(title));
+    // In Pokémon titles plain "Holo" just describes the card (holo rares are the normal version).
+    // The price guide calls it "1st Edition" (holo is the normal version).
+    if (known && !(sport === "Pokemon" && known === "Holo")) set("parallel", sport === "Pokemon" && known === "1st Edition Holo" ? "1st Edition" : known, "title");
   }
 
   // Serial number (print run): "/99", "#'d /25", "12/50" — not for Pokémon, where X/Y is the card number.
@@ -297,6 +335,11 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
     set("grader", "RAW", aspect(aspects, "Graded") ? "item specifics" : "title");
   }
 
+  // Still no sport: Bowman / Topps flagship-style sets are baseball (the guide must still list it as baseball).
+  if (!card.sport && card.set && !/football|nfl|soccer|hockey|nhl|wrestling|ufc|f1|racing/i.test(title)) {
+    if (/^(bowman|topps|stadium club|allen & ginter|gypsy queen)/i.test(card.set)) set("sport", "MLB", "title");
+    else if (/^(hoops|court kings)$/i.test(card.set)) set("sport", "NBA", "title");
+  }
   // Player not named in item specifics or our list → best guess from the title (checked against the guide later).
   if (!card.player) {
     const g = guessPlayer(title, card.sport, [
