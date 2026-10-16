@@ -46,6 +46,13 @@ export const IconTrophy = (p: IconProps) => (
     <path d="M17 6h3a3 3 0 0 1-3 4M7 6H4a3 3 0 0 0 3 4" />
   </Svg>
 );
+export const IconTarget = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8" />
+    <circle cx="12" cy="12" r="3.5" />
+    <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+  </Svg>
+);
 export const IconEye = (p: IconProps) => (
   <Svg {...p}>
     <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />

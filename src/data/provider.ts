@@ -127,6 +127,7 @@ export async function fillProviderValues(
         source: r.row.site,
         matchedName: r.row.matchedName ?? undefined,
         graderSpecific: r.row.graderSpecific,
+        salesVolume: r.row.salesVolume,
       });
     }
   }

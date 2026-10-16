@@ -242,20 +242,26 @@ export interface SearchInput {
   exclude?: string[];
   /** Where to quote shipping to (defaults to Australia). */
   shipTo?: ShipTo;
+  /** Lowest price (site currency). */
+  minPrice?: number | null;
+  /** eBay item-specifics filter, e.g. "Sport:{Baseball}" (category is added automatically). */
+  aspectFilter?: string;
 }
 
 export function buildSearchPath(s: SearchInput): string {
   const filters: string[] = [];
   const currency = s.market === "EBAY_AU" ? "AUD" : "USD";
-  if (s.maxPrice !== null) filters.push(`price:[..${s.maxPrice}]`, `priceCurrency:${currency}`);
+  const min = s.minPrice !== undefined && s.minPrice !== null && s.minPrice > 0 ? s.minPrice : null;
+  if (s.maxPrice !== null || min !== null) filters.push(`price:[${min ?? ""}..${s.maxPrice ?? ""}]`, `priceCurrency:${currency}`);
   filters.push(s.format === "ALL" ? "buyingOptions:{FIXED_PRICE|AUCTION}" : `buyingOptions:{${s.format}}`);
   const params = new URLSearchParams({
     q: s.q,
     category_ids: CATEGORY_IDS[s.category],
     filter: filters.join(","),
     sort: "newlyListed",
-    limit: String(Math.min(Math.max(s.limit ?? 30, 1), 50)),
+    limit: String(Math.min(Math.max(s.limit ?? 30, 1), 200)),
   });
+  if (s.aspectFilter) params.set("aspect_filter", `categoryId:${CATEGORY_IDS[s.category]},${s.aspectFilter}`);
   return `/buy/browse/v1/item_summary/search?${params.toString()}`;
 }
 

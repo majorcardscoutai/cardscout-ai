@@ -217,9 +217,16 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - Fix 16 Oct 2026: Analyse now always pre-fills Expected resale, profit and ROI when the Scanner showed a value — it tries the listing's item specifics, then the title reading the Scanner uses. "Base Set"/"None" in item specifics = no parallel. Result note says the value is the price-guide market value; "Remember as my value" starts unticked for guide values (so they keep updating daily).
 - 16 Oct 2026: rows without a value now say why (no exact match / no price for this grade / several matches / you rejected) with a tap-to-open "why?" listing the closest guide products. Apostrophes ignored when matching ("Bowman's Best" = "Bowmans Best"). Unmatched results saved before the fix are retried once (MATCHER_UPDATED_AT). 91 unit tests + e2e.
 
-## Next major feature (after automatic values): Profit Hunter — noted 16 Oct 2026
-- New sidebar page: scan ALL new listings in chosen categories under a budget (not specific cards), value each via the SportsCardsPro daily price-guide download, flag anything clearing min ROI/profit; alerts as usual.
-- Safeguards: high-confidence matches only, graded-first, show matched card, skip low sales-volume cards; scan every 30–60 min. Needs eBay §9.5 answer before selling it. ~1–2 days build.
+## Profit Hunter — built 16 Oct 2026
+- New sidebar page under Top Deals (/hunter). Checks EVERY new graded listing (PSA/BGS/SGC/CGC) under your budget in Baseball / Basketball / Pokémon — newest 200 per sport per run, eBay US or AU, Buy It Now (auctions optional, last 24 h only), min price, exclude words.
+- Each sport = hidden saved search (saved_searches.kind = 'hunter', query = MLB/NBA/Pokemon), so valuation, freshness re-checks, email + phone alerts, Wrong match? all reuse the scanner. Scanner page hides hunter searches/results; Top Deals includes them.
+- Liquidity: hunter finds only shown/alerted when the price guide says the card sells ≥ "Minimum sales per year" (default 12); hidden ones counted on the page. Your own Card Values always pass.
+- Runs every hour via .github/workflows/hunt.yml (/api/cron/scan?only=hunter, same CRON_SECRET), plus "Hunt now". Saved searches stay 3-hourly.
+- Limits: price guide 1 lookup/sec → ~20 new cards valued per run; cache grows (daily refresh). eBay calls ≈ 72 searches + re-checks/day, well under 5,000. Next step for scale: SportsCardsPro daily CSV download of the whole guide.
+- **Profit Hunter SQL (one-time):** bottom of supabase/schema.sql (`alter table saved_searches add column kind …; create table hunter_config …`).
+- 94 unit tests + e2e (hunter: setup/validation, hunt now, broad search URL, valuation + alert, hourly cron, sales filter, Top Deals, off, missing SQL).
+- [ ] Deployed + SQL run + hunter turned on + first hourly run seen in GitHub Actions
+- [ ] eBay §9.5 answer still needed before selling this feature
 
 ## Open decisions
 - Sold-price source: **decided 11 Oct 2026 — Option A (free) for now.** Travis enters resale estimates from eBay sold listings manually. Revisit paid PriceCharting/SportsCardsPro (US$49+/month) after a few weeks of real use.

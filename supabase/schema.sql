@@ -173,3 +173,19 @@ create table if not exists public.provider_values (
   fetched_at timestamptz not null default now()
 );
 alter table public.provider_values enable row level security;
+
+-- ---------- 16 Oct 2026: Profit Hunter ----------
+alter table public.saved_searches add column if not exists kind text not null default 'search';
+create table if not exists public.hunter_config (
+  id int primary key default 1,
+  enabled boolean not null default false,
+  budget numeric not null default 300,
+  min_price numeric not null default 20,
+  sports text not null default 'MLB,NBA,Pokemon',
+  include_auctions boolean not null default false,
+  min_sales integer not null default 12,
+  exclude_words text not null default 'lot, reprint, custom, digital, proxy, break',
+  market text not null default 'EBAY_US',
+  updated_at timestamptz not null default now()
+);
+alter table public.hunter_config enable row level security;

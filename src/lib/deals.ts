@@ -19,7 +19,7 @@ export interface PickedDeals {
   valuedCount: number;
 }
 
-export type DealHit = StoredHit & { searchName: string; discountPercent: number | null };
+export type DealHit = StoredHit & { searchName: string; discountPercent: number | null; /** Price guide sales per year (null = unknown / your own value). */ salesVolume?: number | null };
 
 export type DealSort = "profit" | "roi" | "newest" | "price";
 
@@ -56,7 +56,8 @@ export function pickDeals(
       h.maxPriceUsd !== null && h.priceUsd !== null && h.maxPriceUsd > 0
         ? Math.round(((h.maxPriceUsd - h.priceUsd) / h.maxPriceUsd) * 1000) / 10
         : null;
-    rows.push({ ...h, searchName: m?.name ?? "Search", discountPercent });
+    const v = h.cardKey ? values.get(h.cardKey) : undefined;
+    rows.push({ ...h, searchName: m?.name ?? "Search", discountPercent, salesVolume: v && v.source && v.source !== "you" ? v.salesVolume ?? null : null });
   }
   const valued = rows.filter((r) => r.valueUsd !== null);
   return {

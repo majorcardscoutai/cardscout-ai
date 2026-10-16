@@ -1,0 +1,24 @@
+# Runs CardHawk's Profit Hunter every hour (free GitHub Actions).
+# Uses the same CRON_SECRET repository secret as the 3-hourly scan.
+name: CardHawk Profit Hunter
+
+on:
+  schedule:
+    - cron: "47 * * * *" # every hour (UTC) at :47 — away from the scan at :17
+  workflow_dispatch: {} # lets you run it by hand from the Actions tab
+
+jobs:
+  hunt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Trigger Profit Hunter
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          status=$(curl -s -o response.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://cardscout-ai.vercel.app/api/cron/scan?source=github&only=hunter")
+          cat response.json
+          echo
+          test "$status" = "200"

@@ -5,6 +5,7 @@ import { Money, PageHeader, Panel, Pct, StatCard, StatusRow, Tag } from "@/compo
 import { cardValueMap, lastScanRuns } from "@/data/db";
 import { currentDeals, sortDeals } from "@/data/deals";
 import { ebayConfigured } from "@/lib/ebay/client";
+import { providerConfigured } from "@/lib/provider-client";
 import { listHoldings, listWatchlist, loadSettings } from "@/data/source";
 import { displayFx, REGION_LABELS } from "@/lib/region";
 
@@ -109,8 +110,12 @@ export default async function OverviewPage() {
             />
             <StatusRow
               label="Card values"
-              status={values.map.size > 0 ? "ok" : "off"}
-              detail={`${values.map.size} saved by you · automatic sold prices not connected yet`}
+              status={values.map.size > 0 || providerConfigured() ? "ok" : "off"}
+              detail={
+                providerConfigured()
+                  ? `${[...values.map.values()].filter((v) => (v.source ?? "you") !== "you").length} from SportsCardsPro/PriceCharting · ${[...values.map.values()].filter((v) => (v.source ?? "you") === "you").length} set by you`
+                  : `${values.map.size} saved by you · connect SportsCardsPro for automatic values`
+              }
             />
             <StatusRow label="Population data" status="off" detail="Shown as missing — never estimated" />
             <StatusRow

@@ -11,6 +11,7 @@ import {
   IconSearch,
   IconSettings,
   IconTag,
+  IconTarget,
   IconTrophy,
 } from "./Icons";
 
@@ -19,6 +20,7 @@ const NAV = [
   { href: "/scanner", label: "Automatic Scanner", short: "Auto Scan", Icon: IconRadar },
   { href: "/analyse", label: "Manual Scanner", short: "Analyse", Icon: IconSearch },
   { href: "/deals", label: "Top Deals", Icon: IconTrophy },
+  { href: "/hunter", label: "Profit Hunter", short: "Hunter", Icon: IconTarget },
   { href: "/watchlist", label: "Watchlist", Icon: IconEye },
   { href: "/values", label: "Card Values", short: "Values", Icon: IconTag },
   { href: "/portfolio", label: "Portfolio", Icon: IconBriefcase },
@@ -70,7 +72,7 @@ export default function Nav() {
           })}
         </nav>
         <div className="mt-auto rounded-lg border border-warn/30 bg-warn-soft px-3 py-2.5 text-xs leading-relaxed text-warn">
-          Saved searches are scanned every 3 hours. Market values from{" "}
+          Saved searches are scanned every 3 hours, the Profit Hunter every hour. Market values from{" "}
           <a href="https://www.sportscardspro.com" target="_blank" rel="noopener noreferrer" className="underline">SportsCardsPro</a> and{" "}
           <a href="https://www.pricecharting.com" target="_blank" rel="noopener noreferrer" className="underline">PriceCharting</a>; your own Card Values always win.
         </div>

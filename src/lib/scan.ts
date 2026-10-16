@@ -19,6 +19,8 @@ export interface CardValue {
   /** For automatic values: which price-guide card it matched, and whether the grade price is grader-specific. */
   matchedName?: string;
   graderSpecific?: boolean;
+  /** Price guide: how many times this card sells per year (liquidity). */
+  salesVolume?: number | null;
 }
 
 export interface ScanHit {

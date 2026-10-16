@@ -17,6 +17,7 @@ import {
   deleteCardValue,
   deleteSavedSearch,
   insertSavedSearch,
+  saveHunterConfig,
   setSavedSearchActive,
   setSavedSearchExclude,
   updateCardValueAmount,
@@ -42,6 +43,7 @@ import {
   parseWatchlistForm,
   toUsd,
 } from "@/lib/forms";
+import { parseHunterForm } from "@/lib/hunter";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -250,12 +252,43 @@ export async function scanNowAction() {
 export async function rejectAutoValueAction(formData: FormData) {
   const key = String(formData.get("key") ?? "").slice(0, 500);
   const ret = String(formData.get("returnTo") ?? "/values");
-  const to = ["/scanner", "/deals", "/values"].includes(ret) ? ret : "/values";
+  const to = ["/scanner", "/deals", "/values", "/hunter"].includes(ret) ? ret : "/values";
   if (!key) back(to, "error", "Missing card.");
   const err = await rejectProviderValue(key);
   if (err) back(to, "error", `Couldn't update: ${err}`);
   revalidatePath("/", "layout");
   back(to, "saved", "Got it — that automatic value won't be used. Set your own value for this card if you like.");
+}
+
+/** Profit Hunter → save settings (and the hidden per-sport searches). */
+export async function saveHunterAction(formData: FormData) {
+  const parsed = parseHunterForm(formData);
+  if (!parsed.ok) back("/hunter", "error", parsed.error);
+  const error = await saveHunterConfig(parsed.value);
+  if (error && /hunter_config|kind/.test(error))
+    back("/hunter", "error", "The Profit Hunter needs a one-time database update — run the Profit Hunter SQL in Supabase (see PROGRESS.md), then save again.");
+  if (error) back("/hunter", "error", `Couldn't save: ${error}`);
+  revalidatePath("/", "layout");
+  back(
+    "/hunter",
+    "saved",
+    parsed.value.enabled
+      ? "Profit Hunter is on. It runs every hour — click Hunt now to run it straight away."
+      : "Saved. The Profit Hunter is off.",
+  );
+}
+
+/** Profit Hunter → run it now (hunter searches only). */
+export async function huntNowAction() {
+  const r = await runAllScans("manual", { only: "hunter" });
+  revalidatePath("/", "layout");
+  if (r.searches === 0 && r.errors.length === 0) back("/hunter", "error", "The Profit Hunter is off — turn it on and save first.");
+  if (r.errors.length) back("/hunter", "error", `Hunt finished with problems: ${r.errors.join("; ")}`);
+  back(
+    "/hunter",
+    "saved",
+    `Hunt done: ${r.newListings} new listing${r.newListings === 1 ? "" : "s"} checked, ${r.autoValued} of ${r.autoLooked} new cards valued, ${r.deals} profitable${r.emailed ? `, ${r.emailed} emailed` : ""}${r.pushed ? `, sent to ${r.pushed} phone${r.pushed === 1 ? "" : "s"}` : ""}.`,
+  );
 }
 
 /** Settings → test the SportsCardsPro connection with a well-known card. */

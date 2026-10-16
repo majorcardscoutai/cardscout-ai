@@ -127,8 +127,12 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
   // Results are re-priced with TODAY's values + settings, so a value added after a scan counts straight away.
   const now = Date.now();
   const excludeBySearch = new Map(saved.data.map((x) => [x.id, parseExcludeWords(x.excludeWords)]));
+  // Profit Hunter searches + results live on their own page.
+  const hunterIds = new Set(saved.data.filter((x) => x.kind === "hunter").map((x) => x.id));
+  const mySearches = saved.data.filter((x) => x.kind !== "hunter");
   const showAllAuctions = params.auctions === "all";
   const revalued = hits.data
+    .filter((h) => !hunterIds.has(h.searchId))
     .map((h) => revalueHit(h, settings, values.map))
     .filter((h) => !auctionEnded(h, now)) // ended auctions are gone — never show them
     .filter((h) => !isEnded(h)) // sold or ended on eBay
@@ -322,13 +326,13 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
             </form>
           }
         >
-          {saved.data.length === 0 ? (
+          {mySearches.length === 0 ? (
             <p className="text-sm text-muted">
               None yet. Run a search above and click <strong>Save search</strong> — every active saved search is checked on each scan.
             </p>
           ) : (
             <ul className="divide-y divide-line">
-              {saved.data.map((s) => (
+              {mySearches.map((s) => (
                 <li key={s.id} className="flex flex-col gap-2 py-3 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-sm font-medium">

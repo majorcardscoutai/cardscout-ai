@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS } from "@/lib/config";
 import type { HoldingInput, WatchlistInput } from "@/lib/forms";
 import type { RecheckUpdate } from "@/lib/freshness";
 import { parseRegion } from "@/lib/region";
+import { DEFAULT_HUNTER, HUNTER_SPORTS, hunterSearchName, parseHunterSport, type HunterConfig, type HunterSport } from "@/lib/hunter";
 import type { CardValue, ScanHit } from "@/lib/scan";
 import { db, dbConfigured } from "@/lib/supabase";
 import type { CardIdentity, Holding, Settings, WatchlistEntry } from "@/lib/types";
@@ -329,6 +330,7 @@ export async function cardValueMap(): Promise<{ map: Map<string, CardValue>; err
       source: a.site,
       matchedName: a.matchedName ?? undefined,
       graderSpecific: a.graderSpecific,
+      salesVolume: a.salesVolume,
     });
   }
   for (const v of mine.data) map.set(v.key, { ...v, source: "you" });
@@ -493,6 +495,8 @@ export interface SavedSearch {
   active: boolean;
   lastRunAt: string | null;
   lastRunStatus: string | null;
+  /** "hunter" = a hidden Profit Hunter search (query = sport code); "search" = yours. */
+  kind: "search" | "hunter";
 }
 
 function mapSearch(r: Record<string, unknown>): SavedSearch {
@@ -509,6 +513,7 @@ function mapSearch(r: Record<string, unknown>): SavedSearch {
     active: Boolean(r.active),
     lastRunAt: r.last_run_at ? String(r.last_run_at) : null,
     lastRunStatus: r.last_run_status ? String(r.last_run_status) : null,
+    kind: r.kind === "hunter" ? "hunter" : "search",
   };
 }
 
@@ -523,7 +528,7 @@ export async function listSavedSearches(): Promise<DbResult<SavedSearch[]>> {
   }
 }
 
-export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" | "lastRunStatus" | "active">): Promise<string | null> {
+export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" | "lastRunStatus" | "active" | "kind">): Promise<string | null> {
   try {
     const { error } = await db().from("saved_searches").insert({
       name: s.name,
@@ -577,6 +582,89 @@ export async function markSearchRun(id: string, status: string): Promise<void> {
     await db().from("saved_searches").update({ last_run_at: new Date().toISOString(), last_run_status: status }).eq("id", id);
   } catch {
     // non-fatal
+  }
+}
+
+// ---------- Profit Hunter ----------
+
+export async function loadHunterConfig(): Promise<{ config: HunterConfig; saved: boolean; error: string | null }> {
+  if (!dbConfigured()) return { config: DEFAULT_HUNTER, saved: false, error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("hunter_config").select("*").eq("id", 1).maybeSingle();
+    if (error) throw error;
+    if (!data) return { config: DEFAULT_HUNTER, saved: false, error: null };
+    const r = data as Record<string, unknown>;
+    const sports = String(r.sports ?? "")
+      .split(",")
+      .map((x) => parseHunterSport(x.trim()))
+      .filter((x): x is HunterSport => x !== null);
+    return {
+      saved: true,
+      error: null,
+      config: {
+        enabled: Boolean(r.enabled),
+        budget: numOrNull(r.budget) ?? DEFAULT_HUNTER.budget,
+        minPrice: numOrNull(r.min_price) ?? 0,
+        sports,
+        includeAuctions: Boolean(r.include_auctions),
+        minSales: numOrNull(r.min_sales) ?? 0,
+        excludeWords: typeof r.exclude_words === "string" ? r.exclude_words : "",
+        market: r.market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
+      },
+    };
+  } catch (e) {
+    return { config: DEFAULT_HUNTER, saved: false, error: message(e) };
+  }
+}
+
+/** Save the Hunter settings and make the hidden per-sport searches match them. */
+export async function saveHunterConfig(c: HunterConfig): Promise<string | null> {
+  try {
+    const { error } = await db().from("hunter_config").upsert(
+      {
+        id: 1,
+        enabled: c.enabled,
+        budget: c.budget,
+        min_price: c.minPrice,
+        sports: c.sports.join(","),
+        include_auctions: c.includeAuctions,
+        min_sales: c.minSales,
+        exclude_words: c.excludeWords,
+        market: c.market,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+    if (error) throw error;
+    const all = await listSavedSearches();
+    if (all.error) throw new Error(all.error);
+    const mine = all.data.filter((x) => x.kind === "hunter");
+    for (const sport of HUNTER_SPORTS) {
+      const row = mine.find((x) => x.query === sport);
+      const want = c.sports.includes(sport);
+      if (!row && want) {
+        const { error: e2 } = await db().from("saved_searches").insert({
+          name: hunterSearchName(sport),
+          query: sport,
+          market: c.market,
+          category: sport === "Pokemon" ? "pokemon" : "sportsCards",
+          format: c.includeAuctions ? "ALL" : "FIXED_PRICE",
+          max_price: c.budget,
+          active: c.enabled,
+          kind: "hunter",
+        });
+        if (e2) throw e2;
+      } else if (row) {
+        const { error: e3 } = await db()
+          .from("saved_searches")
+          .update({ active: c.enabled && want, market: c.market, max_price: c.budget, format: c.includeAuctions ? "ALL" : "FIXED_PRICE" })
+          .eq("id", row.id);
+        if (e3) throw e3;
+      }
+    }
+    return null;
+  } catch (e) {
+    return message(e);
   }
 }
 

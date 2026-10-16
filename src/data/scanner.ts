@@ -14,9 +14,11 @@ import { parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
 import { dealsMessage, pushToAllDevices } from "./notify";
 import { evaluateListing, revalueHit, shouldAlert, type ScanHit } from "@/lib/scan";
+import { hunterSearchInput, liquidEnough, parseHunterSport } from "@/lib/hunter";
 import {
   cardValueMap,
   existingItemIds,
+  loadHunterConfig,
   insertHits,
   listRecentHits,
   markItemAlerted,
@@ -48,7 +50,10 @@ const RECHECK_TIME_BUDGET_MS = 45_000;
 /** Price-guide lookups (1 per second) stop after this long, leaving time for re-checks. */
 const AUTO_VALUE_TIME_BUDGET_MS = 25_000;
 
-export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Promise<ScanSummary> {
+export async function runAllScans(
+  trigger: "schedule" | "manual" | "daily" | "hunter",
+  opts: { only?: "hunter" } = {},
+): Promise<ScanSummary> {
   const started = Date.now();
   const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, errors: [] };
   if (!ebayConfigured()) {
@@ -56,7 +61,8 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
     return summary;
   }
 
-  const [{ settings }, searches, values] = await Promise.all([loadSettings(), listSavedSearches(), cardValueMap()]);
+  const [{ settings }, searches, values, hunter] = await Promise.all([loadSettings(), listSavedSearches(), cardValueMap(), loadHunterConfig()]);
+  const hunterCfg = hunter.config;
   if (searches.error) {
     summary.errors.push(`Saved searches: ${searches.error}`);
     await recordScanRun({ trigger, searches: 0, newListings: 0, deals: 0, emailed: 0, error: summary.errors.join("; ") });
@@ -77,9 +83,18 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
     if (f.error) autoError = f.error;
   };
 
-  for (const s of searches.data.filter((x) => x.active)) {
+  const toRun = searches.data.filter((x) => {
+    if (!x.active) return false;
+    if (x.kind === "hunter") return hunterCfg.enabled && parseHunterSport(x.query) !== null && hunterCfg.sports.includes(parseHunterSport(x.query)!);
+    return opts.only !== "hunter";
+  });
+  for (const s of toRun) {
     summary.searches++;
-    const r = await searchListings({ q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), shipTo: shipToFor(settings) });
+    const isHunter = s.kind === "hunter";
+    const input = isHunter
+      ? { ...hunterSearchInput(parseHunterSport(s.query)!, hunterCfg), shipTo: shipToFor(settings) }
+      : { q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), shipTo: shipToFor(settings) };
+    const r = await searchListings(input);
     if (!r.ok) {
       summary.errors.push(`${s.name}: ${r.error}`);
       await markSearchRun(s.id, `Error: ${r.error}`);
@@ -101,7 +116,9 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
       );
       const hits = fresh.map((l) => {
         const h = evaluateListing(l, settings, values.map);
-        return { ...h, alerted: shouldAlert(h) };
+        // Profit Hunter: only alert on cards that sell often enough to flip.
+        const liquid = !isHunter || liquidEnough(h.cardKey ? values.map.get(h.cardKey) : null, hunterCfg.minSales);
+        return { ...h, alerted: shouldAlert(h) && liquid };
       });
       await insertHits(s.id, hits);
       const deals = hits.filter((h) => h.meetsCriteria);
@@ -136,7 +153,8 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
   try {
     const recent = await listRecentHits(1000);
     if (!recent.error) {
-      const marketBySearch = new Map(searches.data.map((x) => [x.id, x.market]));
+      const marketBySearch = new Map(searches.data.map((x) => [x.id, x.kind === "hunter" ? hunterCfg.market : x.market]));
+      const hunterIds = new Set(searches.data.filter((x) => x.kind === "hunter").map((x) => x.id));
       const already = new Set(toEmail.map((h) => h.itemId));
       for (const h of pickRechecks(recent.data, settings, values.map)) {
         if (Date.now() - started > RECHECK_TIME_BUDGET_MS) break;
@@ -163,7 +181,9 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
           values.map,
         );
         const alertedBefore = recent.data.some((x) => x.itemId === h.itemId && x.alerted);
-        if (!alertedBefore && !already.has(h.itemId) && shouldAlert(now)) {
+        const fromHunter = hunterIds.has(h.searchId);
+        const liquid = !fromHunter || liquidEnough(now.cardKey ? values.map.get(now.cardKey) : null, hunterCfg.minSales);
+        if (!alertedBefore && !already.has(h.itemId) && shouldAlert(now) && liquid) {
           toEmail.push({ ...now, searchName: searches.data.find((x) => x.id === h.searchId)?.name ?? "Search" });
           already.add(h.itemId);
           await markItemAlerted(h.itemId);
