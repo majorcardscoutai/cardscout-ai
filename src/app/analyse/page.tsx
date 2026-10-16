@@ -7,6 +7,7 @@ import { cardValueMap, listProviderValues } from "@/data/db";
 import { lookupCard, needsLookup, providerName } from "@/data/provider";
 import { providerConfigured } from "@/lib/provider-client";
 import type { CardIdentity, Settings } from "@/lib/types";
+import type { CardValue } from "@/lib/scan";
 import { loadSettings } from "@/data/source";
 import { cardKey } from "@/lib/cardKey";
 import { ebayConfigured, getListing, toUsd, type EbayListing, type Marketplace } from "@/lib/ebay/client";
@@ -49,18 +50,43 @@ export default async function ManualScannerPage({
     if (r.ok) {
       listing = r.data;
       suggestion = cardFromListing(listing.title, listing.aspects);
-      const key = cardKey(suggestion.card);
-      let known = key ? (await cardValueMap()).map.get(key) : undefined;
-      // No value yet → ask the price guide now (1–2 lookups), then it's cached for scans too.
-      if (key && !known && providerConfigured()) {
-        const cached = (await listProviderValues()).data.find((r) => r.key === key);
-        if (needsLookup(cached)) {
-          const r = await lookupCard(suggestion.card as CardIdentity, key);
-          if (r.row.status === "matched" && r.row.valueUsd !== null)
-            known = { id: `auto:${key}`, key, title: r.row.matchedName ?? "", valueUsd: r.row.valueUsd, updatedAt: new Date().toISOString(), source: r.row.site, matchedName: r.row.matchedName ?? undefined, graderSpecific: r.row.graderSpecific };
-          else providerNote = r.error ?? r.row.detail ?? null;
-        } else if (cached && cached.status !== "matched") providerNote = cached.status === "rejected" ? "You marked the price-guide match for this card as wrong." : cached.detail;
+      // Two readings of the card: eBay's item specifics (preferred) and the title alone (what the Scanner uses).
+      // Use whichever one has a value, so Analyse always agrees with the Scanner row you clicked.
+      const fromTitle = cardFromListing(listing.title).card;
+      const candidates = [suggestion.card, fromTitle]
+        .map((card) => ({ card, key: cardKey(card) }))
+        .filter((c, i, all): c is { card: Partial<CardIdentity>; key: string } => c.key !== null && all.findIndex((x) => x.key === c.key) === i);
+      const valueMap = (await cardValueMap()).map;
+      let known: CardValue | undefined;
+      let usedCard: Partial<CardIdentity> | null = null;
+      // Your own value wins; otherwise the first automatic one.
+      const withValue = candidates.map((c) => ({ c, v: valueMap.get(c.key) })).filter((x): x is { c: (typeof candidates)[number]; v: CardValue } => x.v !== undefined);
+      const pick = withValue.find((x) => (x.v.source ?? "you") === "you") ?? withValue[0];
+      if (pick) {
+        known = pick.v;
+        usedCard = pick.c.card;
       }
+      // No value yet → ask the price guide now (1–2 lookups each), then it's cached for scans too.
+      if (!known && candidates.length > 0 && providerConfigured()) {
+        const cachedRows = (await listProviderValues()).data;
+        for (const c of candidates) {
+          const cached = cachedRows.find((r) => r.key === c.key);
+          if (cached && !needsLookup(cached)) {
+            if (!providerNote && cached.status !== "matched") providerNote = cached.status === "rejected" ? "You marked the price-guide match for this card as wrong." : cached.detail;
+            continue;
+          }
+          const r = await lookupCard(c.card as CardIdentity, c.key);
+          if (r.row.status === "matched" && r.row.valueUsd !== null) {
+            known = { id: `auto:${c.key}`, key: c.key, title: r.row.matchedName ?? "", valueUsd: r.row.valueUsd, updatedAt: new Date().toISOString(), source: r.row.site, matchedName: r.row.matchedName ?? undefined, graderSpecific: r.row.graderSpecific };
+            usedCard = c.card;
+            break;
+          }
+          providerNote = providerNote ?? r.error ?? r.row.detail ?? null;
+          if (r.error) break; // token / limit problem — don't keep trying
+        }
+      }
+      // Show the card details that produced the value, so "Save to watchlist" keeps the same card.
+      if (known && usedCard && usedCard !== suggestion.card) suggestion = { ...suggestion, card: usedCard };
       const askingUsd = toUsd(listing.price, fx);
       if (listing.price && askingUsd === null) {
         listingError = `This listing is priced in ${listing.price.currency}. Only US$ and A$ listings are supported for now.`;
@@ -71,6 +97,7 @@ export default async function ManualScannerPage({
         shippingUsd: settings.inboundShippingMode === "fixed" ? settings.inboundShippingFixedUsd : toUsd(listing.shipping, fx),
         url: listing.url,
         resaleUsd: known?.valueUsd ?? null,
+        resaleKind: known ? ((known.source ?? "you") === "you" ? "you" : "guide") : undefined,
         resaleSource: known
           ? known.source && known.source !== "you"
             ? `${providerName(known.source)} value: ${known.matchedName ?? known.title}${known.graderSpecific === false ? " (grade price for any grading company)" : ""} — check it's the same card`

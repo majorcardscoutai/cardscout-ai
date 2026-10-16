@@ -100,7 +100,7 @@ export function scoreProduct(card: Partial<CardIdentity>, p: ProviderProduct): M
   if (want.length === 0 || !want.every((t) => have.has(t))) return { ok: false, extra: 99, reason: "different set" };
 
   // Parallel must agree exactly: base card ↔ no bracket; a parallel ↔ a bracket naming it.
-  const par = card.parallel && !/^base$/i.test(card.parallel) ? card.parallel : null;
+  const par = card.parallel && !/^(base|base set|base card|base cards|none|n\/a|na|no|standard|regular|not applicable|-)$/i.test(card.parallel.trim()) ? card.parallel : null;
   if (!par && bracket) return { ok: false, extra: 99, reason: `product is a parallel (${bracket})` };
   if (par) {
     if (!bracket) return { ok: false, extra: 99, reason: "product is the base card" };

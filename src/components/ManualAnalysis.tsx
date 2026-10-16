@@ -10,8 +10,8 @@ import { displayFx, taxLabel } from "@/lib/region";
 
 /**
  * Manual Scanner form: card details + prices → live profit check → save.
- * "Expected resale" is YOUR estimate for now. In Phase 3 it will be filled
- * from verified sold data instead.
+ * "Expected resale" is filled from your own Card Value or the price guide
+ * (SportsCardsPro/PriceCharting) when known; you can always overwrite it.
  */
 export interface ManualPrefill {
   card?: Partial<CardIdentity>;
@@ -21,6 +21,8 @@ export interface ManualPrefill {
   note?: string;
   resaleUsd?: number | null;
   resaleSource?: string; // e.g. "Your value for … (saved 13 Oct)"
+  /** Where the resale came from: your own Card Value, or the price guide (SportsCardsPro/PriceCharting). */
+  resaleKind?: "you" | "guide";
 }
 
 export default function ManualAnalysis({ settings, prefill }: { settings: Settings; prefill?: ManualPrefill }) {
@@ -98,7 +100,9 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
       <section className="rounded-xl border border-line bg-panel-2 p-5">
         <h3 className="mb-1 text-sm font-medium">3. Result</h3>
         <p className="mb-4 text-xs text-warn">
-          Based on your own resale estimate — not verified sold data. Investment scores need verified sales (Phase 3).
+          {prefill?.resaleKind === "guide" && resale === String(prefill.resaleUsd)
+            ? "Resale = the price-guide market value for this card (based on recent sales). Check the listing is the same card before buying."
+            : "Based on your own resale estimate. Check recent sold listings before buying."}
         </p>
         {invalid ? (
           <p className="text-sm text-loss">Prices must be positive numbers.</p>
@@ -152,7 +156,7 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
 
       <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center sm:justify-end">
         <label className="flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" name="rememberValue" defaultChecked className="h-4 w-4 accent-gain" />
+          <input type="checkbox" name="rememberValue" defaultChecked={prefill?.resaleKind !== "guide"} className="h-4 w-4 accent-gain" />
           Remember this resale as my value for this exact card
         </label>
         <SubmitButton>Save to watchlist</SubmitButton>

@@ -68,6 +68,9 @@ const SETS_RAW = [
 const SETS = [...SETS_RAW].sort((a, b) => b.length - a.length);
 const setRegex = (s: string) => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]?")}(?![\\w'’])`, "i");
 
+/** Item-specific values that mean "no parallel". */
+export const BASE_WORDS = /^(base|base set|base card|base cards|none|n\/a|na|no|standard|regular|not applicable|-)$/i;
+
 const PARALLELS = [
   "Silver Prizm", "Gold Prizm", "Black Prizm", "Red Prizm", "Blue Prizm", "Green Prizm", "Purple Prizm",
   "Gold Refractor", "Orange Refractor", "Blue Refractor", "Green Refractor", "Red Refractor", "Purple Refractor",
@@ -179,7 +182,7 @@ export function cardFromListing(title: string, aspects: Aspect[] = []): CardSugg
 
   // Parallel
   const parAspect = aspect(aspects, "Parallel/Variety", "Parallel", "Variety", "Finish");
-  if (parAspect && !/^base$/i.test(parAspect)) set("parallel", parAspect, "item specifics");
+  if (parAspect && !BASE_WORDS.test(parAspect.trim())) set("parallel", parAspect, "item specifics");
   else {
     const known = PARALLELS.find((p) => new RegExp(`\\b${p}\\b`, "i").test(title));
     if (known) set("parallel", known, "title");
