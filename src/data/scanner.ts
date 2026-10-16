@@ -8,7 +8,7 @@ import { pickRechecks, recheckUpdate } from "@/lib/freshness";
 import { cardKey } from "@/lib/cardKey";
 import { cardFromListing } from "@/lib/ebay/parse";
 import { providerConfigured } from "@/lib/provider-client";
-import type { CardIdentity } from "@/lib/types";
+import type { CardIdentity, Sport } from "@/lib/types";
 import { fillProviderValues, identityFromTitle, pendingLookups } from "./provider";
 import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
 import { parseExcludeWords } from "@/lib/exclude";
@@ -73,13 +73,14 @@ async function enrichVague(
   market: Marketplace,
   shipTo: ShipTo | undefined,
   budget: { left: number; deadline: number },
+  hint: { sport?: Sport },
 ): Promise<{ items: EbayListing[]; fetched: number; helped: number }> {
   const out = [...items];
   let fetched = 0;
   let helped = 0;
   const vague = out
     .map((l, i) => ({ l, i }))
-    .filter(({ l }) => looksGraded(l.title) && cardKey(cardFromListing(l.title, l.aspects).card) === null);
+    .filter(({ l }) => looksGraded(l.title) && cardKey(cardFromListing(l.title, l.aspects, hint).card) === null);
   for (let b = 0; b < vague.length; b += ENRICH_BATCH) {
     if (budget.left <= 0 || Date.now() > budget.deadline) break;
     const batch = vague.slice(b, b + Math.min(ENRICH_BATCH, budget.left));
@@ -90,7 +91,7 @@ async function enrichVague(
       if (!g.ok || g.data.aspects.length === 0) return;
       const i = batch[j].i;
       out[i] = { ...out[i], aspects: g.data.aspects };
-      if (cardKey(cardFromListing(out[i].title, out[i].aspects).card) !== null) helped++;
+      if (cardKey(cardFromListing(out[i].title, out[i].aspects, hint).card) !== null) helped++;
     });
     if (got.some((g) => !g.ok && g.code === 429)) break; // eBay daily limit
   }
@@ -122,6 +123,9 @@ export async function runAllScans(
   // A Hunter-only run has no saved searches to share time with, so it can value more cards.
   const autoDeadline = started + (opts.only === "hunter" ? HUNTER_AUTO_VALUE_TIME_BUDGET_MS : AUTO_VALUE_TIME_BUDGET_MS);
   let autoError: string | null = null;
+  const sportBySearch = new Map<string, Sport>(
+    searches.data.filter((x) => x.kind === "hunter" && parseHunterSport(x.query)).map((x) => [x.id, parseHunterSport(x.query)!]),
+  );
   const enrichBudget = { left: ENRICH_MAX_PER_SCAN, deadline: started + ENRICH_TIME_BUDGET_MS };
   const autoFill = async (cards: { key: string; card: CardIdentity }[]) => {
     if (!providerConfigured() || autoError || cards.length === 0 || Date.now() > autoDeadline) return;
@@ -140,6 +144,8 @@ export async function runAllScans(
   for (const s of toRun) {
     summary.searches++;
     const isHunter = s.kind === "hunter";
+    // The Hunter searches one sport at a time, so every listing it finds is that sport.
+    const hint: { sport?: Sport } = isHunter ? { sport: parseHunterSport(s.query) ?? undefined } : {};
     const input = isHunter
       ? { ...hunterSearchInput(parseHunterSport(s.query)!, hunterCfg), shipTo: shipToFor(settings) }
       : { q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), shipTo: shipToFor(settings) };
@@ -154,7 +160,7 @@ export async function runAllScans(
       const seen = await existingItemIds(s.id, r.data.items.map((i) => i.itemId));
       let fresh = r.data.items.filter((i) => !seen.has(i.itemId));
       if (isHunter) {
-        const e = await enrichVague(fresh, input.market, input.shipTo, enrichBudget);
+        const e = await enrichVague(fresh, input.market, input.shipTo, enrichBudget, hint);
         fresh = e.items;
         summary.enriched += e.fetched;
         summary.enrichHelped += e.helped;
@@ -163,7 +169,7 @@ export async function runAllScans(
       await autoFill(
         fresh
           .map((l) => {
-            const card = cardFromListing(l.title, l.aspects).card;
+            const card = cardFromListing(l.title, l.aspects, hint).card;
             const key = cardKey(card);
             return key ? { key, card: card as CardIdentity } : null;
           })
@@ -171,7 +177,7 @@ export async function runAllScans(
       );
       const rules = isHunter ? hunterRules(settings, hunterCfg) : settings;
       const hits = fresh.map((l) => {
-        const h = evaluateListing(l, rules, values.map);
+        const h = evaluateListing(l, rules, values.map, hint);
         // Profit Hunter: only alert on cards that sell often enough to flip.
         const liquid = !isHunter || liquidEnough(h.cardKey ? values.map.get(h.cardKey) : null, hunterCfg.minSales);
         return { ...h, alerted: shouldAlert(h) && liquid };
@@ -202,7 +208,7 @@ export async function runAllScans(
       await autoFill([
         ...queued,
         ...[...mineRecent.data, ...hunterRecent.data]
-          .map((h) => identityFromTitle(cardFromListing, h.title))
+          .map((h) => identityFromTitle(cardFromListing, h.title, { sport: sportBySearch.get(h.searchId) }))
           .filter((x): x is { key: string; card: CardIdentity } => x !== null),
       ]);
     }

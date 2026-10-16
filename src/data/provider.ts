@@ -150,8 +150,12 @@ export async function pendingLookups(): Promise<{ key: string; card: CardIdentit
 }
 
 /** Card + key for a listing title (only complete identities can be looked up). */
-export function identityFromTitle(parse: (t: string) => { card: Partial<CardIdentity> }, title: string): { key: string; card: CardIdentity } | null {
-  const card = parse(title).card;
+export function identityFromTitle(
+  parse: (t: string, aspects?: [], hint?: { sport?: CardIdentity["sport"] }) => { card: Partial<CardIdentity> },
+  title: string,
+  hint: { sport?: CardIdentity["sport"] } = {},
+): { key: string; card: CardIdentity } | null {
+  const card = parse(title, [], hint).card;
   const key = cardKey(card);
   return key ? { key, card: card as CardIdentity } : null;
 }

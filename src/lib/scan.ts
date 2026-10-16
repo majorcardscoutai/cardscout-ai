@@ -6,7 +6,7 @@ import { cardKey } from "./cardKey";
 import { cardFromListing } from "./ebay/parse";
 import { toUsd, type EbayListing } from "./ebay/client";
 import { calculateProfit, maxPurchasePrice } from "./profit";
-import type { Settings } from "./types";
+import type { Settings, Sport } from "./types";
 
 export interface CardValue {
   id: string;
@@ -48,10 +48,10 @@ export function shippingFor(l: EbayListing, settings: Settings): number {
   return toUsd(l.shipping, settings.usdToAud) ?? 0;
 }
 
-export function evaluateListing(l: EbayListing, settings: Settings, values: Map<string, CardValue>): ScanHit {
+export function evaluateListing(l: EbayListing, settings: Settings, values: Map<string, CardValue>, hint: { sport?: Sport } = {}): ScanHit {
   const priceUsd = toUsd(l.price, settings.usdToAud);
   const shippingUsd = shippingFor(l, settings);
-  const key = cardKey(cardFromListing(l.title, l.aspects).card);
+  const key = cardKey(cardFromListing(l.title, l.aspects, hint).card);
   const v = key ? values.get(key) ?? null : null;
 
   let netProfitUsd: number | null = null;

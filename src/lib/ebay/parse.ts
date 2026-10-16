@@ -63,7 +63,12 @@ const SETS_RAW = [
   "Silver Tempest", "Fusion Strike", "Vivid Voltage", "Champion's Path", "Paldea Evolved", "Obsidian Flames",
   "Paradox Rift", "Paldean Fates", "Temporal Forces", "Twilight Masquerade", "Shrouded Fable", "Stellar Crown",
   "Surging Sparks", "Prismatic Evolutions", "Journey Together", "Destined Rivals", "Black Bolt", "White Flare", "151",
+  "Mega Evolution", "Phantasmal Flames", "Pokemon GO", "Vending", "Neo Genesis",
+  // Pokémon series names — only used when no more specific set is in the title (see POKEMON_SERIES).
+  "Scarlet & Violet", "Scarlet and Violet", "Sword & Shield", "Sword and Shield", "Sun & Moon", "Sun and Moon",
 ];
+/** Series names: "Scarlet & Violet 151" is the 151 set, not the Scarlet & Violet base set. */
+const POKEMON_SERIES = new Set(["Scarlet & Violet", "Scarlet and Violet", "Sword & Shield", "Sword and Shield", "Sun & Moon", "Sun and Moon"]);
 // Most specific first: "Bowman's Best" must win over "Bowman", "Obsidian Flames" over "Obsidian".
 const SETS = [...SETS_RAW].sort((a, b) => b.length - a.length);
 const setRegex = (s: string) => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]?")}(?![\\w'’])`, "i");
@@ -134,7 +139,67 @@ function sportFromPlayerOrTeam(player: string | undefined, title: string): Sport
   return null;
 }
 
-export function cardFromListing(title: string, aspects: Aspect[] = []): CardSuggestion {
+/** Words that are never part of a player/character name in a listing title. */
+const NAME_STOP = new Set(
+  (
+    "rc rookie rookies card cards gem mint mt nm near psa bgs sgc cgc beckett graded grade slab slabbed baseball basketball mlb nba " +
+    "pokemon pokémon tcg english japanese korean chinese holo reverse foil full art secret rare ultra illustration special promo first edition " +
+    "base set sp ssp short print insert inserts parallel variation var variant image photo case hit hits sharp centered pop low invest hot hof mvp " +
+    "all star allstar debut logo lot lots read new the and of w with x game used numbered limited team usa world champion champions award league " +
+    "leaders future stars legends legend retro vintage classic collection nice look wow free shipping ship fast quality beautiful perfect rated " +
+    "topps bowman panini donruss prizm chrome update select optic mosaic finest heritage stadium club series draft prospect prospects sapphire " +
+    "fleer upper deck hoops contenders chronicles spectra obsidian noir flawless national treasures immaculate revolution court kings crown royale " +
+    "phoenix origins absolute prestige score leaf skybox exquisite authentic certified elite status gypsy queen archives tribute inception dynasty " +
+    "museum allen ginter big opening day holiday living now fire pristine sterling platinum transcendent tier one five triple threads definitive " +
+    "black gold silver red blue green orange purple pink yellow white teal aqua bronze copper ruby emerald sky wave shimmer mojo speckle sparkle " +
+    "refractor refractors xfractor superfractor prizms ice cracked atomic laser scope disco hyper camo tie dye zebra tiger snakeskin choice " +
+    "auto autos autograph autographs autographed signed sig signature patch relic jersey rpa memorabilia swatch on card sticker " +
+    "angels dodgers yankees sox mariners orioles jays astros braves padres cubs mets phillies brewers guardians tigers twins royals athletics " +
+    "marlins nationals pirates reds rockies diamondbacks rays rangers giants cardinals indians expos " +
+    "bulls lakers celtics warriors mavericks mavs spurs knicks heat bucks timberwolves wolves nuggets suns sixers 76ers raptors clippers rockets " +
+    "thunder grizzlies pelicans hornets pistons pacers cavaliers cavs hawks magic wizards blazers trail jazz nets supersonics sonics " +
+    "los angeles new york san francisco diego boston chicago miami dallas houston atlanta seattle toronto detroit cleveland philadelphia " +
+    "milwaukee minnesota denver phoenix utah orlando memphis charlotte indiana sacramento golden state oklahoma city portland brooklyn washington " +
+    "texas arizona colorado tampa bay kansas pittsburgh cincinnati baltimore oakland st louis montreal " +
+    "sgc10 psa10 bgs10 cgc10 gem10 pristine10 bgs9 psa9 mint9 tag ksa hga isa csg ags rookie-card yr year no #"
+  ).split(" "),
+);
+const NAME_SUFFIX = /^(jr|jr\.|sr|sr\.|ii|iii|iv)$/i;
+const POKEMON_SUFFIX = /^(ex|gx|v|vmax|vstar|lv\.?x|break|prime|legend|star|δ)$/i;
+
+/**
+ * Best guess at the player/character when the title doesn't name a player we know:
+ * strip years, numbers, grades, set/brand/parallel/team words, then take the first run of name-like words.
+ * Safe because a value is only used when the price guide has the SAME player + year + set + number.
+ */
+export function guessPlayer(title: string, sport: Sport | undefined, remove: string[] = []): string | null {
+  let t = ` ${title} `;
+  for (const r of remove) if (r) t = t.replace(new RegExp(r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "ig"), " ");
+  t = t
+    .replace(/#\s*\S+/g, " ")
+    .replace(/\b(PSA|BGS|SGC|CGC|BECKETT)\s*\d+(\.5)?\b/gi, " ")
+    .replace(/\d+(st|nd|rd|th)?\b/gi, " ")
+    .replace(/[^\p{L}'’.\- ]+/gu, " ");
+  const words = t.split(/\s+/).filter((w) => w && !/^[A-Za-z]{1,4}-$/.test(w));
+  const nameLike = (w: string) => /^\p{L}[\p{L}'’.\-]*$/u.test(w) && !NAME_STOP.has(w.toLowerCase().replace(/[.’']/g, "")) && w.replace(/[.\-'’]/g, "").length >= 2;
+  const minRun = sport === "Pokemon" ? 1 : 2;
+  for (let i = 0; i < words.length; i++) {
+    if (!nameLike(words[i])) continue;
+    const run: string[] = [];
+    let j = i;
+    while (j < words.length && run.length < (sport === "Pokemon" ? 2 : 4) && nameLike(words[j])) run.push(words[j++]);
+    if (j < words.length && (sport === "Pokemon" ? POKEMON_SUFFIX : NAME_SUFFIX).test(words[j])) run.push(words[j]);
+    if (run.length >= minRun) {
+      return run
+        .map((w) => (POKEMON_SUFFIX.test(w) && sport === "Pokemon" ? w.toLowerCase() === "ex" ? "ex" : w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+        .join(" ");
+    }
+    i = j;
+  }
+  return null;
+}
+
+export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { sport?: Sport } = {}): CardSuggestion {
   const card: Partial<CardIdentity> = {};
   const sources: CardSuggestion["sources"] = {};
   const set = <K extends keyof CardIdentity>(k: K, v: CardIdentity[K], from: "item specifics" | "title") => {
@@ -144,7 +209,8 @@ export function cardFromListing(title: string, aspects: Aspect[] = []): CardSugg
 
   // Sport / game
   const sportAspect = aspect(aspects, "Sport", "Game", "League");
-  const sport = (sportAspect && sportFrom(sportAspect)) || sportFrom(title);
+  // A sport-specific search (e.g. the Profit Hunter's Baseball search) settles the sport.
+  const sport = (sportAspect && sportFrom(sportAspect)) || sportFrom(title) || hint.sport || null;
   if (sport) set("sport", sport, sportAspect && sportFrom(sportAspect) ? "item specifics" : "title");
 
   // Player / character
@@ -168,15 +234,22 @@ export function cardFromListing(title: string, aspects: Aspect[] = []): CardSugg
   const setAspect = aspect(aspects, "Set", "Set Name", "Product Line");
   if (setAspect) set("set", setAspect, "item specifics");
   else {
-    const known = SETS.find((s) => setRegex(s).test(title));
+    const found = SETS.filter((s) => setRegex(s).test(title));
+    // Prefer a specific set over a Pokémon series name when both appear.
+    const known = found.find((s) => !POKEMON_SERIES.has(s)) ?? found[0];
     if (known) set("set", known, "title");
   }
 
-  // Card number
+  // Card number: "#US1", "No. 49", or a code like "US1" / "BDC-50" / "TC-3" (sports; capitals + digits)
   const numAspect = aspect(aspects, "Card Number");
   if (numAspect) set("cardNumber", numAspect.replace(/^#/, ""), "item specifics");
   else {
-    const m = title.match(/#\s*([A-Z]{0,6}-?\d+[A-Z]?)\b/i) ?? (sport === "Pokemon" ? title.match(/\b(\d{1,3}\/\d{2,3})\b/) : null);
+    const m =
+      title.match(/#\s*([A-Z]{0,6}-?\d+[A-Z]?)\b/i) ??
+      title.match(/\bNo\.?\s*(\d{1,4}[A-Z]?)\b/i) ??
+      (sport === "Pokemon"
+        ? title.match(/\b(\d{1,3}\/\d{2,3})\b/)
+        : title.match(/\b(?!(?:PSA|BGS|SGC|CGC|GEM|MT|NM|RC|SP|SSP|HOF|MVP|POP|LOT|QTY|GMA|HGA|TAG|KSA)-?\d)([A-Z]{1,4}-?\d{1,4}[A-Z]?)\b/));
     if (m) set("cardNumber", m[1].toUpperCase(), "title");
   }
 
@@ -224,6 +297,16 @@ export function cardFromListing(title: string, aspects: Aspect[] = []): CardSugg
     set("grader", "RAW", aspect(aspects, "Graded") ? "item specifics" : "title");
   }
 
+  // Player not named in item specifics or our list → best guess from the title (checked against the guide later).
+  if (!card.player) {
+    const g = guessPlayer(title, card.sport, [
+      sources.set === "title" ? card.set ?? "" : "",
+      sources.parallel === "title" ? card.parallel ?? "" : "",
+      sources.cardNumber === "title" ? card.cardNumber ?? "" : "",
+    ]);
+    if (g) set("player", g, "title");
+  }
+
   const required: [keyof CardIdentity, string][] = [
     ["sport", "category"],
     ["player", "player"],
@@ -232,7 +315,7 @@ export function cardFromListing(title: string, aspects: Aspect[] = []): CardSugg
     ["cardNumber", "card number"],
     ["grader", "grading company"],
   ];
-  const missing = required.filter(([k]) => card[k] === undefined).map(([, label]) => label);
+  const missing = required.filter(([k]) => card[k] === undefined && !(k === "year" && card.sport === "Pokemon")).map(([, label]) => label);
   if (card.grader && card.grader !== "RAW" && card.grade === undefined) missing.push("grade");
 
   return { card, missing, sources };

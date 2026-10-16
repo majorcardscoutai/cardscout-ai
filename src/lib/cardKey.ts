@@ -34,12 +34,13 @@ function normParallel(p: string | null | undefined): string {
 
 export function cardKey(card: Partial<CardIdentity>): string | null {
   const { sport, player, year, set, cardNumber, grader } = card;
-  if (!sport || !player || !year || !set || !cardNumber || !grader) return null;
+  // Pokémon titles often skip the year, and the price guide identifies Pokémon cards by set + number.
+  if (!sport || !player || (!year && sport !== "Pokemon") || !set || !cardNumber || !grader) return null;
   if (grader !== "RAW" && (card.grade === undefined || card.grade === null)) return null;
   return [
     sport.toLowerCase(),
     norm(player),
-    String(year),
+    year ? String(year) : "",
     normSet(set, year),
     norm(cardNumber.replace(/^#/, "")).replace(/ /g, ""),
     normParallel(card.parallel),

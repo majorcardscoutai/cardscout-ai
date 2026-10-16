@@ -4,7 +4,7 @@
  * Profit Hunter finds only count when the card sells often enough (Hunter → sales per year).
  */
 import { pickDeals, type DealHit, type PickedDeals } from "@/lib/deals";
-import { hunterRules, liquidEnough, type HunterConfig } from "@/lib/hunter";
+import { hunterRules, liquidEnough, parseHunterSport, type HunterConfig } from "@/lib/hunter";
 import { isFresh } from "@/lib/freshness";
 import type { Settings } from "@/lib/types";
 import { cardValueMap, listProviderValues, listRecentHits, listSavedSearches, loadHunterConfig, loadSettings, type SavedSearch } from "./db";
@@ -100,6 +100,7 @@ export async function hunterView(): Promise<HunterView> {
   const live = hunterHits.filter((h) => isFresh(h));
   // Coverage: one row per distinct live listing.
   const rowByKey = new Map(guide.data.map((r) => [r.key, r]));
+  const sportBySearch = new Map(mine.map((x) => [x.id, parseHunterSport(x.query) ?? undefined]));
   const cov: HunterCoverage = {
     total: 0, unreadable: 0, missing: [], noGradePrice: 0, waiting: 0, noMatch: 0, ambiguous: 0, noPrice: 0, rejected: 0, valued: 0,
     examples: { unreadable: [], noMatch: [] },
@@ -110,7 +111,7 @@ export async function hunterView(): Promise<HunterView> {
     if (seenItems.has(h.itemId)) continue;
     seenItems.add(h.itemId);
     cov.total++;
-    const parsed = cardFromListing(h.title);
+    const parsed = cardFromListing(h.title, [], { sport: sportBySearch.get(h.searchId) });
     // The scan may have identified the card from eBay item specifics even when the title is vague.
     const titleKey = cardKey(parsed.card);
     const key = titleKey ?? h.cardKey;

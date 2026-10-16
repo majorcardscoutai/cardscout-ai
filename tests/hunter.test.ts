@@ -63,3 +63,23 @@ test("hunter's own ROI / profit minimums (blank = Settings)", async () => {
   assert.ok(blank.ok); if (blank.ok) { assert.equal(blank.value.minRoi, null); assert.equal(blank.value.minProfit, null); }
   const bad = parseHunterForm(fd({ budget: "300", minRoi: "-5" })); assert.equal(bad.ok, false);
 });
+
+test("title reading: any player, codes without #, Pokémon sets, sport from the Hunter search", async () => {
+  const { cardFromListing, guessPlayer } = await import("../src/lib/ebay/parse.js");
+  const { cardKey } = await import("../src/lib/cardKey.js");
+  const read = (t: string, sport?: "MLB" | "NBA" | "Pokemon") => cardFromListing(t, [], { sport }).card;
+  let c = read("2023 Topps Chrome Jackson Holliday #BCP-1 Orioles PSA 10 GEM MINT", "MLB");
+  assert.equal(c.player, "Jackson Holliday"); assert.equal(c.cardNumber, "BCP-1"); assert.equal(c.sport, "MLB"); assert.ok(cardKey(c));
+  c = read("Elly De La Cruz 2023 Topps Update #US1 Rookie RC Reds PSA 10", "MLB"); assert.equal(c.player, "Elly De La Cruz");
+  c = read("2019 Bowman Chrome Wander Franco BCP-50 PSA 10 GEM MINT Rays", "MLB"); assert.equal(c.player, "Wander Franco"); assert.equal(c.cardNumber, "BCP-50");
+  c = read("Bobby Witt Jr. 2022 Topps Series 1 No. 215 RC PSA 10 Royals", "MLB"); assert.equal(c.player, "Bobby Witt Jr."); assert.equal(c.cardNumber, "215");
+  c = read("LOS ANGELES ANGELS 2018 TOPPS UPDATE SHOHEI OHTANI US1 PSA 10", "MLB"); assert.equal(c.player, "Shohei Ohtani"); assert.equal(c.cardNumber, "US1");
+  c = read("2020-21 Panini Prizm LaMelo Ball #278 Rookie RC PSA10 Hornets", "NBA"); assert.equal(c.player, "Lamelo Ball"); assert.equal(c.cardNumber, "278");
+  assert.notEqual(read("2023 Topps PSA10 Mike Trout #27", "MLB").cardNumber, "PSA10", "grades are never card numbers");
+  c = read("Gardevoir ex 245/198 Scarlet & Violet Special Illustration Rare PSA 10", "Pokemon");
+  assert.equal(c.player, "Gardevoir ex"); assert.equal(c.set, "Scarlet & Violet"); assert.equal(c.cardNumber, "245/198"); assert.ok(cardKey(c), "Pokémon needs no year");
+  assert.equal(read("2023 Pokemon Scarlet & Violet 151 Charizard ex 199/165 PSA 10", "Pokemon").set, "151", "specific set beats series name");
+  assert.equal(read("2018 Topps Update Shohei Ohtani #US1 PSA 10").sport, "MLB", "known player still sets sport without a hint");
+  assert.equal(guessPlayer("PSA 10 GEM MINT 2023 Topps Chrome Refractor", "MLB"), null, "no name → no guess");
+  assert.equal(cardKey({ sport: "MLB", player: "X Y", set: "Topps", cardNumber: "1", grader: "PSA", grade: 10 }), null, "sports cards still need a year");
+});
