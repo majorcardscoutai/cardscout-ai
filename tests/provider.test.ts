@@ -92,3 +92,14 @@ test("Bowman vs Bowman's Best; Panini is ignored; Japanese Pokémon is a differe
   const zard: CardIdentity = { ...ohtani, sport: "Pokemon", player: "Charizard ex", year: 2023, set: "151", cardNumber: "199/165" };
   assert.equal(scoreProduct(zard, P("j", "Charizard ex #199", "Pokemon Japanese 151")).ok, false);
 });
+
+test("apostrophes don't matter; no-match explains the closest products", () => {
+  const best: CardIdentity = { ...ohtani, year: 2024, set: "Bowman's Best", cardNumber: "33", parallel: "Refractor", isRookie: false };
+  assert.equal(scoreProduct(best, P("a", "Shohei Ohtani [Refractor] #33", "Baseball Cards 2024 Bowmans Best")).ok, true);
+  assert.equal(scoreProduct(best, P("a", "Shohei Ohtani [Refractor] #33", "Baseball Cards 2024 Bowman's Best")).ok, true);
+  const r = pickProduct(best, [P("c", "Shohei Ohtani [Refractor] #33", "Baseball Cards 2024 Bowman Chrome"), P("d", "Mike Trout #33", "Baseball Cards 2024 Bowman's Best")]);
+  assert.equal(r.ok, false);
+  if (!r.ok) { assert.match(r.detail, /Closest in the guide: Shohei Ohtani \[Refractor\] #33 · Baseball Cards 2024 Bowman Chrome \(different set\)/); }
+  const none = pickProduct(best, []);
+  if (!none.ok) assert.match(none.detail, /found nothing/);
+});

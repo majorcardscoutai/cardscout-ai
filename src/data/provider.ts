@@ -11,6 +11,8 @@ import { listProviderValues, saveProviderValue, type ProviderValueRow } from "./
 
 export const REFRESH_MATCHED_MS = 24 * 3_600_000;
 export const RETRY_UNMATCHED_MS = 7 * 86_400_000;
+/** Matching rules last improved — unmatched results saved before this are retried once. */
+export const MATCHER_UPDATED_AT = Date.parse("2026-10-16T03:00:00Z");
 
 export interface LookupOutcome {
   row: Omit<ProviderValueRow, "fetchedAt">;
@@ -22,7 +24,9 @@ export interface LookupOutcome {
 export function needsLookup(row: Pick<ProviderValueRow, "status" | "fetchedAt"> | undefined, now = Date.now()): boolean {
   if (!row) return true;
   if (row.status === "rejected") return false; // you said it's wrong — never auto-value again
-  const age = now - new Date(row.fetchedAt).getTime();
+  const fetched = new Date(row.fetchedAt).getTime();
+  if (row.status !== "matched" && fetched < MATCHER_UPDATED_AT) return true;
+  const age = now - fetched;
   return row.status === "matched" ? age > REFRESH_MATCHED_MS : age > RETRY_UNMATCHED_MS;
 }
 
@@ -31,7 +35,7 @@ export async function lookupCard(card: CardIdentity, key: string): Promise<Looku
   const site = siteFor(card);
   const blank = { key, site, productId: null, matchedName: null, valueUsd: null, priceField: null, graderSpecific: true, salesVolume: null, card };
   if (!priceFieldFor(card)) {
-    const row = { ...blank, status: "no_price" as const, detail: "The price guide has no separate price for this grade." };
+    const row = { ...blank, status: "no_price" as const, detail: `The price guide has no separate ${gradeLabel(card)} price.` };
     await saveProviderValue(row);
     return { row };
   }
@@ -65,7 +69,7 @@ export async function lookupCard(card: CardIdentity, key: string): Promise<Looku
         salesVolume: product.salesVolume,
         detail: null,
       }
-    : { ...blank, status: "no_price", productId: product.id, matchedName, salesVolume: product.salesVolume, detail: "Matched, but no price for this grade yet." };
+    : { ...blank, status: "no_price", productId: product.id, matchedName, salesVolume: product.salesVolume, detail: `Matched ${matchedName}, but the guide has no ${gradeLabel(card)} price for it yet.` };
   await saveProviderValue(row);
   return { row };
 }
@@ -138,4 +142,9 @@ export function identityFromTitle(parse: (t: string) => { card: Partial<CardIden
 
 export function providerName(site: string | null | undefined): string {
   return site === "pricecharting" ? PROVIDER_LABEL.pricecharting : PROVIDER_LABEL.sportscardspro;
+}
+
+function gradeLabel(card: CardIdentity): string {
+  if (card.grader === "RAW" || card.grade === null || card.grade === undefined) return "ungraded";
+  return `${card.grader ?? ""} ${card.grade}`.trim();
 }

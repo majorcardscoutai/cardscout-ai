@@ -9,9 +9,9 @@ import {
 } from "@/app/actions";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { IconAlert } from "@/components/Icons";
-import ProviderCredit, { ValueSource } from "@/components/ProviderCredit";
+import ProviderCredit, { NoValueReason, ValueSource } from "@/components/ProviderCredit";
 import { Money, PageHeader, Panel, Pct, StatusRow, Tag } from "@/components/ui";
-import { cardValueMap, lastScanRuns, listPushSubscriptions, listRecentHits, listSavedSearches } from "@/data/db";
+import { cardValueMap, lastScanRuns, listProviderValues, listPushSubscriptions, listRecentHits, listSavedSearches, type ProviderValueRow } from "@/data/db";
 import { pushConfigured } from "@/lib/webpush";
 import { fillProviderValues } from "@/data/provider";
 import { cardKey } from "@/lib/cardKey";
@@ -119,6 +119,10 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
             : null;
     }
   }
+
+  // Why cards have no automatic value (status + detail per card), for the "why?" notes.
+  const providerOn = providerConfigured();
+  const guideRows = new Map<string, ProviderValueRow>(providerOn ? (await listProviderValues()).data.map((r) => [r.key, r]) : []);
 
   // Results are re-priced with TODAY's values + settings, so a value added after a scan counts straight away.
   const now = Date.now();
@@ -273,7 +277,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                               <span className="rounded-md bg-loss-soft px-1.5 py-0.5 font-medium text-loss">Below your rules</span>
                             )
                           ) : (
-                            <span>{h.cardKey && providerConfigured() ? "No exact price-guide match — set your own" : "No value saved for this card"}</span>
+                            <NoValueReason row={h.cardKey ? guideRows.get(h.cardKey) : null} hasKey={!!h.cardKey} configured={providerOn} pending />
                           )}
                         </div>
                       </div>
@@ -465,14 +469,11 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                     <ValueSource source={h.valueSource} />
                     {h.meetsCriteria && <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Deal</span>}
                     {h.alerted && <Tag>Emailed</Tag>}
-                    {h.valueUsd === null &&
-                      (h.cardKey ? (
-                        <span>· no value saved for this card</span>
-                      ) : (
-                        <span title="The listing doesn't state every detail needed to match exactly (year, set, number, parallel, grade)">
-                          · card details unclear — use Analyse
-                        </span>
-                      ))}
+                    {h.valueUsd === null && (
+                      <span>
+                        · <NoValueReason row={h.cardKey ? guideRows.get(h.cardKey) : null} hasKey={!!h.cardKey} configured={providerOn} />
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">

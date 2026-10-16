@@ -23,3 +23,29 @@ export function ValueSource({ source }: { source?: string | null }) {
     <span className={`rounded-md px-1.5 py-0.5 text-[11px] ${source === "you" ? "bg-panel-2 text-muted" : "bg-accent/10 text-accent"}`}>{label}</span>
   );
 }
+
+/** Why a listing has no automatic value — short label + tap "why?" for the detail. */
+export function NoValueReason({ row, hasKey, configured, pending = false }: {
+  row?: { status: string; detail: string | null } | null;
+  hasKey: boolean;
+  configured: boolean;
+  pending?: boolean;
+}) {
+  if (!hasKey)
+    return <span title="The listing doesn't state every detail needed to match exactly (year, set, number, parallel, grade)">Card details unclear — use Analyse</span>;
+  if (!configured) return <span>No value saved for this card</span>;
+  if (!row) return <span>{pending ? "Not looked up yet — search again" : "No value yet"}</span>;
+  const label =
+    row.status === "no_price" ? "Price guide has no price for this grade"
+    : row.status === "ambiguous" ? "Several possible matches in the guide"
+    : row.status === "rejected" ? "You marked the guide match as wrong"
+    : "No exact price-guide match";
+  return (
+    <details className="inline-block">
+      <summary className="cursor-pointer list-none">
+        {label} · <span className="underline">why?</span>
+      </summary>
+      <span className="mt-1 block max-w-md whitespace-normal text-muted">{row.detail ?? "No more detail."} You can set your own value instead.</span>
+    </details>
+  );
+}

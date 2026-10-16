@@ -215,6 +215,7 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - [ ] SQL run + first scan shows "X of Y cards valued automatically"
 - Fix 16 Oct 2026: live searches on the Scanner page now look up the cards shown (max 15 s; rest next search). Title reader knows ~90 sets, most specific first ("Bowman's Best" ≠ "Bowman"); sports matches need the exact set name (Panini ignored); Japanese/promo Pokémon never used for English cards. 90 unit tests + e2e.
 - Fix 16 Oct 2026: Analyse now always pre-fills Expected resale, profit and ROI when the Scanner showed a value — it tries the listing's item specifics, then the title reading the Scanner uses. "Base Set"/"None" in item specifics = no parallel. Result note says the value is the price-guide market value; "Remember as my value" starts unticked for guide values (so they keep updating daily).
+- 16 Oct 2026: rows without a value now say why (no exact match / no price for this grade / several matches / you rejected) with a tap-to-open "why?" listing the closest guide products. Apostrophes ignored when matching ("Bowman's Best" = "Bowmans Best"). Unmatched results saved before the fix are retried once (MATCHER_UPDATED_AT). 91 unit tests + e2e.
 
 ## Next major feature (after automatic values): Profit Hunter — noted 16 Oct 2026
 - New sidebar page: scan ALL new listings in chosen categories under a budget (not specific cards), value each via the SportsCardsPro daily price-guide download, flag anything clearing min ROI/profit; alerts as usual.

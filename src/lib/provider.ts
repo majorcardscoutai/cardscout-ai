@@ -41,6 +41,7 @@ const norm = (s: string | null | undefined) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    .replace(/['’]/g, "") // "Bowman's" = "Bowmans"
     .replace(/[^a-z0-9/ ]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -51,7 +52,7 @@ export function normNumber(n: string | null | undefined): string {
   return norm((n ?? "").replace(/^#/, "").split("/")[0]).replace(/[^a-z0-9]/g, "");
 }
 
-const SET_STOPWORDS = new Set(["baseball", "basketball", "football", "cards", "card", "pokemon", "tcg", "the", "and", "of", "panini", "s"]);
+const SET_STOPWORDS = new Set(["baseball", "basketball", "football", "cards", "card", "pokemon", "tcg", "the", "and", "of", "panini"]);
 /** Pokémon guide names add a series prefix ("Scarlet & Violet 151") — allowed. These words mean a DIFFERENT product. */
 const POKEMON_DIFFERENT = new Set(["japanese", "chinese", "korean", "german", "french", "italian", "spanish", "promo", "promos", "jumbo", "mcdonalds"]);
 function setTokens(set: string | null | undefined, year?: number | null): string[] {
@@ -125,8 +126,18 @@ export type PickResult =
 
 /** Choose THE matching product, or none. Two equally good different products = ambiguous = no value. */
 export function pickProduct(card: Partial<CardIdentity>, products: ProviderProduct[]): PickResult {
-  const scored = products.map((p) => ({ p, s: scoreProduct(card, p) })).filter((x) => x.s.ok);
-  if (scored.length === 0) return { ok: false, reason: "no_match", detail: "No product in the guide matched this exact card." };
+  const all = products.map((p) => ({ p, s: scoreProduct(card, p) }));
+  const scored = all.filter((x) => x.s.ok);
+  if (scored.length === 0) {
+    if (all.length === 0) return { ok: false, reason: "no_match", detail: "The price guide's search found nothing for this card." };
+    // Show the closest few so you can see why (same number + player first).
+    const near = all
+      .filter((x) => !/different (card number|player)/.test(x.s.reason))
+      .concat(all.filter((x) => /different (card number|player)/.test(x.s.reason)))
+      .slice(0, 3)
+      .map((x) => `${x.p.productName} · ${x.p.consoleName} (${x.s.reason})`);
+    return { ok: false, reason: "no_match", detail: `Not an exact match. Closest in the guide: ${near.join("; ")}.` };
+  }
   scored.sort((a, b) => a.s.extra - b.s.extra);
   if (scored.length > 1 && scored[1].s.extra === scored[0].s.extra && scored[1].p.id !== scored[0].p.id)
     return { ok: false, reason: "ambiguous", detail: `Several products match (${scored.slice(0, 3).map((x) => x.p.consoleName).join("; ")}).` };
