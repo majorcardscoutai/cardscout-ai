@@ -37,6 +37,7 @@ export function alertEmailHtml(hits: (ScanHit & { searchName: string })[], usdTo
     <div style="padding:16px 24px;color:#5a6678;font-size:12px;line-height:1.5">
       Profit is calculated against <b>your own card values</b>, not verified sold data. Check the listing before buying.
       <br><a href="${esc(appUrl)}/scanner" style="color:#4cc2ff">Open CardHawk</a>
+      <br><span style="color:#5a6678;font-size:11px">Market values from <a href="https://www.sportscardspro.com" style="color:#5a6678">SportsCardsPro</a> and <a href="https://www.pricecharting.com" style="color:#5a6678">PriceCharting</a>, unless you set your own.</span>
     </div>
   </div>
 </div>`;

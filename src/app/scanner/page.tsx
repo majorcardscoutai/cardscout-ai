@@ -2,15 +2,18 @@ import Link from "next/link";
 import {
   addSavedSearchAction,
   deleteSavedSearchAction,
+  rejectAutoValueAction,
   scanNowAction,
   toggleSavedSearchAction,
   updateSavedSearchExcludeAction,
 } from "@/app/actions";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { IconAlert } from "@/components/Icons";
+import ProviderCredit, { ValueSource } from "@/components/ProviderCredit";
 import { Money, PageHeader, Panel, Pct, StatusRow, Tag } from "@/components/ui";
 import { cardValueMap, lastScanRuns, listPushSubscriptions, listRecentHits, listSavedSearches } from "@/data/db";
 import { pushConfigured } from "@/lib/webpush";
+import { providerConfigured } from "@/lib/provider-client";
 import { getSettings } from "@/data/source";
 import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/client";
 import { emailConfigured } from "@/lib/email";
@@ -207,8 +210,9 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               </form>
             </div>
             <p className="mb-3 text-xs text-warn">
-              Profit is shown only for cards in your <Link href="/values" className="underline">Card Values</Link> — it compares the
-              asking price with <strong>your</strong> value, not verified sold data.
+              Profit uses the SportsCardsPro/PriceCharting market value for each card, or your own{" "}
+              <Link href="/values" className="underline">Card Value</Link> where you&apos;ve set one. Automatic values are matched from the
+              title — check the card before buying.
             </p>
             {result.data.items.length === 0 ? (
               <p className="text-sm text-muted">No listings found. Try fewer words or a higher max price.</p>
@@ -232,6 +236,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                           <Tag>{l.isAuction ? `Auction${l.bidCount !== null ? ` · ${l.bidCount} bids` : ""}` : l.acceptsOffers ? "Buy It Now · Offers" : "Buy It Now"}</Tag>
                           {l.isAuction && endsIn(l.endsAt) && <Tag tone="warn">{endsIn(l.endsAt)}</Tag>}
                           {l.country && <Tag>{l.country}</Tag>}
+                          <ValueSource source={h.valueSource} />
                           {h.valueUsd !== null ? (
                             h.meetsCriteria ? (
                               <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Meets your rules</span>
@@ -350,7 +355,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               status={pushConfigured() && devices.data.length > 0 ? "ok" : "off"}
               detail={!pushConfigured() ? "Add VAPID keys in Vercel" : devices.data.length > 0 ? `${devices.data.length} device${devices.data.length === 1 ? "" : "s"}` : "Turn on in Settings"}
             />
-            <StatusRow label="Card values" status={values.map.size > 0 ? "ok" : "off"} detail={`${values.map.size} saved — needed to spot deals`} />
+            <StatusRow label="Market values" status={providerConfigured() ? "ok" : values.map.size > 0 ? "ok" : "off"} detail={providerConfigured() ? `SportsCardsPro connected · ${values.map.size} cards valued` : `${values.map.size} of your own values — connect SportsCardsPro for automatic values`} />
           </div>
           {runs.data.length > 0 && (
             <ul className="mt-3 space-y-1 text-[11px] text-faint">
@@ -401,6 +406,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           </p>
         )}
         <DbError error={hits.error} />
+        <ProviderCredit className="mb-3" />
         {shownHits.length === 0 ? (
           <p className="text-sm text-muted">
             {onlyDeals
@@ -427,6 +433,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                     <span>{searchNames.get(h.searchId) ?? "Search"}</span>
                     <span>· found {ago(h.createdAt)}</span>
                     {h.isAuction && <Tag tone="warn">Auction{endsIn(h.endsAt) ? ` · ${endsIn(h.endsAt)}` : ""}</Tag>}
+                    <ValueSource source={h.valueSource} />
                     {h.meetsCriteria && <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Deal</span>}
                     {h.alerted && <Tag>Emailed</Tag>}
                     {h.valueUsd === null &&
@@ -454,6 +461,16 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                     <Link href={addValueHref(h.title, h.itemId)} className="mt-1 block text-xs text-gain hover:underline">
                       + Add value
                     </Link>
+                  )}
+                  {h.valueSource && h.valueSource !== "you" && h.cardKey && (
+                    <div className="mt-1 flex justify-end gap-2 text-[11px]">
+                      <Link href={addValueHref(h.title, h.itemId)} className="text-muted hover:underline">Set my own</Link>
+                      <form action={rejectAutoValueAction}>
+                        <input type="hidden" name="key" value={h.cardKey} />
+                        <input type="hidden" name="returnTo" value="/scanner" />
+                        <button className="text-muted hover:text-loss">Wrong match?</button>
+                      </form>
+                    </div>
                   )}
                 </div>
               </li>

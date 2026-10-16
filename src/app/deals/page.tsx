@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { rejectAutoValueAction } from "@/app/actions";
 import { DbError } from "@/components/FormBits";
+import ProviderCredit, { ValueSource } from "@/components/ProviderCredit";
 import { formatMoney } from "@/lib/currency";
 import { Money, PageHeader, Panel, Pct, Tag } from "@/components/ui";
 import { currentDeals, sortDeals, type DealHit, type DealSort } from "@/data/deals";
@@ -45,6 +47,7 @@ function DealRow({ d, fx, rank }: { d: DealHit; fx: number; rank?: number }) {
           </a>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
             {d.isAuction ? <Tag tone="warn">Auction · {endsIn(d.endsAt) ?? "end time unknown"}</Tag> : <Tag>Buy It Now</Tag>}
+            <ValueSource source={d.valueSource} />
             <span>{d.searchName}</span>
             <span>· found {ago(d.createdAt)}</span>
             {!d.meetsCriteria && d.maxPriceUsd !== null && d.maxPriceUsd > 0 && (
@@ -61,7 +64,7 @@ function DealRow({ d, fx, rank }: { d: DealHit; fx: number; rank?: number }) {
           <Money usd={d.priceUsd} fx={fx} size="sm" align="right" />
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-wide text-faint">Your value</div>
+          <div className="text-[10px] uppercase tracking-wide text-faint">Value</div>
           <Money usd={d.valueUsd} fx={fx} size="sm" align="right" />
         </div>
         <div>
@@ -74,6 +77,13 @@ function DealRow({ d, fx, rank }: { d: DealHit; fx: number; rank?: number }) {
           <Link href={`/analyse?item=${d.itemId}`} className="mt-1 block text-xs text-accent hover:underline">
             Analyse →
           </Link>
+          {d.valueSource && d.valueSource !== "you" && d.cardKey && (
+            <form action={rejectAutoValueAction} className="mt-1">
+              <input type="hidden" name="key" value={d.cardKey} />
+              <input type="hidden" name="returnTo" value="/deals" />
+              <button className="text-[11px] text-muted hover:text-loss">Wrong match?</button>
+            </form>
+          )}
         </div>
       </div>
     </li>
@@ -94,9 +104,10 @@ export default async function TopDealsPage({ searchParams }: { searchParams: Pro
         subtitle="Live listings from your scans that meet your ROI and profit rules right now, using today's Card Values, settings and exchange rate."
       />
       <DbError error={error} />
+      <ProviderCredit className="-mt-2 mb-4" />
       <div className="mb-6 rounded-xl border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">
-        Profit compares the price with <strong>your own Card Values</strong>, not verified sold data. Listings may have sold or
-        changed since they were found — open the listing and check the card before you buy.
+        Profit compares the price with a market value from SportsCardsPro/PriceCharting, or your own Card Value where you&apos;ve
+        set one. Automatic values are matched by the listing title — check it&apos;s the same card (parallel, grade) before you buy.
       </div>
 
       <Panel

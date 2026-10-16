@@ -156,3 +156,20 @@ alter table public.settings add column if not exists ship_to_country text;
 alter table public.settings add column if not exists ship_to_postcode text;
 alter table public.waitlist add column if not exists region text;
 alter table public.waitlist add column if not exists goals text not null default '';
+
+-- ---------- 16 Oct 2026: automatic values cache (SportsCardsPro / PriceCharting) ----------
+create table if not exists public.provider_values (
+  card_key text primary key,
+  status text not null,              -- matched | no_match | ambiguous | no_price | rejected
+  site text not null,                -- sportscardspro | pricecharting
+  product_id text,
+  matched_name text,
+  value_usd numeric,
+  price_field text,
+  grader_specific boolean not null default true,
+  sales_volume numeric,
+  detail text,
+  card jsonb,
+  fetched_at timestamptz not null default now()
+);
+alter table public.provider_values enable row level security;

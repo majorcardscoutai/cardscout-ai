@@ -1,0 +1,73 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { buildQuery, normNumber, parseApiProduct, pickProduct, priceFieldFor, priceFor, scoreProduct, siteFor, type ProviderProduct } from "../src/lib/provider.js";
+import type { CardIdentity } from "../src/lib/types.js";
+
+const ohtani: CardIdentity = { sport: "MLB", player: "Shohei Ohtani", year: 2018, set: "Topps Update", cardNumber: "US1", parallel: null, serialNumbered: null, variation: null, isRookie: true, grader: "PSA", grade: 10 };
+const P = (id: string, name: string, consoleName: string, prices: Record<string, number> = { "manual-only-price": 40000, "graded-price": 15000, "loose-price": 2000 }): ProviderProduct => ({ id, productName: name, consoleName, prices, salesVolume: 120 });
+
+test("query + site", () => {
+  assert.equal(buildQuery(ohtani), "Shohei Ohtani 2018 Topps Update #us1");
+  assert.equal(siteFor(ohtani), "sportscardspro");
+  assert.equal(siteFor({ ...ohtani, sport: "Pokemon" }), "pricecharting");
+  assert.equal(normNumber("199/165"), "199");
+  assert.equal(normNumber("#FS-1"), "fs1");
+});
+
+test("matches only the exact card", () => {
+  const base = P("1", "Shohei Ohtani #US1", "Baseball Cards 2018 Topps Update");
+  assert.equal(scoreProduct(ohtani, base).ok, true);
+  assert.equal(scoreProduct(ohtani, P("2", "Shohei Ohtani [Gold] #US1", "Baseball Cards 2018 Topps Update")).ok, false, "parallel ≠ base");
+  assert.equal(scoreProduct(ohtani, P("3", "Shohei Ohtani #US2", "Baseball Cards 2018 Topps Update")).ok, false, "number");
+  assert.equal(scoreProduct(ohtani, P("4", "Shohei Ohtani #US1", "Baseball Cards 2019 Topps Update")).ok, false, "year");
+  assert.equal(scoreProduct(ohtani, P("5", "Mike Trout #US1", "Baseball Cards 2018 Topps Update")).ok, false, "player");
+  assert.equal(scoreProduct(ohtani, P("6", "Shohei Ohtani #US1", "Basketball Cards 2018 Topps Update")).ok, false, "sport");
+  assert.equal(scoreProduct(ohtani, P("7", "Shohei Ohtani #US1", "Baseball Cards 2018 Bowman")).ok, false, "set");
+  const gold = { ...ohtani, parallel: "Gold" };
+  assert.equal(scoreProduct(gold, P("2", "Shohei Ohtani [Gold] #US1", "Baseball Cards 2018 Topps Update")).ok, true);
+  assert.equal(scoreProduct(gold, base).ok, false, "parallel wanted, base offered");
+  const numbered = { ...gold, serialNumbered: 2018 };
+  assert.equal(scoreProduct(numbered, P("8", "Shohei Ohtani [Gold] #US1", "Baseball Cards 2018 Topps Update")).ok, false, "print run unconfirmed");
+});
+
+test("picks the closest set; ambiguity means no value", () => {
+  const exact = P("1", "Shohei Ohtani #US1", "Baseball Cards 2018 Topps Update");
+  const wider = P("9", "Shohei Ohtani #US1", "Baseball Cards 2018 Topps Update Chrome");
+  const r = pickProduct(ohtani, [wider, exact]);
+  assert.ok(r.ok); if (r.ok) assert.equal(r.product.id, "1");
+  const twin = P("10", "Shohei Ohtani #US1", "Baseball Cards 2018 Topps Update");
+  const amb = pickProduct(ohtani, [exact, twin]);
+  assert.equal(amb.ok, false); if (!amb.ok) assert.equal(amb.reason, "ambiguous");
+  const none = pickProduct(ohtani, [P("2", "Shohei Ohtani [Gold] #US1", "Baseball Cards 2018 Topps Update")]);
+  assert.equal(none.ok, false); if (!none.ok) assert.equal(none.reason, "no_match");
+});
+
+test("Pokémon: number before the slash, set from the console name", () => {
+  const zard: CardIdentity = { ...ohtani, sport: "Pokemon", player: "Charizard ex", year: 2023, set: "151", cardNumber: "199/165" };
+  assert.equal(scoreProduct(zard, P("z", "Charizard ex #199", "Pokemon Scarlet & Violet 151")).ok, true);
+  assert.equal(scoreProduct(zard, P("y", "Charizard ex #6", "Pokemon Scarlet & Violet 151")).ok, false);
+});
+
+test("grade → price field", () => {
+  assert.deepEqual(priceFieldFor(ohtani), { field: "manual-only-price", graderSpecific: true });
+  assert.deepEqual(priceFieldFor({ ...ohtani, grader: "BGS", grade: 10 }), { field: "bgs-10-price", graderSpecific: true });
+  assert.deepEqual(priceFieldFor({ ...ohtani, grader: "CGC", grade: 10 }), { field: "condition-17-price", graderSpecific: true });
+  assert.deepEqual(priceFieldFor({ ...ohtani, grader: "SGC", grade: 10 }), { field: "condition-18-price", graderSpecific: true });
+  assert.deepEqual(priceFieldFor({ ...ohtani, grade: 9 }), { field: "graded-price", graderSpecific: false });
+  assert.deepEqual(priceFieldFor({ ...ohtani, grader: "BGS", grade: 9.5 }), { field: "box-only-price", graderSpecific: false });
+  assert.deepEqual(priceFieldFor({ ...ohtani, grade: 8.5 }), { field: "new-price", graderSpecific: false });
+  assert.deepEqual(priceFieldFor({ ...ohtani, grader: "RAW", grade: null }), { field: "loose-price", graderSpecific: true });
+  assert.equal(priceFieldFor({ ...ohtani, grade: 6.5 }), null);
+  const prod = P("1", "Shohei Ohtani #US1", "Baseball Cards 2018 Topps Update");
+  assert.deepEqual(priceFor(ohtani, prod), { usd: 400, field: "manual-only-price", graderSpecific: true });
+  assert.equal(priceFor({ ...ohtani, grader: "BGS", grade: 10 }, prod), null, "no BGS 10 price → no value");
+});
+
+test("parses API products (pennies, strings, ignores retail fields)", () => {
+  const p = parseApiProduct({ id: 6910, "product-name": "Shohei Ohtani #US1", "console-name": "Baseball Cards 2018 Topps Update", "manual-only-price": 40123, "graded-price": "15000", "retail-loose-buy": 100, "retail-new-sell": 5, "sales-volume": "321" });
+  assert.ok(p);
+  assert.equal(p!.id, "6910");
+  assert.deepEqual(p!.prices, { "manual-only-price": 40123, "graded-price": 15000 });
+  assert.equal(p!.salesVolume, 321);
+  assert.equal(parseApiProduct({ nope: 1 }), null);
+});

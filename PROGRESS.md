@@ -183,7 +183,7 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - **Region SQL (one-time):** `alter table public.settings add column if not exists buyer_region text not null default 'AU'; alter table public.settings add column if not exists ship_to_country text; alter table public.settings add column if not exists ship_to_postcode text; alter table public.waitlist add column if not exists region text;`
 - Still Australia-flavoured / later for paying users: per-user region (Phase 6 accounts), eBay UK/CA/DE sites, local currencies other than A$/US$, live FX for other currencies.
 - Waitlist also asks "What's your main goal?" (tick any): Collecting / Investing / Flipping / Card business — counts shown in Settings → Waitlist, `goals` column in CSV. SQL adds `alter table public.waitlist add column if not exists goals text not null default '';`
-- 83 unit tests + e2e. [ ] Deployed + SQL run
+- 83 unit tests + e2e. [x] Deployed; waitlist goal question confirmed live 16 Oct 2026 (confirm SQL run)
 
 ## Waitlist — built 15 Oct 2026
 - Sign-in page now has "Join the waitlist" under the password box: email + optional NBA/MLB/Pokémon, hidden bot trap, duplicates ignored, consent line. Settings → Waitlist shows sign-ups and a CSV download (/api/waitlist, login only). 81 unit tests + e2e.
@@ -203,13 +203,28 @@ Recommended order: get real market-value data sorted and proven first → run pr
   - **Freshness SQL (one-time):** `alter table public.scan_hits add column if not exists checked_at timestamptz; alter table public.scan_hits add column if not exists status text not null default 'live';`
   - [x] Deployed + SQL run; verified live 15 Oct 2026: "11 re-checked (4 sold/ended)" on first scan
 
+## Automatic values (SportsCardsPro / PriceCharting) — built 16 Oct 2026
+- Each scan looks up cards from new listings (then recent results) in SportsCardsPro (sports) or PriceCharting (Pokémon), max 25 s per scan, 1 call/second. Results cached in `provider_values`: matched values refresh daily; no-match retried weekly.
+- Only exact matches are used: same sport, player, year, set, card number and parallel (base ≠ Gold etc.), print run must be confirmed; two equally good matches = no value. Grade picks the price field (PSA/BGS/CGC/SGC 10 are grader-specific; 7–9.5 are any grader).
+- Your own Card Values always win. "Wrong match?" on Scanner/Deals/Card Values stops that automatic value for good. Values tagged "SportsCardsPro"/"PriceCharting" with attribution links on pages and in alert emails (required by their terms).
+- Analyse page fills Expected resale from the price guide when you have no value of your own.
+- Settings → Market values → Test connection (looks up 2018 Topps Update Ohtani #US1 PSA 10).
+- **Automatic values SQL (one-time):** see bottom of supabase/schema.sql (`create table public.provider_values …`, RLS on). Scans keep working without it but show "run the one-time SQL update".
+- 89 unit tests + e2e (fake SportsCardsPro: matching, parallel guard, cache, own value wins, wrong match, bad token, missing table).
+- [ ] Deployed + SQL run + Test connection ✓ + first scan shows "X of Y cards valued automatically"
+
+## Next major feature (after automatic values): Profit Hunter — noted 16 Oct 2026
+- New sidebar page: scan ALL new listings in chosen categories under a budget (not specific cards), value each via the SportsCardsPro daily price-guide download, flag anything clearing min ROI/profit; alerts as usual.
+- Safeguards: high-confidence matches only, graded-first, show matched card, skip low sales-volume cards; scan every 30–60 min. Needs eBay §9.5 answer before selling it. ~1–2 days build.
+
 ## Open decisions
 - Sold-price source: **decided 11 Oct 2026 — Option A (free) for now.** Travis enters resale estimates from eBay sold listings manually. Revisit paid PriceCharting/SportsCardsPro (US$49+/month) after a few weeks of real use.
 - Default fee rate for the marketplace you'll resell on (eBay AU vs eBay US)
 - Automatic market values: SportsCardsPro replied 15 Oct 2026 (Brady Haugh) — **commercial use approved**: Legendary subscription (US$50/mo) until CardHawk revenue reaches US$1,000/mo, with attribution (logo or text link to their product page); above that, formal Commercial Agreement at 8% of top-line revenue. Keep this email as written permission.
   - API: token param `t`; /api/product (id or q) and /api/products (q, 20 results); 1 call/sec; prices in pennies; caching allowed (purge if subscription ends); CSV full guide daily (Legendary). Fields: loose=ungraded, cib=7/7.5, new=8/8.5, graded=9, box-only=9.5, manual-only=PSA 10, bgs-10, condition-17=CGC 10, condition-18=SGC 10; sales-volume = units/yr. Grades 7–9.5 are not grader-specific.
-  - [ ] Asked (15 Oct): one subscription for both SportsCardsPro + PriceCharting? revenue definition (affiliate included?)? OK in email/push alerts?
-  - [ ] Then: subscribe, add token to Vercel, build provider values (lookup + daily cache + match confirmation + attribution)
+  - [x] Confirmed by Brady 16 Oct 2026: one Legendary subscription covers BOTH SportsCardsPro and PriceCharting; the US$1,000/mo threshold and 8% share use TOTAL revenue (subscriptions + affiliate etc.); prices may be used in email and push alerts (with attribution).
+  - [x] Subscribed (Legendary) + SPORTSCARDSPRO_TOKEN added to Vercel, 16 Oct 2026
+  - [x] Automatic values built 16 Oct 2026 — see "Automatic values" section below
 
 ---
 

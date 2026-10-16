@@ -4,6 +4,11 @@
  */
 import { ebayConfigured, getListing, searchListings } from "@/lib/ebay/client";
 import { pickRechecks, recheckUpdate } from "@/lib/freshness";
+import { cardKey } from "@/lib/cardKey";
+import { cardFromListing } from "@/lib/ebay/parse";
+import { providerConfigured } from "@/lib/provider-client";
+import type { CardIdentity } from "@/lib/types";
+import { fillProviderValues, identityFromTitle } from "./provider";
 import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
 import { parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
@@ -31,16 +36,21 @@ export interface ScanSummary {
   /** Listings re-checked on eBay this scan, and how many turned out sold/ended. */
   rechecked: number;
   ended: number;
+  /** Cards looked up in SportsCardsPro/PriceCharting this scan, and how many got a value. */
+  autoLooked: number;
+  autoValued: number;
   errors: string[];
 }
 
 const MAX_EMAIL_ROWS = 15;
 /** Stop re-checking after this long so the whole scan fits in the 60-second limit. */
-const RECHECK_TIME_BUDGET_MS = 40_000;
+const RECHECK_TIME_BUDGET_MS = 45_000;
+/** Price-guide lookups (1 per second) stop after this long, leaving time for re-checks. */
+const AUTO_VALUE_TIME_BUDGET_MS = 25_000;
 
 export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Promise<ScanSummary> {
   const started = Date.now();
-  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, errors: [] };
+  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, errors: [] };
   if (!ebayConfigured()) {
     summary.errors.push("eBay isn't connected.");
     return summary;
@@ -54,6 +64,18 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
   }
 
   const toEmail: (ScanHit & { searchName: string })[] = [];
+  // Your own Card Values always win; automatic values fill the rest.
+  const mineKeys = new Set([...values.map.values()].filter((v) => v.source === "you").map((v) => v.key));
+  const autoDeadline = started + AUTO_VALUE_TIME_BUDGET_MS;
+  let autoError: string | null = null;
+  const autoFill = async (cards: { key: string; card: CardIdentity }[]) => {
+    if (!providerConfigured() || autoError || cards.length === 0 || Date.now() > autoDeadline) return;
+    const f = await fillProviderValues(cards, mineKeys, autoDeadline);
+    summary.autoLooked += f.looked;
+    summary.autoValued += f.matched;
+    for (const [k, v] of f.newValues) values.map.set(k, v);
+    if (f.error) autoError = f.error;
+  };
 
   for (const s of searches.data.filter((x) => x.active)) {
     summary.searches++;
@@ -67,6 +89,16 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
     try {
       const seen = await existingItemIds(s.id, r.data.items.map((i) => i.itemId));
       const fresh = r.data.items.filter((i) => !seen.has(i.itemId));
+      // Value new listings automatically BEFORE checking them, so alerts can use the price guide.
+      await autoFill(
+        fresh
+          .map((l) => {
+            const card = cardFromListing(l.title, l.aspects).card;
+            const key = cardKey(card);
+            return key ? { key, card: card as CardIdentity } : null;
+          })
+          .filter((x): x is { key: string; card: CardIdentity } => x !== null),
+      );
       const hits = fresh.map((l) => {
         const h = evaluateListing(l, settings, values.map);
         return { ...h, alerted: shouldAlert(h) };
@@ -83,6 +115,21 @@ export async function runAllScans(trigger: "schedule" | "manual" | "daily"): Pro
       await markSearchRun(s.id, `Error: ${msg}`);
     }
   }
+
+  // Back-fill automatic values for listings found in earlier scans (newest first), time allowing.
+  try {
+    if (providerConfigured() && !autoError && Date.now() < autoDeadline) {
+      const recentForValues = await listRecentHits(300);
+      await autoFill(
+        recentForValues.data
+          .map((h) => identityFromTitle(cardFromListing, h.title))
+          .filter((x): x is { key: string; card: CardIdentity } => x !== null),
+      );
+    }
+  } catch (e) {
+    autoError = e instanceof Error ? e.message : String(e);
+  }
+  if (autoError) summary.errors.push(`Automatic values: ${autoError}`);
 
   // Re-check valued listings on eBay so displayed details stay under 6 hours old
   // (eBay API licence §8.1.3), sold/ended listings drop out, and price drops can alert.

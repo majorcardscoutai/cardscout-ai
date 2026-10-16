@@ -2,7 +2,10 @@ import { addCardValueAction, deleteCardValueAction, updateCardValueAction } from
 import CardThumb from "@/components/CardThumb";
 import { CardFields, CurrencyPicker, DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { Money, PageHeader, Panel, Tag } from "@/components/ui";
-import { listCardValues } from "@/data/db";
+import { listCardValues, listProviderValues } from "@/data/db";
+import { providerName } from "@/data/provider";
+import ProviderCredit from "@/components/ProviderCredit";
+import { rejectAutoValueAction } from "@/app/actions";
 import { loadSettings } from "@/data/source";
 import { cardFromListing } from "@/lib/ebay/parse";
 import { displayFx } from "@/lib/region";
@@ -26,7 +29,9 @@ export default async function CardValuesPage({
   // "Add value" from a scan result: prefill the form from the listing title (a suggestion to check, never final).
   const from = rawFrom ? rawFrom.slice(0, 200) : null;
   const suggestion = from ? cardFromListing(from) : null;
-  const [{ settings }, values] = await Promise.all([loadSettings(), listCardValues()]);
+  const [{ settings }, values, auto] = await Promise.all([loadSettings(), listCardValues(), listProviderValues()]);
+  const matched = auto.data.filter((a) => a.status === "matched");
+  const unmatched = auto.data.filter((a) => a.status === "no_match" || a.status === "ambiguous" || a.status === "no_price").length;
   const fx = displayFx(settings); // A$ shown for Australian buyers only
 
   return (
@@ -124,6 +129,40 @@ export default async function CardValuesPage({
         </form>
       </Panel>
       </div>
+      {auto.data.length > 0 && (
+        <Panel
+          title="Automatic values"
+          className="mt-6"
+          right={<Tag>{matched.length} matched{unmatched ? ` · ${unmatched} not matched` : ""}</Tag>}
+        >
+          <p className="mb-3 text-sm text-muted">
+            Cards from your scans, matched to the price guide by title. If one is the wrong card (wrong parallel or set), mark it
+            and set your own value instead.
+          </p>
+          <ul className="divide-y divide-line rounded-lg border border-line">
+            {matched.slice(0, 50).map((a) => (
+              <li key={a.key} className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm">{a.matchedName}</div>
+                  <div className="text-[11px] text-faint">
+                    {providerName(a.site)}
+                    {a.card ? ` · ${a.card.grader === "RAW" ? "Ungraded" : `${a.card.grader} ${a.card.grade}`}` : ""}
+                    {a.graderSpecific ? "" : " · price for any grading company"}
+                    {a.salesVolume !== null ? ` · ${a.salesVolume} sales/yr` : ""}
+                  </div>
+                </div>
+                <Money usd={a.valueUsd} fx={fx} size="sm" />
+                <form action={rejectAutoValueAction}>
+                  <input type="hidden" name="key" value={a.key} />
+                  <input type="hidden" name="returnTo" value="/values" />
+                  <button className="text-xs text-muted hover:text-loss">Wrong match</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+          <ProviderCredit className="mt-3" />
+        </Panel>
+      )}
       <p className="mt-3 text-xs text-faint">
         Tip: click <strong>Add value</strong> on any Automatic Scanner result to fill this in from the listing. Or in the Manual Scanner, tick “Remember this resale as my value” when saving to the watchlist — it lands here
         automatically. Saving the same card again updates its value.

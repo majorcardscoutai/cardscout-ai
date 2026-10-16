@@ -70,7 +70,9 @@ export default function Nav() {
           })}
         </nav>
         <div className="mt-auto rounded-lg border border-warn/30 bg-warn-soft px-3 py-2.5 text-xs leading-relaxed text-warn">
-          Saved searches are scanned every 3 hours against your Card Values. Values are your own estimates until a sold-price source is connected.
+          Saved searches are scanned every 3 hours. Market values from{" "}
+          <a href="https://www.sportscardspro.com" target="_blank" rel="noopener noreferrer" className="underline">SportsCardsPro</a> and{" "}
+          <a href="https://www.pricecharting.com" target="_blank" rel="noopener noreferrer" className="underline">PriceCharting</a>; your own Card Values always win.
         </div>
       </aside>
 

@@ -3,13 +3,15 @@ import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/Form
 import { IconAlert } from "@/components/Icons";
 import ManualAnalysis, { type ManualPrefill } from "@/components/ManualAnalysis";
 import { Money, PageHeader, Panel, Tag } from "@/components/ui";
-import { cardValueMap } from "@/data/db";
+import { cardValueMap, listProviderValues } from "@/data/db";
+import { lookupCard, needsLookup, providerName } from "@/data/provider";
+import { providerConfigured } from "@/lib/provider-client";
+import type { CardIdentity, Settings } from "@/lib/types";
 import { loadSettings } from "@/data/source";
 import { cardKey } from "@/lib/cardKey";
 import { ebayConfigured, getListing, toUsd, type EbayListing, type Marketplace } from "@/lib/ebay/client";
 import { cardFromListing, type CardSuggestion } from "@/lib/ebay/parse";
 import { displayFx, isImport, shipToCountry, shipToFor, taxLabel } from "@/lib/region";
-import type { Settings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,7 @@ export default async function ManualScannerPage({
   let listingError: string | null = null;
   let suggestion: CardSuggestion | null = null;
   let prefill: ManualPrefill | undefined;
+  let providerNote: string | null = null;
 
   if (item) {
     const mkt: Marketplace = market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US";
@@ -47,7 +50,17 @@ export default async function ManualScannerPage({
       listing = r.data;
       suggestion = cardFromListing(listing.title, listing.aspects);
       const key = cardKey(suggestion.card);
-      const known = key ? (await cardValueMap()).map.get(key) : undefined;
+      let known = key ? (await cardValueMap()).map.get(key) : undefined;
+      // No value yet → ask the price guide now (1–2 lookups), then it's cached for scans too.
+      if (key && !known && providerConfigured()) {
+        const cached = (await listProviderValues()).data.find((r) => r.key === key);
+        if (needsLookup(cached)) {
+          const r = await lookupCard(suggestion.card as CardIdentity, key);
+          if (r.row.status === "matched" && r.row.valueUsd !== null)
+            known = { id: `auto:${key}`, key, title: r.row.matchedName ?? "", valueUsd: r.row.valueUsd, updatedAt: new Date().toISOString(), source: r.row.site, matchedName: r.row.matchedName ?? undefined, graderSpecific: r.row.graderSpecific };
+          else providerNote = r.error ?? r.row.detail ?? null;
+        } else if (cached && cached.status !== "matched") providerNote = cached.status === "rejected" ? "You marked the price-guide match for this card as wrong." : cached.detail;
+      }
       const askingUsd = toUsd(listing.price, fx);
       if (listing.price && askingUsd === null) {
         listingError = `This listing is priced in ${listing.price.currency}. Only US$ and A$ listings are supported for now.`;
@@ -59,8 +72,12 @@ export default async function ManualScannerPage({
         url: listing.url,
         resaleUsd: known?.valueUsd ?? null,
         resaleSource: known
-          ? `Your value for this card (saved ${new Date(known.updatedAt).toLocaleDateString("en-AU")})`
-          : undefined,
+          ? known.source && known.source !== "you"
+            ? `${providerName(known.source)} value: ${known.matchedName ?? known.title}${known.graderSpecific === false ? " (grade price for any grading company)" : ""} — check it's the same card`
+            : `Your value for this card (saved ${new Date(known.updatedAt).toLocaleDateString("en-AU")})`
+          : providerNote
+            ? `No automatic value: ${providerNote}`
+            : undefined,
         note: listing.isAuction ? `Auction · current bid${listing.bidCount !== null ? ` · ${listing.bidCount} bids` : ""}` : "",
       };
     } else {

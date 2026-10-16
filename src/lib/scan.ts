@@ -14,6 +14,11 @@ export interface CardValue {
   title: string;
   valueUsd: number;
   updatedAt: string;
+  /** "you" = your Card Values (always wins); otherwise the automatic price guide. */
+  source?: "you" | "sportscardspro" | "pricecharting";
+  /** For automatic values: which price-guide card it matched, and whether the grade price is grader-specific. */
+  matchedName?: string;
+  graderSpecific?: boolean;
 }
 
 export interface ScanHit {
@@ -28,6 +33,8 @@ export interface ScanHit {
   cardKey: string | null;
   valueUsd: number | null; // from YOUR value book — not verified market data
   valueTitle: string | null;
+  /** Where the value came from ("you", "sportscardspro", "pricecharting"). */
+  valueSource?: string | null;
   netProfitUsd: number | null;
   roiPercent: number | null;
   maxPriceUsd: number | null;
@@ -70,6 +77,7 @@ export function evaluateListing(l: EbayListing, settings: Settings, values: Map<
     cardKey: key,
     valueUsd: v?.valueUsd ?? null,
     valueTitle: v?.title ?? null,
+    valueSource: v ? v.source ?? "you" : null,
     netProfitUsd,
     roiPercent,
     maxPriceUsd,
@@ -91,13 +99,14 @@ export function revalueHit<T extends ScanHit>(h: T, settings: Settings, values: 
   h = { ...h, cardKey: key };
   const v = key ? values.get(key) ?? null : null;
   const shippingUsd = settings.inboundShippingMode === "fixed" ? settings.inboundShippingFixedUsd : h.shippingUsd;
-  const base = { ...h, shippingUsd, valueUsd: null, valueTitle: null, netProfitUsd: null, roiPercent: null, maxPriceUsd: null, meetsCriteria: false };
+  const base = { ...h, shippingUsd, valueUsd: null, valueTitle: null, valueSource: null, netProfitUsd: null, roiPercent: null, maxPriceUsd: null, meetsCriteria: false };
   if (!v || h.priceUsd === null) return base;
   const p = calculateProfit({ purchasePriceUsd: h.priceUsd, buyerShippingUsd: shippingUsd, expectedResaleUsd: v.valueUsd, settings });
   return {
     ...base,
     valueUsd: v.valueUsd,
     valueTitle: v.title,
+    valueSource: v.source ?? "you",
     netProfitUsd: p.netProfitUsd,
     roiPercent: p.roiPercent,
     maxPriceUsd: maxPurchasePrice(v.valueUsd, shippingUsd, settings),

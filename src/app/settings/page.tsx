@@ -1,5 +1,8 @@
 import { saveSettingsAction } from "@/app/actions";
 import { logout } from "@/app/login/actions";
+import { testProviderAction } from "@/app/actions";
+import ProviderCredit from "@/components/ProviderCredit";
+import { providerConfigured } from "@/lib/provider-client";
 import { removeDeviceAction, testPushAction } from "@/app/push-actions";
 import PushSetup from "@/components/PushSetup";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
@@ -179,6 +182,25 @@ export default async function SettingsPage({
           </p>
         </Panel>
       </div>
+
+      <Panel
+        title="Market values"
+        className="mt-6"
+        right={<Tag tone={providerConfigured() ? "default" : "warn"}>{providerConfigured() ? "SportsCardsPro connected" : "Not connected"}</Tag>}
+      >
+        <p className="mb-3 text-sm text-muted">
+          Automatic values from SportsCardsPro (sports) and PriceCharting (Pokémon) — one subscription covers both. Each card is
+          looked up once and refreshed daily; your own Card Values always take priority.
+        </p>
+        {providerConfigured() ? (
+          <form action={testProviderAction}>
+            <SubmitButton tone="neutral">Test connection</SubmitButton>
+          </form>
+        ) : (
+          <p className="text-xs text-warn">Add SPORTSCARDSPRO_TOKEN in Vercel → Settings → Environment Variables, then redeploy.</p>
+        )}
+        <ProviderCredit className="mt-3" />
+      </Panel>
 
       <div id="alerts" className="scroll-mt-24">
         <Panel title="Phone notifications" className="mt-6" right={<Tag>{devices.data.length} device{devices.data.length === 1 ? "" : "s"}</Tag>}>

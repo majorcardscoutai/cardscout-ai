@@ -28,6 +28,7 @@
     "tests/ebay.test.ts",
     "tests/scan.test.ts",
     "tests/fx.test.ts",
-    "tests/webpush.test.ts"
+    "tests/webpush.test.ts",
+    "tests/provider.test.ts"
   ]
 }

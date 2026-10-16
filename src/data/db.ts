@@ -311,9 +311,112 @@ export async function listCardValues(): Promise<DbResult<CardValueRow[]>> {
   }
 }
 
+/**
+ * Values for matching listings: your Card Values first, then automatic SportsCardsPro/PriceCharting
+ * values for any card you haven't valued yourself. Your own value always wins.
+ */
 export async function cardValueMap(): Promise<{ map: Map<string, CardValue>; error: string | null }> {
-  const r = await listCardValues();
-  return { map: new Map(r.data.map((v) => [v.key, v])), error: r.error };
+  const [mine, auto] = await Promise.all([listCardValues(), listProviderValues()]);
+  const map = new Map<string, CardValue>();
+  for (const a of auto.data) {
+    if (a.status !== "matched" || a.valueUsd === null) continue;
+    map.set(a.key, {
+      id: `auto:${a.key}`,
+      key: a.key,
+      title: a.matchedName ?? "Price guide value",
+      valueUsd: a.valueUsd,
+      updatedAt: a.fetchedAt,
+      source: a.site,
+      matchedName: a.matchedName ?? undefined,
+      graderSpecific: a.graderSpecific,
+    });
+  }
+  for (const v of mine.data) map.set(v.key, { ...v, source: "you" });
+  return { map, error: mine.error };
+}
+
+// ---------- Automatic values cache (SportsCardsPro / PriceCharting) ----------
+
+export interface ProviderValueRow {
+  key: string;
+  status: "matched" | "no_match" | "ambiguous" | "no_price" | "rejected";
+  site: "sportscardspro" | "pricecharting";
+  productId: string | null;
+  matchedName: string | null; // "Shohei Ohtani #US1 · Baseball Cards 2018 Topps Update"
+  valueUsd: number | null;
+  priceField: string | null;
+  graderSpecific: boolean;
+  salesVolume: number | null;
+  detail: string | null;
+  card: CardIdentity | null;
+  fetchedAt: string;
+}
+
+export async function listProviderValues(): Promise<DbResult<ProviderValueRow[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("provider_values").select("*").order("fetched_at", { ascending: false }).limit(5000);
+    if (error) throw error;
+    return {
+      error: null,
+      data: (data ?? []).map((r: Record<string, unknown>) => ({
+        key: String(r.card_key),
+        status: String(r.status) as ProviderValueRow["status"],
+        site: r.site === "pricecharting" ? "pricecharting" : "sportscardspro",
+        productId: r.product_id ? String(r.product_id) : null,
+        matchedName: r.matched_name ? String(r.matched_name) : null,
+        valueUsd: numOrNull(r.value_usd),
+        priceField: r.price_field ? String(r.price_field) : null,
+        graderSpecific: r.grader_specific !== false,
+        salesVolume: numOrNull(r.sales_volume),
+        detail: r.detail ? String(r.detail) : null,
+        card: (r.card as CardIdentity) ?? null,
+        fetchedAt: String(r.fetched_at),
+      })),
+    };
+  } catch (e) {
+    // Table not created yet (one-time SQL) — behave as "no automatic values".
+    return { data: [], error: message(e) };
+  }
+}
+
+export async function saveProviderValue(v: Omit<ProviderValueRow, "fetchedAt">): Promise<string | null> {
+  try {
+    const { error } = await db()
+      .from("provider_values")
+      .upsert(
+        {
+          card_key: v.key,
+          status: v.status,
+          site: v.site,
+          product_id: v.productId,
+          matched_name: v.matchedName,
+          value_usd: v.valueUsd,
+          price_field: v.priceField,
+          grader_specific: v.graderSpecific,
+          sales_volume: v.salesVolume,
+          detail: v.detail,
+          card: v.card,
+          fetched_at: new Date().toISOString(),
+        },
+        { onConflict: "card_key" },
+      );
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+/** "This match is wrong" — stop using the automatic value for this card. */
+export async function rejectProviderValue(key: string): Promise<string | null> {
+  try {
+    const { error } = await db().from("provider_values").update({ status: "rejected" }).eq("card_key", key);
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
 }
 
 export async function upsertCardValue(input: {

@@ -23,9 +23,13 @@ import {
   updateHolding,
   updateWatchlist,
   linkHitsToCard,
+  rejectProviderValue,
   upsertCardValue,
 } from "@/data/db";
 import { runAllScans } from "@/data/scanner";
+import { lookupCard } from "@/data/provider";
+import { providerConfigured } from "@/lib/provider-client";
+import type { CardIdentity } from "@/lib/types";
 import { cardKey } from "@/lib/cardKey";
 import { excludeWordsText, parseExcludeWords } from "@/lib/exclude";
 import { itemIdFromUrl } from "@/lib/ebay/parse";
@@ -238,6 +242,30 @@ export async function scanNowAction() {
   back(
     "/scanner",
     "saved",
-    `Scan done: ${r.searches} search${r.searches === 1 ? "" : "es"}, ${r.newListings} new listing${r.newListings === 1 ? "" : "s"}, ${r.deals} deal${r.deals === 1 ? "" : "s"}${r.emailed ? `, ${r.emailed} emailed` : ""}${r.pushed ? `, sent to ${r.pushed} phone${r.pushed === 1 ? "" : "s"}` : ""}${r.rechecked ? `, ${r.rechecked} re-checked${r.ended ? ` (${r.ended} sold/ended)` : ""}` : ""}.`,
+    `Scan done: ${r.searches} search${r.searches === 1 ? "" : "es"}, ${r.newListings} new listing${r.newListings === 1 ? "" : "s"}, ${r.deals} deal${r.deals === 1 ? "" : "s"}${r.emailed ? `, ${r.emailed} emailed` : ""}${r.pushed ? `, sent to ${r.pushed} phone${r.pushed === 1 ? "" : "s"}` : ""}${r.rechecked ? `, ${r.rechecked} re-checked${r.ended ? ` (${r.ended} sold/ended)` : ""}` : ""}${r.autoLooked ? `, ${r.autoValued} of ${r.autoLooked} cards valued automatically` : ""}.`,
   );
+}
+
+/** "Wrong match" on an automatic value: stop using it for that exact card. */
+export async function rejectAutoValueAction(formData: FormData) {
+  const key = String(formData.get("key") ?? "").slice(0, 500);
+  const ret = String(formData.get("returnTo") ?? "/values");
+  const to = ["/scanner", "/deals", "/values"].includes(ret) ? ret : "/values";
+  if (!key) back(to, "error", "Missing card.");
+  const err = await rejectProviderValue(key);
+  if (err) back(to, "error", `Couldn't update: ${err}`);
+  revalidatePath("/", "layout");
+  back(to, "saved", "Got it — that automatic value won't be used. Set your own value for this card if you like.");
+}
+
+/** Settings → test the SportsCardsPro connection with a well-known card. */
+export async function testProviderAction() {
+  if (!providerConfigured()) back("/settings", "error", "SPORTSCARDSPRO_TOKEN isn't set in Vercel yet.");
+  const card = { sport: "MLB", player: "Shohei Ohtani", year: 2018, set: "Topps Update", cardNumber: "US1", parallel: null, serialNumbered: null, variation: null, isRookie: true, grader: "PSA", grade: 10 } as const;
+  const key = cardKey(card as unknown as CardIdentity)!;
+  const r = await lookupCard(card as unknown as CardIdentity, key);
+  if (r.error) back("/settings", "error", `SportsCardsPro test failed: ${r.error}`);
+  if (r.row.status === "matched")
+    back("/settings", "saved", `SportsCardsPro connected ✓ Test card matched "${r.row.matchedName}" — PSA 10 value US$${r.row.valueUsd?.toFixed(2)}.`);
+  back("/settings", "error", `Connected, but the test card didn't match (${r.row.status}): ${r.row.detail ?? ""}`);
 }
