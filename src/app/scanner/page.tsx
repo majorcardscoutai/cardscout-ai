@@ -92,7 +92,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
     search && connected ? searchListings({ ...search, shipTo: shipToFor(settings) }) : Promise.resolve(null),
     cardValueMap(),
     listSavedSearches(),
-    listRecentHits(400),
+    listRecentHits(400, false, "mine"),
     lastScanRuns(5),
     listPushSubscriptions(),
   ]);

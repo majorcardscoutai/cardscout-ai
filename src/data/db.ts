@@ -341,7 +341,8 @@ export async function cardValueMap(): Promise<{ map: Map<string, CardValue>; err
 
 export interface ProviderValueRow {
   key: string;
-  status: "matched" | "no_match" | "ambiguous" | "no_price" | "rejected";
+  /** pending = queued, not looked up yet (time ran out) — looked up on the next scan. */
+  status: "matched" | "no_match" | "ambiguous" | "no_price" | "rejected" | "pending";
   site: "sportscardspro" | "pricecharting";
   productId: string | null;
   matchedName: string | null; // "Shohei Ohtani #US1 · Baseball Cards 2018 Topps Update"
@@ -379,6 +380,23 @@ export async function listProviderValues(): Promise<DbResult<ProviderValueRow[]>
   } catch (e) {
     // Table not created yet (one-time SQL) — behave as "no automatic values".
     return { data: [], error: message(e) };
+  }
+}
+
+/** Queue cards to look up next scan (never overwrites a row that already exists). */
+export async function queueProviderLookups(cards: { key: string; card: CardIdentity; site: string }[]): Promise<string | null> {
+  if (cards.length === 0) return null;
+  try {
+    const { error } = await db()
+      .from("provider_values")
+      .upsert(
+        cards.map((c) => ({ card_key: c.key, status: "pending", site: c.site, card: c.card, grader_specific: true, fetched_at: new Date().toISOString() })),
+        { onConflict: "card_key", ignoreDuplicates: true },
+      );
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
   }
 }
 
@@ -720,11 +738,22 @@ export async function insertHits(searchId: string, hits: (ScanHit & { alerted: b
   if (error) throw error;
 }
 
-export async function listRecentHits(limit = 60, onlyDeals = false): Promise<DbResult<StoredHit[]>> {
+/**
+ * Newest scan results. `scope` keeps your saved searches' results and the Profit Hunter's apart,
+ * so hundreds of hunter listings an hour never push your own results out of the window.
+ */
+export async function listRecentHits(limit = 60, onlyDeals = false, scope?: "mine" | "hunter"): Promise<DbResult<StoredHit[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
     let q = db().from("scan_hits").select("*").order("created_at", { ascending: false }).limit(limit);
     if (onlyDeals) q = q.eq("meets_criteria", true);
+    if (scope) {
+      const all = await listSavedSearches();
+      if (all.error) throw new Error(all.error);
+      const ids = all.data.filter((x) => (x.kind === "hunter") === (scope === "hunter")).map((x) => x.id);
+      if (ids.length === 0) return { data: [], error: null };
+      q = q.in("search_id", ids);
+    }
     const { data, error } = await q;
     if (error) throw error;
     return {

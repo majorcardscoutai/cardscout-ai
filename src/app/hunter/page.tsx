@@ -3,8 +3,9 @@ import { huntNowAction, saveHunterAction } from "@/app/actions";
 import { DealRow, ago } from "@/components/DealRow";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import ProviderCredit from "@/components/ProviderCredit";
+import HuntButton from "@/components/HuntButton";
 import { PageHeader, Panel, Tag } from "@/components/ui";
-import { hunterView, sortDeals, type DealSort } from "@/data/deals";
+import { hunterView, sortDeals, type DealSort, type HunterCoverage } from "@/data/deals";
 import { ebayConfigured } from "@/lib/ebay/client";
 import { HUNTER_PAGE_SIZE, HUNTER_SPORT_LABEL, HUNTER_SPORTS, parseHunterSport } from "@/lib/hunter";
 import { providerConfigured } from "@/lib/provider-client";
@@ -99,7 +100,7 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
               ))}
             </div>
             <form action={huntNowAction}>
-              <SubmitButton tone="neutral">Hunt now</SubmitButton>
+              <HuntButton />
             </form>
           </div>
         }
@@ -145,6 +146,8 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
           </ul>
         </Panel>
       )}
+
+      {v.coverage.total > 0 && <CoveragePanel c={v.coverage} />}
 
       <Panel title="Hunter setup" className="mt-6" right={v.saved ? <Tag>Saved</Tag> : <Tag tone="warn">Not set up yet</Tag>}>
         <form action={saveHunterAction} className="space-y-5">
@@ -245,5 +248,89 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ga
       <div className="text-[11px] uppercase tracking-wide text-faint">{label}</div>
       <div className={`num mt-1 text-xl ${tone === "gain" ? "text-gain" : ""}`}>{value}</div>
     </div>
+  );
+}
+
+const MISSING_LABEL: Record<string, string> = {
+  "card number": "no card number (#)",
+  set: "set not recognised",
+  year: "no year",
+  player: "player/character not recognised",
+  grade: "no grade",
+  "grading company": "no grading company",
+  category: "sport/game unclear",
+};
+
+function CoveragePanel({ c }: { c: HunterCoverage }) {
+  type Row = { label: string; n: number; tone: "gain" | "muted" | "warn"; note: string };
+  const all: Row[] = [
+    { label: "Valued", n: c.valued, tone: "gain", note: "Has a market value — profit checked." },
+    { label: "Waiting for a lookup", n: c.waiting, tone: "muted", note: "Readable; will be looked up in the next runs (about one card per second)." },
+    { label: "Title missing details", n: c.unreadable, tone: "warn", note: "The title doesn't say enough to find the exact card, so it's skipped rather than guessed." },
+    { label: "No exact match in the guide", n: c.noMatch, tone: "warn", note: "Read fine, but the price guide names it differently or doesn't list it." },
+    { label: "Several possible matches", n: c.ambiguous, tone: "warn", note: "More than one guide card fits — skipped to avoid a wrong value." },
+    { label: "No price for that grade", n: c.noPrice + c.noGradePrice, tone: "muted", note: "The guide has the card but no price for this grade (e.g. PSA 6.5, Authentic)." },
+    { label: "You marked wrong", n: c.rejected, tone: "muted", note: "Your “Wrong match?” choice." },
+  ];
+  const rows = all.filter((r) => r.n > 0);
+  const pct = (n: number) => Math.round((n / c.total) * 100);
+  return (
+    <Panel title="Why listings have no value" className="mt-6" right={<Tag>{c.total} live listings</Tag>}>
+      <ul className="space-y-3">
+        {rows.map((r) => (
+          <li key={r.label}>
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span>{r.label}</span>
+              <span className="num text-muted">
+                {r.n} · {pct(r.n)}%
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-panel-2">
+              <div
+                className={`h-full rounded-full ${r.tone === "gain" ? "bg-gain" : r.tone === "warn" ? "bg-warn" : "bg-faint"}`}
+                style={{ width: `${Math.max(pct(r.n), 1)}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[11px] text-faint">{r.note}</p>
+          </li>
+        ))}
+      </ul>
+      {c.missing.length > 0 && (
+        <p className="mt-4 text-xs text-muted">
+          Most common gaps in titles:{" "}
+          {c.missing
+            .slice(0, 4)
+            .map(([m, n]) => `${MISSING_LABEL[m] ?? m} (${n})`)
+            .join(" · ")}
+          .
+        </p>
+      )}
+      {c.examples.unreadable.length > 0 && (
+        <details className="mt-3 text-xs">
+          <summary className="cursor-pointer text-accent">Examples: titles missing details</summary>
+          <ul className="mt-2 space-y-1.5 text-muted">
+            {c.examples.unreadable.map((e) => (
+              <li key={e.url}>
+                <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-ink hover:text-accent">{e.title}</a>
+                <span className="text-faint"> — missing {e.missing.map((m) => MISSING_LABEL[m] ?? m).join(", ") || "details"}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {c.examples.noMatch.length > 0 && (
+        <details className="mt-3 text-xs">
+          <summary className="cursor-pointer text-accent">Examples: no exact match in the guide</summary>
+          <ul className="mt-2 space-y-1.5 text-muted">
+            {c.examples.noMatch.map((e) => (
+              <li key={e.url}>
+                <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-ink hover:text-accent">{e.title}</a>
+                {e.detail && <span className="block text-faint">{e.detail}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </Panel>
   );
 }

@@ -2,7 +2,7 @@
  * CardHawk AI logo: a hawk with wings spread, gripping a card marked "$".
  * Original artwork (Option A, 14 Oct 2026). The same drawing is used for the app icons in /public.
  */
-export default function HawkLogo({ className, framed = false }: { className?: string; framed?: boolean }) {
+export default function HawkLogo({ className, framed = false, flap = false }: { className?: string; framed?: boolean; flap?: boolean }) {
   return (
     <svg
       viewBox={framed ? "40 40 432 432" : "78 94 356 356"}
@@ -14,8 +14,8 @@ export default function HawkLogo({ className, framed = false }: { className?: st
         <rect x="56" y="56" width="400" height="400" rx="96" fill="#0d1a12" stroke="#22c55e" strokeOpacity=".55" strokeWidth="10" />
       )}
       <g fill="#22c55e">
-      <path d="M238 196 C206 168 166 132 112 104 L124 134 L96 132 L118 158 L88 162 L116 184 L88 194 L122 210 L100 226 L140 232 L128 252 L176 248 L170 266 L236 246 Z"/>
-      <path d="M274 196 C306 168 346 132 400 104 L388 134 L416 132 L394 158 L424 162 L396 184 L424 194 L390 210 L412 226 L372 232 L384 252 L336 248 L342 266 L276 246 Z"/>
+      <path className={flap ? "hawk-wing-l" : undefined} d="M238 196 C206 168 166 132 112 104 L124 134 L96 132 L118 158 L88 162 L116 184 L88 194 L122 210 L100 226 L140 232 L128 252 L176 248 L170 266 L236 246 Z"/>
+      <path className={flap ? "hawk-wing-r" : undefined} d="M274 196 C306 168 346 132 400 104 L388 134 L416 132 L394 158 L424 162 L396 184 L424 194 L390 210 L412 226 L372 232 L384 252 L336 248 L342 266 L276 246 Z"/>
       <path d="M238 282 L214 336 L232 330 L240 344 L256 330 L272 344 L280 330 L298 336 L274 282 Z"/>
       <path d="M232 176 C246 166 266 166 280 176 C292 206 292 250 280 284 C272 300 240 300 232 284 C220 250 220 206 232 176 Z"/>
       <path d="M236 172 C232 146 246 124 270 120 C290 118 304 126 312 136 L330 142 C336 146 334 156 326 160 L314 156 C306 166 292 172 278 176 Z"/>

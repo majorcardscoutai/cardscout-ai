@@ -7,7 +7,10 @@ import { pickDeals, type DealHit, type PickedDeals } from "@/lib/deals";
 import { hunterRules, liquidEnough, type HunterConfig } from "@/lib/hunter";
 import { isFresh } from "@/lib/freshness";
 import type { Settings } from "@/lib/types";
-import { cardValueMap, listRecentHits, listSavedSearches, loadHunterConfig, loadSettings, type SavedSearch } from "./db";
+import { cardValueMap, listProviderValues, listRecentHits, listSavedSearches, loadHunterConfig, loadSettings, type SavedSearch } from "./db";
+import { cardKey } from "@/lib/cardKey";
+import { cardFromListing } from "@/lib/ebay/parse";
+import { priceFieldFor } from "@/lib/provider";
 
 export { sortDeals, type DealHit, type DealSort } from "@/lib/deals";
 
@@ -17,13 +20,15 @@ export interface CurrentDeals extends PickedDeals {
 }
 
 export async function currentDeals(): Promise<CurrentDeals> {
-  const [{ settings }, hits, values, searches, hunter] = await Promise.all([
+  const [{ settings }, mineHits, hunterHits, values, searches, hunter] = await Promise.all([
     loadSettings(),
-    listRecentHits(1000),
+    listRecentHits(1000, false, "mine"),
+    listRecentHits(1000, false, "hunter"),
     cardValueMap(),
     listSavedSearches(),
     loadHunterConfig(),
   ]);
+  const hits = { data: [...mineHits.data, ...hunterHits.data], error: mineHits.error ?? hunterHits.error };
   const hunterIds = new Set(searches.data.filter((x) => x.kind === "hunter").map((x) => x.id));
   const liquid = (d: DealHit) => liquidEnough(d.cardKey ? values.map.get(d.cardKey) : null, hunter.config.minSales);
   // Your searches use Settings' rules; Profit Hunter finds use the Hunter's own minimums (if set).
@@ -55,16 +60,37 @@ export interface HunterView {
   /** Hunter listings still live (under 6 hours old) and how many have a value. */
   checked: number;
   valued: number;
+  /** Where the live listings drop out before getting a value. */
+  coverage: HunterCoverage;
   error: string | null;
 }
 
+export interface HunterCoverage {
+  total: number;
+  /** Title doesn't state everything needed for an exact match (counts per missing detail). */
+  unreadable: number;
+  missing: [string, number][];
+  /** Grade the guide has no separate price for (e.g. PSA 6.5, Authentic). */
+  noGradePrice: number;
+  /** Readable, but not looked up yet (next runs). */
+  waiting: number;
+  noMatch: number;
+  ambiguous: number;
+  noPrice: number;
+  rejected: number;
+  valued: number;
+  /** A few real titles per reason, so you can see the patterns. */
+  examples: { unreadable: { title: string; url: string; missing: string[] }[]; noMatch: { title: string; url: string; detail: string }[] };
+}
+
 export async function hunterView(): Promise<HunterView> {
-  const [{ settings }, hits, values, searches, hunter] = await Promise.all([
+  const [{ settings }, hits, values, searches, hunter, guide] = await Promise.all([
     loadSettings(),
-    listRecentHits(1000),
+    listRecentHits(1000, false, "hunter"),
     cardValueMap(),
     listSavedSearches(),
     loadHunterConfig(),
+    listProviderValues(),
   ]);
   const mine = searches.data.filter((x) => x.kind === "hunter");
   const ids = new Set(mine.map((x) => x.id));
@@ -72,6 +98,43 @@ export async function hunterView(): Promise<HunterView> {
   const picked = pickDeals(hunterHits, hunterRules(settings, hunter.config), values.map, mine);
   const liquid = (d: DealHit) => liquidEnough(d.cardKey ? values.map.get(d.cardKey) : null, hunter.config.minSales);
   const live = hunterHits.filter((h) => isFresh(h));
+  // Coverage: one row per distinct live listing.
+  const rowByKey = new Map(guide.data.map((r) => [r.key, r]));
+  const cov: HunterCoverage = {
+    total: 0, unreadable: 0, missing: [], noGradePrice: 0, waiting: 0, noMatch: 0, ambiguous: 0, noPrice: 0, rejected: 0, valued: 0,
+    examples: { unreadable: [], noMatch: [] },
+  };
+  const missingCount = new Map<string, number>();
+  const seenItems = new Set<string>();
+  for (const h of live) {
+    if (seenItems.has(h.itemId)) continue;
+    seenItems.add(h.itemId);
+    cov.total++;
+    const parsed = cardFromListing(h.title);
+    // The scan may have identified the card from eBay item specifics even when the title is vague.
+    const titleKey = cardKey(parsed.card);
+    const key = titleKey ?? h.cardKey;
+    if (!key) {
+      cov.unreadable++;
+      for (const m of parsed.missing) missingCount.set(m, (missingCount.get(m) ?? 0) + 1);
+      if (cov.examples.unreadable.length < 10) cov.examples.unreadable.push({ title: h.title, url: h.url, missing: parsed.missing });
+      continue;
+    }
+    if (values.map.has(key)) { cov.valued++; continue; }
+    if (titleKey && !priceFieldFor(parsed.card)) { cov.noGradePrice++; continue; }
+    const row = rowByKey.get(key);
+    const st = row?.status;
+    if (!st) cov.waiting++;
+    else if (st === "no_match") {
+      cov.noMatch++;
+      if (cov.examples.noMatch.length < 10) cov.examples.noMatch.push({ title: h.title, url: h.url, detail: row?.detail ?? "" });
+    }
+    else if (st === "ambiguous") cov.ambiguous++;
+    else if (st === "no_price") cov.noPrice++;
+    else if (st === "rejected") cov.rejected++;
+    else cov.waiting++;
+  }
+  cov.missing = [...missingCount.entries()].sort((a, b) => b[1] - a[1]);
   const rules = hunterRules(settings, hunter.config);
   return {
     settings,
@@ -85,6 +148,7 @@ export async function hunterView(): Promise<HunterView> {
     slowSellers: picked.deals.filter((d) => !liquid(d)),
     checked: new Set(live.map((h) => h.itemId)).size,
     valued: picked.valuedCount,
+    coverage: cov,
     error: hits.error ?? values.error ?? searches.error ?? null,
   };
 }

@@ -7,7 +7,7 @@ import { PROVIDER_LABEL, buildQuery, pickProduct, priceFor, priceFieldFor, siteF
 import { getProduct, providerConfigured, searchProducts } from "@/lib/provider-client";
 import type { CardValue } from "@/lib/scan";
 import type { CardIdentity } from "@/lib/types";
-import { listProviderValues, saveProviderValue, type ProviderValueRow } from "./db";
+import { listProviderValues, queueProviderLookups, saveProviderValue, type ProviderValueRow } from "./db";
 
 export const REFRESH_MATCHED_MS = 24 * 3_600_000;
 export const RETRY_UNMATCHED_MS = 7 * 86_400_000;
@@ -24,6 +24,7 @@ export interface LookupOutcome {
 export function needsLookup(row: Pick<ProviderValueRow, "status" | "fetchedAt"> | undefined, now = Date.now()): boolean {
   if (!row) return true;
   if (row.status === "rejected") return false; // you said it's wrong — never auto-value again
+  if (row.status === "pending") return true; // queued last time — look it up now
   const fetched = new Date(row.fetchedAt).getTime();
   if (row.status !== "matched" && fetched < MATCHER_UPDATED_AT) return true;
   const age = now - fetched;
@@ -102,11 +103,13 @@ export async function fillProviderValues(
   let deadline = deadlineAt;
   const byKey = new Map(cached.data.map((r) => [r.key, r]));
   const seen = new Set<string>();
+  const queue: { key: string; card: CardIdentity; site: string }[] = [];
   for (const { key, card } of cards) {
     if (seen.has(key) || mineKeys.has(key) || !needsLookup(byKey.get(key))) continue;
     seen.add(key);
     if (Date.now() > deadline) {
       out.pending++;
+      if (!byKey.has(key) && priceFieldFor(card)) queue.push({ key, card, site: siteFor(card) });
       continue;
     }
     const r = await lookupCard(card, key);
@@ -131,7 +134,19 @@ export async function fillProviderValues(
       });
     }
   }
+  // Remember cards we ran out of time for, so the next scan looks them up first
+  // (works even when the card was read from eBay item specifics, not the title).
+  if (queue.length > 0) await queueProviderLookups(queue.slice(0, 300));
   return out;
+}
+
+/** Cards queued by earlier scans, oldest first. */
+export async function pendingLookups(): Promise<{ key: string; card: CardIdentity }[]> {
+  const rows = await listProviderValues();
+  return rows.data
+    .filter((r) => r.status === "pending" && r.card)
+    .sort((a, b) => a.fetchedAt.localeCompare(b.fetchedAt))
+    .map((r) => ({ key: r.key, card: r.card as CardIdentity }));
 }
 
 /** Card + key for a listing title (only complete identities can be looked up). */

@@ -2,13 +2,14 @@
  * Runs every active saved search: eBay → de-duplicate → value → score → save → email.
  * Called by the scheduled endpoint (/api/cron/scan) and the "Scan now" button.
  */
-import { ebayConfigured, getListing, searchListings } from "@/lib/ebay/client";
+import { ebayConfigured, getListing, searchListings, type EbayListing, type Marketplace } from "@/lib/ebay/client";
+import type { ShipTo } from "@/lib/region";
 import { pickRechecks, recheckUpdate } from "@/lib/freshness";
 import { cardKey } from "@/lib/cardKey";
 import { cardFromListing } from "@/lib/ebay/parse";
 import { providerConfigured } from "@/lib/provider-client";
 import type { CardIdentity } from "@/lib/types";
-import { fillProviderValues, identityFromTitle } from "./provider";
+import { fillProviderValues, identityFromTitle, pendingLookups } from "./provider";
 import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
 import { parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
@@ -41,6 +42,9 @@ export interface ScanSummary {
   /** Cards looked up in SportsCardsPro/PriceCharting this scan, and how many got a value. */
   autoLooked: number;
   autoValued: number;
+  /** Profit Hunter: vague listings fetched for item specifics, and how many became identifiable. */
+  enriched: number;
+  enrichHelped: number;
   errors: string[];
 }
 
@@ -49,13 +53,56 @@ const MAX_EMAIL_ROWS = 15;
 const RECHECK_TIME_BUDGET_MS = 45_000;
 /** Price-guide lookups (1 per second) stop after this long, leaving time for re-checks. */
 const AUTO_VALUE_TIME_BUDGET_MS = 25_000;
+const HUNTER_AUTO_VALUE_TIME_BUDGET_MS = 42_000;
+/** Profit Hunter: when a title is too vague, fetch the listing's item specifics (max per scan / time). */
+export const ENRICH_MAX_PER_SCAN = 40;
+const ENRICH_TIME_BUDGET_MS = 14_000;
+const ENRICH_BATCH = 5;
+
+/** Only graded slabs are worth a lookup (the Hunter is graded-only). */
+function looksGraded(title: string): boolean {
+  return /\b(PSA|BGS|SGC|CGC|BECKETT)\b/i.test(title);
+}
+
+/**
+ * Search results don't include item specifics. For titles too vague to identify the card, fetch the
+ * listing once — sellers' Year / Set / Card Number / Grade fields usually fill the gaps.
+ */
+async function enrichVague(
+  items: EbayListing[],
+  market: Marketplace,
+  shipTo: ShipTo | undefined,
+  budget: { left: number; deadline: number },
+): Promise<{ items: EbayListing[]; fetched: number; helped: number }> {
+  const out = [...items];
+  let fetched = 0;
+  let helped = 0;
+  const vague = out
+    .map((l, i) => ({ l, i }))
+    .filter(({ l }) => looksGraded(l.title) && cardKey(cardFromListing(l.title, l.aspects).card) === null);
+  for (let b = 0; b < vague.length; b += ENRICH_BATCH) {
+    if (budget.left <= 0 || Date.now() > budget.deadline) break;
+    const batch = vague.slice(b, b + Math.min(ENRICH_BATCH, budget.left));
+    budget.left -= batch.length;
+    const got = await Promise.all(batch.map(({ l }) => getListing(l.itemId, market, shipTo)));
+    fetched += batch.length;
+    got.forEach((g, j) => {
+      if (!g.ok || g.data.aspects.length === 0) return;
+      const i = batch[j].i;
+      out[i] = { ...out[i], aspects: g.data.aspects };
+      if (cardKey(cardFromListing(out[i].title, out[i].aspects).card) !== null) helped++;
+    });
+    if (got.some((g) => !g.ok && g.code === 429)) break; // eBay daily limit
+  }
+  return { items: out, fetched, helped };
+}
 
 export async function runAllScans(
   trigger: "schedule" | "manual" | "daily" | "hunter",
   opts: { only?: "hunter" } = {},
 ): Promise<ScanSummary> {
   const started = Date.now();
-  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, errors: [] };
+  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, enriched: 0, enrichHelped: 0, errors: [] };
   if (!ebayConfigured()) {
     summary.errors.push("eBay isn't connected.");
     return summary;
@@ -72,8 +119,10 @@ export async function runAllScans(
   const toEmail: (ScanHit & { searchName: string })[] = [];
   // Your own Card Values always win; automatic values fill the rest.
   const mineKeys = new Set([...values.map.values()].filter((v) => v.source === "you").map((v) => v.key));
-  const autoDeadline = started + AUTO_VALUE_TIME_BUDGET_MS;
+  // A Hunter-only run has no saved searches to share time with, so it can value more cards.
+  const autoDeadline = started + (opts.only === "hunter" ? HUNTER_AUTO_VALUE_TIME_BUDGET_MS : AUTO_VALUE_TIME_BUDGET_MS);
   let autoError: string | null = null;
+  const enrichBudget = { left: ENRICH_MAX_PER_SCAN, deadline: started + ENRICH_TIME_BUDGET_MS };
   const autoFill = async (cards: { key: string; card: CardIdentity }[]) => {
     if (!providerConfigured() || autoError || cards.length === 0 || Date.now() > autoDeadline) return;
     const f = await fillProviderValues(cards, mineKeys, autoDeadline);
@@ -103,7 +152,13 @@ export async function runAllScans(
     }
     try {
       const seen = await existingItemIds(s.id, r.data.items.map((i) => i.itemId));
-      const fresh = r.data.items.filter((i) => !seen.has(i.itemId));
+      let fresh = r.data.items.filter((i) => !seen.has(i.itemId));
+      if (isHunter) {
+        const e = await enrichVague(fresh, input.market, input.shipTo, enrichBudget);
+        fresh = e.items;
+        summary.enriched += e.fetched;
+        summary.enrichHelped += e.helped;
+      }
       // Value new listings automatically BEFORE checking them, so alerts can use the price guide.
       await autoFill(
         fresh
@@ -137,12 +192,19 @@ export async function runAllScans(
   // Back-fill automatic values for listings found in earlier scans (newest first), time allowing.
   try {
     if (providerConfigured() && !autoError && Date.now() < autoDeadline) {
-      const recentForValues = await listRecentHits(300);
-      await autoFill(
-        recentForValues.data
+      // Hunter-only runs back-fill hunter listings the last runs didn't reach; full scans do yours first.
+      const [mineRecent, hunterRecent] = await Promise.all([
+        opts.only === "hunter" ? Promise.resolve({ data: [], error: null }) : listRecentHits(300, false, "mine"),
+        listRecentHits(500, false, "hunter"),
+      ]);
+      // Cards queued by earlier runs go first (including ones read from item specifics, not titles).
+      const queued = await pendingLookups();
+      await autoFill([
+        ...queued,
+        ...[...mineRecent.data, ...hunterRecent.data]
           .map((h) => identityFromTitle(cardFromListing, h.title))
           .filter((x): x is { key: string; card: CardIdentity } => x !== null),
-      );
+      ]);
     }
   } catch (e) {
     autoError = e instanceof Error ? e.message : String(e);
@@ -152,13 +214,14 @@ export async function runAllScans(
   // Re-check valued listings on eBay so displayed details stay under 6 hours old
   // (eBay API licence §8.1.3), sold/ended listings drop out, and price drops can alert.
   try {
-    const recent = await listRecentHits(1000);
+    const [recentMine, recentHunter] = await Promise.all([listRecentHits(1000, false, "mine"), listRecentHits(1000, false, "hunter")]);
+    const recent = { data: [...recentMine.data, ...recentHunter.data], error: recentMine.error ?? recentHunter.error };
     if (!recent.error) {
       const marketBySearch = new Map(searches.data.map((x) => [x.id, x.kind === "hunter" ? hunterCfg.market : x.market]));
       const hunterIds = new Set(searches.data.filter((x) => x.kind === "hunter").map((x) => x.id));
       const already = new Set(toEmail.map((h) => h.itemId));
       for (const h of pickRechecks(recent.data, settings, values.map)) {
-        if (Date.now() - started > RECHECK_TIME_BUDGET_MS) break;
+        if (Date.now() - started > (opts.only === "hunter" ? 52_000 : RECHECK_TIME_BUDGET_MS)) break;
         const r = await getListing(h.itemId, marketBySearch.get(h.searchId) ?? "EBAY_US", shipToFor(settings));
         if (!r.ok && r.code === 429) break;
         if (!r.ok && r.code !== 404) continue; // temporary problem — try again next scan
