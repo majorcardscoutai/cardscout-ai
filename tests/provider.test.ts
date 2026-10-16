@@ -35,6 +35,8 @@ test("picks the closest set; ambiguity means no value", () => {
   const wider = P("9", "Shohei Ohtani #US1", "Baseball Cards 2018 Topps Update Chrome");
   const r = pickProduct(ohtani, [wider, exact]);
   assert.ok(r.ok); if (r.ok) assert.equal(r.product.id, "1");
+  const only = pickProduct(ohtani, [wider]);
+  assert.equal(only.ok, false, "a different (wider) set is never used");
   const twin = P("10", "Shohei Ohtani #US1", "Baseball Cards 2018 Topps Update");
   const amb = pickProduct(ohtani, [exact, twin]);
   assert.equal(amb.ok, false); if (!amb.ok) assert.equal(amb.reason, "ambiguous");
@@ -70,4 +72,23 @@ test("parses API products (pennies, strings, ignores retail fields)", () => {
   assert.deepEqual(p!.prices, { "manual-only-price": 40123, "graded-price": 15000 });
   assert.equal(p!.salesVolume, 321);
   assert.equal(parseApiProduct({ nope: 1 }), null);
+});
+
+test("Bowman vs Bowman's Best; Panini is ignored; Japanese Pokémon is a different product", async () => {
+  const { cardFromListing } = await import("../src/lib/ebay/parse.js");
+  const best = cardFromListing("156741084 Shohei Ohtani 2024 Bowman's Best #33 Refractor PSA 10").card;
+  assert.equal(best.set, "Bowman's Best");
+  assert.equal(cardFromListing("2024 Bowmans Best Shohei Ohtani #33 PSA 10").card.set, "Bowman's Best");
+  assert.equal(cardFromListing("2024 BOWMAN #33 SHOHEI OHTANI PSA 10").card.set, "Bowman");
+  assert.equal(cardFromListing("2023 Pokemon Obsidian Flames Charizard ex #223 PSA 10").card.set, "Obsidian Flames");
+  assert.equal(cardFromListing("Devin Booker 2015 Panini Prizm Phoenix Suns #138 PSA 10").card.set, "Panini Prizm");
+  const bowman: CardIdentity = { ...ohtani, year: 2024, set: "Bowman", cardNumber: "33", isRookie: false };
+  assert.equal(scoreProduct(bowman, P("b", "Shohei Ohtani #33", "Baseball Cards 2024 Bowman")).ok, true);
+  assert.equal(scoreProduct(bowman, P("bb", "Shohei Ohtani #33", "Baseball Cards 2024 Bowman's Best")).ok, false);
+  assert.equal(scoreProduct({ ...bowman, set: "Bowman's Best" }, P("bb", "Shohei Ohtani #33", "Baseball Cards 2024 Bowman's Best")).ok, true);
+  const booker: CardIdentity = { ...ohtani, sport: "NBA", player: "Devin Booker", year: 2015, set: "Panini Prizm", cardNumber: "138" };
+  assert.equal(scoreProduct(booker, P("k", "Devin Booker #138", "Basketball Cards 2015 Panini Prizm")).ok, true);
+  assert.equal(scoreProduct({ ...booker, set: "Prizm" }, P("k", "Devin Booker #138", "Basketball Cards 2015 Panini Prizm")).ok, true);
+  const zard: CardIdentity = { ...ohtani, sport: "Pokemon", player: "Charizard ex", year: 2023, set: "151", cardNumber: "199/165" };
+  assert.equal(scoreProduct(zard, P("j", "Charizard ex #199", "Pokemon Japanese 151")).ok, false);
 });

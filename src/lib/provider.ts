@@ -51,7 +51,9 @@ export function normNumber(n: string | null | undefined): string {
   return norm((n ?? "").replace(/^#/, "").split("/")[0]).replace(/[^a-z0-9]/g, "");
 }
 
-const SET_STOPWORDS = new Set(["baseball", "basketball", "football", "cards", "card", "pokemon", "tcg", "the", "and", "of"]);
+const SET_STOPWORDS = new Set(["baseball", "basketball", "football", "cards", "card", "pokemon", "tcg", "the", "and", "of", "panini", "s"]);
+/** Pokémon guide names add a series prefix ("Scarlet & Violet 151") — allowed. These words mean a DIFFERENT product. */
+const POKEMON_DIFFERENT = new Set(["japanese", "chinese", "korean", "german", "french", "italian", "spanish", "promo", "promos", "jumbo", "mcdonalds"]);
 function setTokens(set: string | null | undefined, year?: number | null): string[] {
   return tokens(set).filter((t) => !SET_STOPWORDS.has(t) && t !== String(year ?? "") && !/^(19|20)\d\d$/.test(t));
 }
@@ -108,7 +110,13 @@ export function scoreProduct(card: Partial<CardIdentity>, p: ProviderProduct): M
   if (card.serialNumbered && !(bracket ?? "").includes(String(card.serialNumbered)))
     return { ok: false, extra: 99, reason: "print run not confirmed" };
 
-  return { ok: true, extra: have.size - want.length, reason: "match" };
+  // Sports: the guide's set must be exactly the card's set ("Bowman" ≠ "Bowman's Best", "Topps Update" ≠ "Topps Chrome Update").
+  const wantSet = new Set(want);
+  const extras = [...have].filter((t) => !wantSet.has(t));
+  if (card.sport !== "Pokemon" && extras.length > 0) return { ok: false, extra: 99, reason: `different set (${p.consoleName})` };
+  if (card.sport === "Pokemon" && extras.some((t) => POKEMON_DIFFERENT.has(t))) return { ok: false, extra: 99, reason: `different product (${p.consoleName})` };
+
+  return { ok: true, extra: extras.length, reason: "match" };
 }
 
 export type PickResult =

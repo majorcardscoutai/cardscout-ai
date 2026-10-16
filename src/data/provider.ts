@@ -75,6 +75,8 @@ export interface FillSummary {
   matched: number;
   newValues: Map<string, CardValue>;
   error: string | null;
+  /** Cards not reached this time (time budget) — they're looked up next time. */
+  pending: number;
 }
 
 /**
@@ -84,25 +86,29 @@ export interface FillSummary {
 export async function fillProviderValues(
   cards: { key: string; card: CardIdentity }[],
   mineKeys: Set<string>,
-  deadline: number,
+  deadlineAt: number,
 ): Promise<FillSummary> {
-  const out: FillSummary = { looked: 0, matched: 0, newValues: new Map(), error: null };
+  const out: FillSummary = { looked: 0, matched: 0, newValues: new Map(), error: null, pending: 0 };
   if (!providerConfigured()) return out;
   const cached = await listProviderValues();
   if (cached.error && /provider_values/.test(cached.error)) {
     out.error = "run the one-time SQL update in Supabase (see PROGRESS.md) to turn them on.";
     return out;
   }
+  let deadline = deadlineAt;
   const byKey = new Map(cached.data.map((r) => [r.key, r]));
   const seen = new Set<string>();
   for (const { key, card } of cards) {
     if (seen.has(key) || mineKeys.has(key) || !needsLookup(byKey.get(key))) continue;
     seen.add(key);
-    if (Date.now() > deadline) break;
+    if (Date.now() > deadline) {
+      out.pending++;
+      continue;
+    }
     const r = await lookupCard(card, key);
     if (r.error) {
       out.error = r.error;
-      if (r.code === 429 || r.code === 401 || r.code === 403) break;
+      if (r.code === 429 || r.code === 401 || r.code === 403) deadline = 0; // stop looking up, just count the rest
       continue;
     }
     out.looked++;

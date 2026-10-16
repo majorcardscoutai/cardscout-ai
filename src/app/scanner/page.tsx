@@ -13,6 +13,10 @@ import ProviderCredit, { ValueSource } from "@/components/ProviderCredit";
 import { Money, PageHeader, Panel, Pct, StatusRow, Tag } from "@/components/ui";
 import { cardValueMap, lastScanRuns, listPushSubscriptions, listRecentHits, listSavedSearches } from "@/data/db";
 import { pushConfigured } from "@/lib/webpush";
+import { fillProviderValues } from "@/data/provider";
+import { cardKey } from "@/lib/cardKey";
+import { cardFromListing } from "@/lib/ebay/parse";
+import type { CardIdentity } from "@/lib/types";
 import { providerConfigured } from "@/lib/provider-client";
 import { getSettings } from "@/data/source";
 import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/client";
@@ -24,6 +28,7 @@ import { displayFx, shipToFor } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+const LIVE_LOOKUP_BUDGET_MS = 15_000;
 
 type Params = {
   q?: string;
@@ -91,6 +96,29 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
     lastScanRuns(5),
     listPushSubscriptions(),
   ]);
+
+  // Live search: look up market values for the cards shown (cached; ~1 per second, max ~15 s per search).
+  let autoNote: string | null = null;
+  if (result?.ok && providerConfigured() && result.data.items.length > 0) {
+    const mine = new Set([...values.map.values()].filter((v) => (v.source ?? "you") === "you").map((v) => v.key));
+    const cards = result.data.items
+      .map((l) => {
+        const key = cardKey(cardFromListing(l.title, l.aspects).card);
+        return key ? { key, card: cardFromListing(l.title, l.aspects).card as CardIdentity } : null;
+      })
+      .filter((x): x is { key: string; card: CardIdentity } => x !== null && !values.map.has(x.key));
+    if (cards.length > 0) {
+      const f = await fillProviderValues(cards, mine, Date.now() + LIVE_LOOKUP_BUDGET_MS);
+      for (const [k, v] of f.newValues) values.map.set(k, v);
+      autoNote = f.error
+        ? `Market values: ${f.error}`
+        : f.pending > 0
+          ? `Looked up ${f.looked} card${f.looked === 1 ? "" : "s"} in the price guide (${f.matched} matched). ${f.pending} more will be looked up when you search again.`
+          : f.looked > 0
+            ? `Looked up ${f.looked} card${f.looked === 1 ? "" : "s"} in the price guide (${f.matched} matched).`
+            : null;
+    }
+  }
 
   // Results are re-priced with TODAY's values + settings, so a value added after a scan counts straight away.
   const now = Date.now();
@@ -214,6 +242,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               <Link href="/values" className="underline">Card Value</Link> where you&apos;ve set one. Automatic values are matched from the
               title — check the card before buying.
             </p>
+            {autoNote && <p className="mb-3 text-xs text-muted">{autoNote}</p>}
             {result.data.items.length === 0 ? (
               <p className="text-sm text-muted">No listings found. Try fewer words or a higher max price.</p>
             ) : (
@@ -244,7 +273,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                               <span className="rounded-md bg-loss-soft px-1.5 py-0.5 font-medium text-loss">Below your rules</span>
                             )
                           ) : (
-                            <span>No value saved for this card</span>
+                            <span>{h.cardKey && providerConfigured() ? "No exact price-guide match — set your own" : "No value saved for this card"}</span>
                           )}
                         </div>
                       </div>

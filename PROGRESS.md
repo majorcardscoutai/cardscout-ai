@@ -211,7 +211,9 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - Settings → Market values → Test connection (looks up 2018 Topps Update Ohtani #US1 PSA 10).
 - **Automatic values SQL (one-time):** see bottom of supabase/schema.sql (`create table public.provider_values …`, RLS on). Scans keep working without it but show "run the one-time SQL update".
 - 89 unit tests + e2e (fake SportsCardsPro: matching, parallel guard, cache, own value wins, wrong match, bad token, missing table).
-- [ ] Deployed + SQL run + Test connection ✓ + first scan shows "X of Y cards valued automatically"
+- [x] Deployed; Test connection ✓ 16 Oct 2026 (Ohtani #US1 PSA 10 = US$524.52)
+- [ ] SQL run + first scan shows "X of Y cards valued automatically"
+- Fix 16 Oct 2026: live searches on the Scanner page now look up the cards shown (max 15 s; rest next search). Title reader knows ~90 sets, most specific first ("Bowman's Best" ≠ "Bowman"); sports matches need the exact set name (Panini ignored); Japanese/promo Pokémon never used for English cards. 90 unit tests + e2e.
 
 ## Next major feature (after automatic values): Profit Hunter — noted 16 Oct 2026
 - New sidebar page: scan ALL new listings in chosen categories under a budget (not specific cards), value each via the SportsCardsPro daily price-guide download, flag anything clearing min ROI/profit; alerts as usual.
@@ -229,3 +231,8 @@ Recommended order: get real market-value data sorted and proven first → run pr
 ---
 
 <sub>The earlier subscription footnote is now Phase 6 above.</sub>
+
+## Updating the live app (Travis's Mac) — always give these with each zip
+- Project folder: `~/Projects/cardscout-ai` (GitHub majorcardscoutai/cardscout-ai, auto-deploys to Vercel)
+- Unzip: `cd ~/Downloads && Z=$(ls -t cardhawk-ai*.zip | head -1) && echo "Zip: $Z" && ditto -x -k "$Z" ~/Projects && cd ~/Projects/cardscout-ai && <grep check for a new file/line>`
+- Publish: `cd ~/Projects/cardscout-ai && git add -A && git commit -m "<what changed>" && git push`

@@ -42,13 +42,31 @@ export interface CardSuggestion {
   sources: Record<string, "item specifics" | "title">;
 }
 
-const SETS = [
-  "Topps Chrome Update", "Topps Chrome", "Topps Update", "Topps Series 1", "Topps Series 2", "Topps Heritage",
-  "Topps Finest", "Bowman Chrome Draft", "Bowman Chrome", "Bowman Draft", "Bowman", "Panini Prizm", "Prizm",
-  "Donruss Optic", "Optic", "Select", "Mosaic", "National Treasures", "Flawless", "Upper Deck", "Fleer Ultra",
-  "Fleer", "Base Set", "Jungle", "Fossil", "Team Rocket", "Evolving Skies", "Hidden Fates", "Celebrations",
-  "151", "Crown Zenith", "Topps",
+const SETS_RAW = [
+  // Baseball / multi-sport
+  "Topps Chrome Update", "Topps Chrome Sapphire", "Topps Chrome", "Topps Update", "Topps Series 1", "Topps Series 2",
+  "Topps Heritage", "Topps Finest", "Topps Stadium Club", "Stadium Club", "Topps Allen & Ginter", "Allen & Ginter",
+  "Topps Gypsy Queen", "Gypsy Queen", "Topps Archives", "Topps Tribute", "Topps Inception", "Topps Tier One",
+  "Topps Dynasty", "Topps Museum Collection", "Topps Big League", "Topps Gold Label", "Topps Opening Day", "Topps Now",
+  "Topps Fire", "Topps Pristine", "Topps Sterling", "Topps Triple Threads", "Topps Five Star", "Topps Definitive",
+  "Bowman Chrome Draft", "Bowman Chrome Sapphire", "Bowman Chrome", "Bowman Draft", "Bowman's Best", "Bowman Sterling",
+  "Bowman Platinum", "Bowman Inception", "Bowman Transcendent", "Bowman", "Topps",
+  // Basketball
+  "Panini Prizm", "Prizm Draft Picks", "Prizm", "Donruss Optic", "Optic", "Donruss Elite", "Donruss", "Select",
+  "Mosaic", "National Treasures", "Flawless", "Noir", "Obsidian", "Spectra", "Chronicles", "Revolution",
+  "Court Kings", "Contenders Optic", "Contenders", "Hoops", "Crown Royale",
+  "Upper Deck Exquisite", "SP Authentic", "Upper Deck", "Fleer Ultra", "Fleer", "Skybox",
+  // Pokémon
+  "Base Set 2", "Base Set", "Jungle", "Fossil", "Team Rocket", "Gym Heroes", "Gym Challenge", "Neo Genesis",
+  "Neo Discovery", "Neo Revelation", "Neo Destiny", "Expedition", "Aquapolis", "Skyridge", "Evolving Skies",
+  "Hidden Fates", "Shining Fates", "Celebrations", "Crown Zenith", "Brilliant Stars", "Astral Radiance", "Lost Origin",
+  "Silver Tempest", "Fusion Strike", "Vivid Voltage", "Champion's Path", "Paldea Evolved", "Obsidian Flames",
+  "Paradox Rift", "Paldean Fates", "Temporal Forces", "Twilight Masquerade", "Shrouded Fable", "Stellar Crown",
+  "Surging Sparks", "Prismatic Evolutions", "Journey Together", "Destined Rivals", "Black Bolt", "White Flare", "151",
 ];
+// Most specific first: "Bowman's Best" must win over "Bowman", "Obsidian Flames" over "Obsidian".
+const SETS = [...SETS_RAW].sort((a, b) => b.length - a.length);
+const setRegex = (s: string) => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]?")}(?![\\w'’])`, "i");
 
 const PARALLELS = [
   "Silver Prizm", "Gold Prizm", "Black Prizm", "Red Prizm", "Blue Prizm", "Green Prizm", "Purple Prizm",
@@ -147,7 +165,7 @@ export function cardFromListing(title: string, aspects: Aspect[] = []): CardSugg
   const setAspect = aspect(aspects, "Set", "Set Name", "Product Line");
   if (setAspect) set("set", setAspect, "item specifics");
   else {
-    const known = SETS.find((s) => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(title));
+    const known = SETS.find((s) => setRegex(s).test(title));
     if (known) set("set", known, "title");
   }
 
