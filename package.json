@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsc -p tsconfig.test.json && node --test .test-build/tests/profit.test.js .test-build/tests/valuation-scoring.test.js .test-build/tests/forms.test.js .test-build/tests/ebay.test.js .test-build/tests/scan.test.js .test-build/tests/fx.test.js .test-build/tests/webpush.test.js .test-build/tests/provider.test.js .test-build/tests/hunter.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test .test-build/tests/profit.test.js .test-build/tests/valuation-scoring.test.js .test-build/tests/forms.test.js .test-build/tests/ebay.test.js .test-build/tests/scan.test.js .test-build/tests/fx.test.js .test-build/tests/webpush.test.js .test-build/tests/provider.test.js .test-build/tests/hunter.test.js .test-build/tests/sales.test.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

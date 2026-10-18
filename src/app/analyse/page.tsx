@@ -6,6 +6,10 @@ import { Money, PageHeader, Panel, Tag } from "@/components/ui";
 import { cardValueMap, listProviderValues } from "@/data/db";
 import { lookupCard, needsLookup, providerName } from "@/data/provider";
 import { providerConfigured } from "@/lib/provider-client";
+import RecentSales, { type SlabCheck } from "@/components/RecentSales";
+import { certFromAspects } from "@/lib/sales";
+import { psaConfigured } from "@/lib/psa";
+import { checkPsaCert } from "@/data/psa";
 import type { CardIdentity, Settings } from "@/lib/types";
 import type { CardValue } from "@/lib/scan";
 import { loadSettings } from "@/data/source";
@@ -43,9 +47,13 @@ export default async function ManualScannerPage({
   let suggestion: CardSuggestion | null = null;
   let prefill: ManualPrefill | undefined;
   let providerNote: string | null = null;
+  let salesPerYear: number | null = null;
+  let slab: SlabCheck = { cert: null, result: null };
+  let marketUsed: Marketplace = "EBAY_US";
 
   if (item) {
     const mkt: Marketplace = market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US";
+    marketUsed = mkt;
     const r = await getListing(item, mkt, shipToFor(settings));
     if (r.ok) {
       listing = r.data;
@@ -77,7 +85,7 @@ export default async function ManualScannerPage({
           }
           const r = await lookupCard(c.card as CardIdentity, c.key);
           if (r.row.status === "matched" && r.row.valueUsd !== null) {
-            known = { id: `auto:${c.key}`, key: c.key, title: r.row.matchedName ?? "", valueUsd: r.row.valueUsd, updatedAt: new Date().toISOString(), source: r.row.site, matchedName: r.row.matchedName ?? undefined, graderSpecific: r.row.graderSpecific };
+            known = { id: `auto:${c.key}`, key: c.key, title: r.row.matchedName ?? "", valueUsd: r.row.valueUsd, updatedAt: new Date().toISOString(), source: r.row.site, matchedName: r.row.matchedName ?? undefined, graderSpecific: r.row.graderSpecific, salesVolume: r.row.salesVolume };
             usedCard = c.card;
             break;
           }
@@ -87,6 +95,10 @@ export default async function ManualScannerPage({
       }
       // Show the card details that produced the value, so "Save to watchlist" keeps the same card.
       if (known && usedCard && usedCard !== suggestion.card) suggestion = { ...suggestion, card: usedCard };
+      // Recent sales box: how often it sells (price guide) + PSA slab check from the cert number.
+      salesPerYear = known && (known.source ?? "you") !== "you" ? known.salesVolume ?? null : null;
+      const cert = certFromAspects(listing.aspects);
+      slab = { cert, result: cert && suggestion.card.grader === "PSA" && psaConfigured() ? await checkPsaCert(cert) : null };
       const askingUsd = toUsd(listing.price, fx);
       if (listing.price && askingUsd === null) {
         listingError = `This listing is priced in ${listing.price.currency}. Only US$ and A$ listings are supported for now.`;
@@ -198,6 +210,8 @@ export default async function ManualScannerPage({
           </div>
         </Panel>
       )}
+
+      {listing && suggestion && <RecentSales card={suggestion.card} market={marketUsed} title={listing.title} salesPerYear={salesPerYear} slab={slab} />}
 
       <Panel title="Analyse a card" className="mb-6" right={<Tag>{listing ? "Prefilled from eBay" : "Manual entry"}</Tag>}>
         <ManualAnalysis key={item ?? "manual"} settings={settings} prefill={prefill} />

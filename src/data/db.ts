@@ -990,3 +990,28 @@ export async function listWaitlist(): Promise<DbResult<WaitlistEntry[]>> {
     return { data: [], error: message(e) };
   }
 }
+
+// ---------- PSA slab checks (shared cache: a cert's details never change) ----------
+
+export async function getCachedPsaCert(cert: string): Promise<{ data: import("@/lib/sales").PsaCert | null; fetchedAt: string | null; error: string | null }> {
+  if (!dbConfigured()) return { data: null, fetchedAt: null, error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("psa_certs").select("*").eq("cert", cert).maybeSingle();
+    if (error) throw error;
+    if (!data) return { data: null, fetchedAt: null, error: null };
+    const r = data as Record<string, unknown>;
+    return { data: r.data as import("@/lib/sales").PsaCert, fetchedAt: String(r.fetched_at), error: null };
+  } catch (e) {
+    return { data: null, fetchedAt: null, error: message(e) };
+  }
+}
+
+export async function savePsaCert(c: import("@/lib/sales").PsaCert): Promise<string | null> {
+  try {
+    const { error } = await db().from("psa_certs").upsert({ cert: c.certNumber, data: c, fetched_at: new Date().toISOString() }, { onConflict: "cert" });
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}

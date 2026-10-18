@@ -191,3 +191,11 @@ create table if not exists public.hunter_config (
 alter table public.hunter_config enable row level security;
 alter table public.hunter_config add column if not exists min_roi numeric;
 alter table public.hunter_config add column if not exists min_profit numeric;
+
+-- ---------- 19 Oct 2026: PSA slab checks (shared cache; a cert's details never change) ----------
+create table if not exists public.psa_certs (
+  cert text primary key,
+  data jsonb not null,
+  fetched_at timestamptz not null default now()
+);
+alter table public.psa_certs enable row level security;

@@ -235,6 +235,15 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - [ ] Deployed + SQL run + hunter turned on + first hourly run seen in GitHub Actions
 - [ ] eBay §9.5 answer still needed before selling this feature
 
+## Recent sales & PSA slab check (Analyse) — built 19 Oct 2026
+- Analyse (listing loaded) shows "Recent sales & slab check": links that open eBay SOLD listings (most recent first, exact card + grade, eBay US/AU), the SportsCardsPro/PriceCharting search for the card, and PSA Auction Prices; plus "sells ~N/yr" from the guide. Links only — nothing copied from websites (no scraping).
+- PSA slab check: cert number from eBay item specifics ("Certification Number") → PSA Public API (GetByCertNumber, bearer PSA_API_TOKEN) → ✓ "Matches PSA's record" (with PSA's caveat: a real cert number on a fake slab is possible — check photos) / ⚠ mismatch (grade, card number, year, player) + PSA population. Shared cache table psa_certs (one PSA call per cert for ALL users; population refreshed after 30 days); only called when someone opens Analyse. Without a token: "verify on PSA" link. CGC: lookup link only.
+- **PSA SQL (one-time):** bottom of supabase/schema.sql (`create table public.psa_certs …`).
+- Setup: register/sign in at psacard.com → Public API → generate token → Vercel env PSA_API_TOKEN → redeploy.
+- [ ] **Licence check before charging users:** read PSA's API End User Agreement (commercial use, display of population data, daily call limit, caching) — same as eBay/SportsCardsPro.
+- [ ] Later: in-app "last 5 sales" needs a licensed source — ask Brady (SportsCardsPro recent sales via API?) or apply for eBay Marketplace Insights (limited release). eBay Partner Network could earn commission on the eBay links.
+- 102 unit tests + e2e (scenario 18).
+
 ## Open decisions
 - Sold-price source: **decided 11 Oct 2026 — Option A (free) for now.** Travis enters resale estimates from eBay sold listings manually. Revisit paid PriceCharting/SportsCardsPro (US$49+/month) after a few weeks of real use.
 - Default fee rate for the marketplace you'll resell on (eBay AU vs eBay US)

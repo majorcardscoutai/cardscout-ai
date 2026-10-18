@@ -3,6 +3,7 @@ import { logout } from "@/app/login/actions";
 import { testProviderAction } from "@/app/actions";
 import ProviderCredit from "@/components/ProviderCredit";
 import { providerConfigured } from "@/lib/provider-client";
+import { psaConfigured } from "@/lib/psa";
 import { removeDeviceAction, testPushAction } from "@/app/push-actions";
 import PushSetup from "@/components/PushSetup";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
@@ -200,6 +201,12 @@ export default async function SettingsPage({
           <p className="text-xs text-warn">Add SPORTSCARDSPRO_TOKEN in Vercel → Settings → Environment Variables, then redeploy.</p>
         )}
         <ProviderCredit className="mt-3" />
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3 text-sm">
+          <span>
+            PSA slab checks <span className="text-xs text-muted">· verifies the cert number on Analyse</span>
+          </span>
+          <Tag tone={psaConfigured() ? "default" : "warn"}>{psaConfigured() ? "Connected" : "Add PSA_API_TOKEN"}</Tag>
+        </div>
       </Panel>
 
       <div id="alerts" className="scroll-mt-24">
