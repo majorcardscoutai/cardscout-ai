@@ -43,3 +43,22 @@ test("PSA record parsed; grade, number, year and player must agree", () => {
   assert.equal(parsePsaCert({ DNACert: {} }), null);
   assert.equal(parsePsaCert(null), null);
 });
+
+test("graded details from eBay condition descriptors (cert number, grader, grade)", async () => {
+  const { mapItem } = await import("../src/lib/ebay/client.js");
+  const { cardFromListing } = await import("../src/lib/ebay/parse.js");
+  const l = mapItem({
+    itemId: "v1|123456789012|0", title: "Shohei Ohtani 2018 Topps Update #US1 Graded",
+    localizedAspects: [{ name: "Sport", value: "Baseball" }, { name: "Grade", value: "10" }],
+    conditionDescriptors: [
+      { name: "Professional Grader", values: [{ content: "Professional Sports Authenticator (PSA)" }] },
+      { name: "Grade", values: [{ content: "9" }] },
+      { name: "Certification Number", values: [{ content: "84512345" }] },
+    ],
+  } as never);
+  assert.equal(certFromAspects(l.aspects), "84512345");
+  assert.equal(l.aspects.filter((a) => a.name === "Grade").length, 1, "item specifics win on duplicates");
+  const c = cardFromListing(l.title, l.aspects).card;
+  assert.equal(c.grader, "PSA"); assert.equal(c.grade, 10);
+  assert.equal(mapItem({ itemId: "v1|1|0", title: "x" } as never).aspects.length, 0);
+});

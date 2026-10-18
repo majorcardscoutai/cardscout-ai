@@ -52,8 +52,21 @@ export default function RecentSales({
         {!slab.cert ? (
           <p className="text-muted">
             {card.grader && card.grader !== "RAW"
-              ? "The seller didn't list a certificate number — ask them for it, or check the slab photo."
+              ? `The listing doesn't include the ${card.grader} certificate number — ask the seller for it, or read it off the slab photo${card.grader === "PSA" ? " and check it on psacard.com/cert" : ""}.`
               : "Not a graded card."}
+          </p>
+        ) : slab.result === null && card.grader !== "PSA" ? (
+          <p className="text-muted">
+            {card.grader ?? "Grader"} cert #{slab.cert}
+            {lookup ? (
+              <>
+                {" "}·{" "}
+                <a href={lookup} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">check it on {card.grader}&apos;s site ↗</a>
+              </>
+            ) : (
+              ` — check it on ${card.grader ?? "the grader"}'s website.`
+            )}{" "}
+            <span className="text-xs text-faint">(Automatic checks are PSA only.)</span>
           </p>
         ) : slab.result === null ? (
           <p className="text-muted">

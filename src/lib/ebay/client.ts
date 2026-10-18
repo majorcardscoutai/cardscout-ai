@@ -167,6 +167,8 @@ interface RawItem {
   itemOriginDate?: string;
   itemEndDate?: string;
   localizedAspects?: { name?: string; value?: string }[];
+  /** Graded cards: eBay puts Professional Grader / Grade / Certification Number here, not in item specifics. */
+  conditionDescriptors?: { name?: string; values?: { content?: string }[] }[];
   condition?: string;
   estimatedAvailabilities?: { estimatedAvailabilityStatus?: string }[];
 }
@@ -203,12 +205,26 @@ export function mapItem(raw: RawItem): EbayListing {
     country: raw.itemLocation?.country ?? null,
     listedAt: raw.itemOriginDate ?? raw.itemCreationDate ?? null,
     endsAt: raw.itemEndDate ?? null,
-    aspects: (raw.localizedAspects ?? [])
-      .filter((a) => a.name && a.value)
-      .map((a) => ({ name: a.name as string, value: a.value as string })),
+    aspects: mergeAspects(raw),
     condition: raw.condition ?? null,
     available: raw.estimatedAvailabilities?.[0]?.estimatedAvailabilityStatus !== "OUT_OF_STOCK",
   };
+}
+
+/** Item specifics + condition descriptors (grader, grade, cert number) as one list; item specifics win on duplicates. */
+function mergeAspects(raw: RawItem): Aspect[] {
+  const out: Aspect[] = (raw.localizedAspects ?? [])
+    .filter((a) => a.name && a.value)
+    .map((a) => ({ name: a.name as string, value: a.value as string }));
+  const have = new Set(out.map((a) => a.name.toLowerCase()));
+  for (const d of raw.conditionDescriptors ?? []) {
+    const value = (d.values ?? []).map((v) => v.content?.trim()).filter(Boolean)[0];
+    if (d.name && value && !have.has(d.name.toLowerCase())) {
+      out.push({ name: d.name, value });
+      have.add(d.name.toLowerCase());
+    }
+  }
+  return out;
 }
 
 /** Convert an eBay price to USD. Only USD and AUD are supported. */
