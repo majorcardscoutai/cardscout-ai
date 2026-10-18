@@ -273,7 +273,7 @@ export async function saveHunterAction(formData: FormData) {
     "/hunter",
     "saved",
     parsed.value.enabled
-      ? "Profit Hunter is on. It runs every hour — click Hunt now to run it straight away."
+      ? "Profit Hunter is on. It runs every 30 minutes — click Hunt now to run it straight away."
       : "Saved. The Profit Hunter is off.",
   );
 }
@@ -287,7 +287,7 @@ export async function huntNowAction() {
   back(
     "/hunter",
     "saved",
-    `Hunt done: ${r.newListings} new listing${r.newListings === 1 ? "" : "s"} checked${r.enriched ? `, ${r.enrichHelped} of ${r.enriched} vague titles identified from eBay item specifics` : ""}, ${r.autoValued} of ${r.autoLooked} new cards valued, ${r.deals} profitable${r.emailed ? `, ${r.emailed} emailed` : ""}${r.pushed ? `, sent to ${r.pushed} phone${r.pushed === 1 ? "" : "s"}` : ""}.`,
+    `Hunt done: ${r.newListings} new listing${r.newListings === 1 ? "" : "s"} checked${r.enriched ? `, ${r.enrichHelped} of ${r.enriched} vague titles identified from eBay item specifics` : ""}${r.setResolved ? `, ${r.setResolved} unknown sets confirmed from the price guide` : ""}, ${r.autoValued} of ${r.autoLooked} new cards valued, ${r.deals} profitable${r.emailed ? `, ${r.emailed} emailed` : ""}${r.pushed ? `, sent to ${r.pushed} phone${r.pushed === 1 ? "" : "s"}` : ""}.`,
   );
 }
 

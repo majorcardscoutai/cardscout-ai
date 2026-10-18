@@ -5,7 +5,7 @@ import { runAllScans } from "@/data/scanner";
  * Scheduled scan endpoint. Called by:
  *  - GitHub Actions every 3 hours (.github/workflows/scan.yml), and
  *  - Vercel's daily cron as a backup (vercel.json), and
- *  - GitHub Actions every hour with ?only=hunter (.github/workflows/hunt.yml) for the Profit Hunter.
+ *  - GitHub Actions every 30 minutes with ?only=hunter (.github/workflows/hunt.yml) for the Profit Hunter.
  * Both send "Authorization: Bearer <CRON_SECRET>". Anyone without it gets 401.
  */
 export const dynamic = "force-dynamic";

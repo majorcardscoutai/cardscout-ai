@@ -205,3 +205,63 @@ export function parseApiProduct(raw: unknown): ProviderProduct | null {
     salesVolume: Number.isFinite(sv) ? sv : null,
   };
 }
+
+
+// ---------- Set-name fallback: title has player/year/number/grade but a set we don't recognise ----------
+
+/** "Baseball Cards 2018 Topps Chrome Update" → "Topps Chrome Update"; "Pokemon Evolutions" → "Evolutions". */
+export function consoleSet(consoleName: string): string {
+  return consoleName
+    .replace(/^\s*(baseball|basketball|football|hockey|soccer|racing|wrestling)\s+cards\s+/i, "")
+    .replace(/^\s*pok[eé]mon\s+/i, "")
+    .replace(/^\s*(19|20)\d\d(-\d\d)?\s+/, "")
+    .trim();
+}
+
+export type SetMatch =
+  | { ok: true; product: ProviderProduct; set: string; player: string }
+  | { ok: false; reason: "no_match" | "ambiguous"; detail: string };
+
+/**
+ * Pick the guide card whose OWN player name and set name both appear word-for-word in the listing title,
+ * with the same sport, year (sports), card number and parallel. Most specific set wins
+ * ("Topps Chrome Update" over "Topps Update" when the title says both). Two equally good → no value.
+ */
+export function matchBySetInTitle(card: Partial<CardIdentity>, title: string, products: ProviderProduct[]): SetMatch {
+  const titleTok = new Set(tokens(title));
+  const sportWord = card.sport === "MLB" ? "baseball" : card.sport === "NBA" ? "basketball" : card.sport === "Pokemon" ? "pokemon" : null;
+  const par = card.parallel && !/^(base|base set|none|n\/a)$/i.test(card.parallel.trim()) ? card.parallel : null;
+  const words = (x: string) => new Set(tokens(x).filter((t) => !/^\d+$/.test(t.replace("/", ""))));
+  const ok: { p: ProviderProduct; score: number; set: string; player: string }[] = [];
+  for (const p of products) {
+    const { base, bracket, number } = parseProductName(p.productName);
+    const consoleN = norm(p.consoleName);
+    if (sportWord && !consoleN.includes(sportWord)) continue;
+    if (!number || normNumber(number) !== normNumber(card.cardNumber)) continue;
+    if (card.sport !== "Pokemon" && card.year && !consoleN.includes(String(card.year))) continue;
+    const baseTok = tokens(base);
+    if (baseTok.length < (card.sport === "Pokemon" ? 1 : 2) || !baseTok.every((t) => titleTok.has(t))) continue;
+    const setTok = setTokens(p.consoleName, card.year);
+    if (setTok.length === 0 || !setTok.every((t) => titleTok.has(t))) continue;
+    if (card.sport === "Pokemon" && setTok.some((t) => POKEMON_DIFFERENT.has(t))) continue;
+    if (!par && bracket) continue;
+    if (par) {
+      if (!bracket) continue;
+      const bt = words(bracket);
+      const pt = words(par);
+      if (bt.size !== pt.size || ![...pt].every((t) => bt.has(t))) continue;
+    }
+    if (card.serialNumbered && !(bracket ?? "").includes(String(card.serialNumbered))) continue;
+    ok.push({ p, score: setTok.length + baseTok.length, set: consoleSet(p.consoleName), player: base.replace(/\s+/g, " ").trim() });
+  }
+  if (ok.length === 0) return { ok: false, reason: "no_match", detail: "No guide card's player and set both appear in the title." };
+  ok.sort((a, b) => b.score - a.score);
+  if (ok.length > 1 && ok[1].score === ok[0].score && ok[1].p.id !== ok[0].p.id)
+    return { ok: false, reason: "ambiguous", detail: `Several guide cards fit the title (${ok.slice(0, 3).map((x) => x.p.consoleName).join("; ")}).` };
+  return { ok: true, product: ok[0].p, set: ok[0].set, player: ok[0].player };
+}
+
+/** Same card, any grade: the cache key without its grader + grade parts. One lookup prices every grade. */
+export function sameCardKey(key: string): string {
+  return key.split("|").slice(0, -2).join("|");
+}

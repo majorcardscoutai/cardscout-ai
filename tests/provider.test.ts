@@ -123,3 +123,32 @@ test("parallels must match exactly; Pokémon sets, reverse holo, 1st Edition", a
   assert.equal(scoreProduct(zard, P("z2", "Charizard #11", "Pokemon Evolutions")).ok, false, "reverse holo never priced as the regular card");
   assert.equal(read("2023 Topps Chrome Football CJ Stroud #200 PSA 10").sport, undefined, "football is not covered");
 });
+
+test("set-name fallback: guide card's player AND set must be in the title", async () => {
+  const { matchBySetInTitle, consoleSet } = await import("../src/lib/provider.js");
+  assert.equal(consoleSet("Baseball Cards 2018 Topps Chrome Update"), "Topps Chrome Update");
+  assert.equal(consoleSet("Basketball Cards 2020-21 Panini Prizm"), "Panini Prizm");
+  assert.equal(consoleSet("Pokemon Evolutions"), "Evolutions");
+  const trout = { sport: "MLB", player: "Lineage Mike Trout", year: 2011, cardNumber: "US175", grader: "PSA", grade: 10 } as Partial<CardIdentity>;
+  const title = "2011 Topps Lineage Mike Trout #US175 PSA 10 RC";
+  const upd = P("u", "Mike Trout #US175", "Baseball Cards 2011 Topps Update");
+  const lin = P("l", "Mike Trout #US175", "Baseball Cards 2011 Topps Lineage");
+  const r = matchBySetInTitle(trout, title, [upd, lin]);
+  assert.ok(r.ok); if (r.ok) { assert.equal(r.product.id, "l"); assert.equal(r.set, "Topps Lineage"); assert.equal(r.player, "Mike Trout"); }
+  assert.equal(matchBySetInTitle(trout, title, [upd]).ok, false, "set not in the title → no value");
+  assert.equal(matchBySetInTitle(trout, title, [P("x", "Mike Trout [Gold] #US175", "Baseball Cards 2011 Topps Lineage")]).ok, false, "parallel must match");
+  assert.equal(matchBySetInTitle(trout, title, [P("y", "Bryce Harper #US175", "Baseball Cards 2011 Topps Lineage")]).ok, false, "player must be in the title");
+  assert.equal(matchBySetInTitle({ ...trout, year: 2012 }, title, [lin]).ok, false, "year must match");
+  const chromeUpd = P("cu", "Shohei Ohtani #HMT1", "Baseball Cards 2018 Topps Chrome Update");
+  const plainUpd = P("pu", "Shohei Ohtani #HMT1", "Baseball Cards 2018 Topps Update");
+  const r2 = matchBySetInTitle({ sport: "MLB", player: "Shohei Ohtani", year: 2018, cardNumber: "HMT1", grader: "PSA", grade: 10 }, "2018 Topps Chrome Update Shohei Ohtani HMT1 PSA 10", [plainUpd, chromeUpd]);
+  assert.ok(r2.ok); if (r2.ok) assert.equal(r2.product.id, "cu", "most specific set wins");
+  const twins = matchBySetInTitle(trout, title, [lin, P("l2", "Mike Trout #US175", "Baseball Cards 2011 Topps Lineage")]);
+  assert.equal(twins.ok, false, "two equally good → no value");
+});
+
+test("one lookup prices every grade of the same card", async () => {
+  const { sameCardKey } = await import("../src/lib/provider.js");
+  assert.equal(sameCardKey("mlb|shohei ohtani|2018|topps update|us1||||psa|10"), sameCardKey("mlb|shohei ohtani|2018|topps update|us1||||psa|9"));
+  assert.notEqual(sameCardKey("mlb|shohei ohtani|2018|topps update|us1|gold|||psa|10"), sameCardKey("mlb|shohei ohtani|2018|topps update|us1||||psa|10"));
+});

@@ -116,7 +116,7 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
             {config.enabled && (
               <p className="mt-2 text-xs text-faint">
                 {v.checked === 0
-                  ? "No listings checked yet. Click Hunt now, or wait for the hourly run."
+                  ? "No listings checked yet. Click Hunt now, or wait for the next run (every 30 minutes)."
                   : `Checked ${v.checked} live listing${v.checked === 1 ? "" : "s"}; ${v.valued} have a market value so far. New cards are valued about one per second, so coverage grows with every run.`}
               </p>
             )}
@@ -155,7 +155,7 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
             <input type="checkbox" name="enabled" defaultChecked={config.enabled} className="h-4 w-4 accent-gain" />
             <span>
               <span className="font-medium">Turn on the Profit Hunter</span>
-              <span className="block text-xs text-muted">Runs every hour, plus whenever you click Hunt now. Alerts use your email and phone notifications.</span>
+              <span className="block text-xs text-muted">Runs every 30 minutes, plus whenever you click Hunt now. Alerts use your email and phone notifications.</span>
             </span>
           </label>
 
@@ -215,7 +215,7 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
       <Panel title="How it works" className="mt-6">
         <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted">
           <li>
-            Every hour it takes the newest {HUNTER_PAGE_SIZE} graded listings per sport under your budget, reads each card from the title, and
+            Every 30 minutes it takes the newest {HUNTER_PAGE_SIZE} graded listings per sport under your budget, reads each card from the title, and
             values it from SportsCardsPro (sports) or PriceCharting (Pokémon). Your own Card Values always win.
           </li>
           <li>

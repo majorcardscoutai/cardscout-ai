@@ -344,7 +344,7 @@ export async function cardValueMap(): Promise<{ map: Map<string, CardValue>; err
 export interface ProviderValueRow {
   key: string;
   /** pending = queued, not looked up yet (time ran out) — looked up on the next scan. */
-  status: "matched" | "no_match" | "ambiguous" | "no_price" | "rejected" | "pending";
+  status: "matched" | "no_match" | "ambiguous" | "no_price" | "rejected" | "pending" | "setlist";
   site: "sportscardspro" | "pricecharting";
   productId: string | null;
   matchedName: string | null; // "Shohei Ohtani #US1 · Baseball Cards 2018 Topps Update"

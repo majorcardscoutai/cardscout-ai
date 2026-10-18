@@ -9,7 +9,7 @@ import { cardKey } from "@/lib/cardKey";
 import { cardFromListing } from "@/lib/ebay/parse";
 import { providerConfigured } from "@/lib/provider-client";
 import type { CardIdentity, Sport } from "@/lib/types";
-import { fillProviderValues, identityFromTitle, pendingLookups } from "./provider";
+import { fillProviderValues, identityFromTitle, isBrandOnlySet, pendingLookups, resolveSetless } from "./provider";
 import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
 import { parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
@@ -45,6 +45,8 @@ export interface ScanSummary {
   /** Profit Hunter: vague listings fetched for item specifics, and how many became identifiable. */
   enriched: number;
   enrichHelped: number;
+  /** Profit Hunter: listings whose unknown set was confirmed from the price guide. */
+  setResolved: number;
   errors: string[];
 }
 
@@ -103,7 +105,7 @@ export async function runAllScans(
   opts: { only?: "hunter" } = {},
 ): Promise<ScanSummary> {
   const started = Date.now();
-  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, enriched: 0, enrichHelped: 0, errors: [] };
+  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, enriched: 0, enrichHelped: 0, setResolved: 0, errors: [] };
   if (!ebayConfigured()) {
     summary.errors.push("eBay isn't connected.");
     return summary;
@@ -165,6 +167,13 @@ export async function runAllScans(
         summary.enriched += e.fetched;
         summary.enrichHelped += e.helped;
       }
+      // Titles with a set we don't know: let the guide confirm the set (player + set must both be in the title).
+      if (isHunter && providerConfigured() && !autoError && Date.now() < autoDeadline) {
+        const sr = await resolveSetless(fresh, hint, mineKeys, autoDeadline);
+        fresh = sr.items;
+        for (const [k, v] of sr.newValues) values.map.set(k, v);
+        summary.setResolved += sr.identified;
+      }
       // Value new listings automatically BEFORE checking them, so alerts can use the price guide.
       await autoFill(
         fresh
@@ -203,12 +212,17 @@ export async function runAllScans(
         opts.only === "hunter" ? Promise.resolve({ data: [], error: null }) : listRecentHits(300, false, "mine"),
         listRecentHits(500, false, "hunter"),
       ]);
+      const hunterHitKeys = new Set(
+        hunterRecent.data.map((h) => identityFromTitle(cardFromListing, h.title, { sport: sportBySearch.get(h.searchId) })?.key).filter((k): k is string => !!k),
+      );
       // Cards queued by earlier runs go first (including ones read from item specifics, not titles).
       const queued = await pendingLookups();
       await autoFill([
         ...queued,
         ...[...mineRecent.data, ...hunterRecent.data]
           .map((h) => identityFromTitle(cardFromListing, h.title, { sport: sportBySearch.get(h.searchId) }))
+          // Hunter listings read as just "Topps"/"Bowman" were already handled by the set fallback.
+          .filter((x) => !(x && isBrandOnlySet(x.card.set) && hunterHitKeys.has(x.key)))
           .filter((x): x is { key: string; card: CardIdentity } => x !== null),
       ]);
     }
