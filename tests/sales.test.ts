@@ -62,3 +62,13 @@ test("graded details from eBay condition descriptors (cert number, grader, grade
   assert.equal(c.grader, "PSA"); assert.equal(c.grade, 10);
   assert.equal(mapItem({ itemId: "v1|1|0", title: "x" } as never).aspects.length, 0);
 });
+
+test("PSA token pasted with extras is tidied", async () => {
+  const { psaToken } = await import("../src/lib/psa.js");
+  assert.equal(psaToken("  bearer abc123XYZ \n"), "abc123XYZ");
+  assert.equal(psaToken('"Bearer abc123"'), "abc123");
+  assert.equal(psaToken("Authorization: bearer abc 123"), "abc123");
+  assert.equal(psaToken("abc123"), "abc123");
+  assert.equal(psaToken("   "), null);
+  assert.equal(psaToken(undefined), null);
+});

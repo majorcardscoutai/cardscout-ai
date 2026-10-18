@@ -10,8 +10,19 @@ import type { PsaCert } from "./sales";
 
 const API = "https://api.psacard.com/publicapi/cert/GetByCertNumber/";
 
+/** The token as pasted into Vercel, tidied: spaces, line breaks, quotes and a leading "bearer" removed. */
+export function psaToken(raw = process.env.PSA_API_TOKEN): string | null {
+  const t = (raw ?? "")
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/^authorization:\s*/i, "")
+    .replace(/^bearer\s+/i, "")
+    .replace(/\s+/g, "");
+  return t ? t : null;
+}
+
 export function psaConfigured(): boolean {
-  return Boolean(process.env.PSA_API_TOKEN);
+  return psaToken() !== null;
 }
 
 export type PsaResult = { ok: true; data: PsaCert } | { ok: false; error: string; code?: number };
@@ -36,7 +47,7 @@ export function parsePsaCert(raw: unknown): PsaCert | null {
 }
 
 export async function fetchPsaCert(cert: string): Promise<PsaResult> {
-  const token = process.env.PSA_API_TOKEN;
+  const token = psaToken();
   if (!token) return { ok: false, error: "PSA slab checks aren't set up (PSA_API_TOKEN missing)." };
   if (!/^\d{6,12}$/.test(cert)) return { ok: false, error: "That doesn't look like a PSA cert number." };
   try {
@@ -45,7 +56,7 @@ export async function fetchPsaCert(cert: string): Promise<PsaResult> {
       signal: AbortSignal.timeout(8000),
       cache: "no-store",
     } as RequestInit);
-    if (res.status === 401 || res.status === 403) return { ok: false, code: res.status, error: "PSA rejected the token — check PSA_API_TOKEN in Vercel." };
+    if (res.status === 401 || res.status === 403) return { ok: false, code: res.status, error: "PSA rejected the token — re-copy it from psacard.com/publicapi into PSA_API_TOKEN in Vercel, then redeploy." };
     if (res.status === 429) return { ok: false, code: 429, error: "PSA's daily lookup limit is reached — try again tomorrow." };
     if (!res.ok) return { ok: false, code: res.status, error: `PSA returned HTTP ${res.status}.` };
     const parsed = parsePsaCert(await res.json().catch(() => null));
