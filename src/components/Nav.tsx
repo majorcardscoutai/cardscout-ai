@@ -72,7 +72,7 @@ export default function Nav() {
           })}
         </nav>
         <div className="mt-auto rounded-lg border border-warn/30 bg-warn-soft px-3 py-2.5 text-xs leading-relaxed text-warn">
-          Saved searches are scanned every 3 hours, the Profit Hunter every 30 minutes. Market values from{" "}
+          Saved searches are scanned every 3 hours, the Profit Hunter checks new listings every 10 minutes. Market values from{" "}
           <a href="https://www.sportscardspro.com" target="_blank" rel="noopener noreferrer" className="underline">SportsCardsPro</a> and{" "}
           <a href="https://www.pricecharting.com" target="_blank" rel="noopener noreferrer" className="underline">PriceCharting</a>; your own Card Values always win.
         </div>

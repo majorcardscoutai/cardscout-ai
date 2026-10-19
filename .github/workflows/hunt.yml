@@ -1,10 +1,11 @@
-# Runs CardHawk's Profit Hunter every 30 minutes (free GitHub Actions).
+# Runs CardHawk's Profit Hunter full sweep once an hour (free GitHub Actions).
+# Quick "new listings only" runs happen every 10 minutes in between (hunt-quick.yml).
 # Uses the same CRON_SECRET repository secret as the 3-hourly scan.
 name: CardHawk Profit Hunter
 
 on:
   schedule:
-    - cron: "7,37 * * * *" # every 30 minutes (UTC) at :07 and :37 — away from the 3-hourly scan at :17
+    - cron: "37 * * * *" # hourly at :37 (UTC) — away from the 3-hourly scan at :17
   workflow_dispatch: {} # lets you run it by hand from the Actions tab
 
 jobs:

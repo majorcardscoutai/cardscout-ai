@@ -65,6 +65,13 @@ const GUIDE_TIME_BUDGET_MS = 12_000;
 /** Profit Hunter: when a title is too vague, fetch the listing's item specifics (max per scan / time). */
 export const ENRICH_MAX_PER_SCAN = 40;
 const ENRICH_TIME_BUDGET_MS = 14_000;
+/**
+ * Quick Hunter runs (every 10 minutes between the hourly full runs): only the newest listings,
+ * a smaller item-specifics budget and no re-checks, so eBay calls stay about where they were.
+ */
+export const QUICK_HUNTER_PAGE_SIZE = 100;
+export const QUICK_ENRICH_MAX = 10;
+const QUICK_ENRICH_TIME_BUDGET_MS = 8_000;
 const ENRICH_BATCH = 5;
 
 /** Only graded slabs are worth a lookup (the Hunter is graded-only). */
@@ -108,9 +115,11 @@ async function enrichVague(
 
 export async function runAllScans(
   trigger: "schedule" | "manual" | "daily" | "hunter",
-  opts: { only?: "hunter" } = {},
+  opts: { only?: "hunter" | "hunter-quick" } = {},
 ): Promise<ScanSummary> {
   const started = Date.now();
+  const quick = opts.only === "hunter-quick";
+  const hunterOnly = opts.only === "hunter" || quick;
   const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, enriched: 0, enrichHelped: 0, setResolved: 0, autoLocal: 0, guideSets: 0, errors: [] };
   if (!ebayConfigured()) {
     summary.errors.push("eBay isn't connected.");
@@ -136,12 +145,14 @@ export async function runAllScans(
   // Your own Card Values always win; automatic values fill the rest.
   const mineKeys = new Set([...values.map.values()].filter((v) => v.source === "you").map((v) => v.key));
   // A Hunter-only run has no saved searches to share time with, so it can value more cards.
-  const autoDeadline = started + (opts.only === "hunter" ? HUNTER_AUTO_VALUE_TIME_BUDGET_MS : AUTO_VALUE_TIME_BUDGET_MS);
+  const autoDeadline = started + (hunterOnly ? HUNTER_AUTO_VALUE_TIME_BUDGET_MS : AUTO_VALUE_TIME_BUDGET_MS);
   let autoError: string | null = null;
   const sportBySearch = new Map<string, Sport>(
     searches.data.filter((x) => x.kind === "hunter" && parseHunterSport(x.query)).map((x) => [x.id, parseHunterSport(x.query)!]),
   );
-  const enrichBudget = { left: ENRICH_MAX_PER_SCAN, deadline: started + ENRICH_TIME_BUDGET_MS };
+  const enrichBudget = quick
+    ? { left: QUICK_ENRICH_MAX, deadline: started + QUICK_ENRICH_TIME_BUDGET_MS }
+    : { left: ENRICH_MAX_PER_SCAN, deadline: started + ENRICH_TIME_BUDGET_MS };
   const autoFill = async (cards: { key: string; card: CardIdentity }[]) => {
     if (!providerConfigured() || autoError || cards.length === 0 || Date.now() > autoDeadline) return;
     const f = await fillProviderValues(cards, mineKeys, autoDeadline);
@@ -155,7 +166,7 @@ export async function runAllScans(
   const toRun = searches.data.filter((x) => {
     if (!x.active) return false;
     if (x.kind === "hunter") return hunterCfg.enabled && parseHunterSport(x.query) !== null && hunterCfg.sports.includes(parseHunterSport(x.query)!);
-    return opts.only !== "hunter";
+    return !hunterOnly;
   });
   for (const s of toRun) {
     summary.searches++;
@@ -163,7 +174,7 @@ export async function runAllScans(
     // The Hunter searches one sport at a time, so every listing it finds is that sport.
     const hint: { sport?: Sport } = isHunter ? { sport: parseHunterSport(s.query) ?? undefined } : {};
     const input = isHunter
-      ? { ...hunterSearchInput(parseHunterSport(s.query)!, hunterCfg), shipTo: shipToFor(settings) }
+      ? { ...hunterSearchInput(parseHunterSport(s.query)!, hunterCfg), ...(quick ? { limit: QUICK_HUNTER_PAGE_SIZE } : {}), shipTo: shipToFor(settings) }
       : { q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), shipTo: shipToFor(settings) };
     const r = await searchListings(input);
     if (!r.ok) {
@@ -223,7 +234,7 @@ export async function runAllScans(
     if (providerConfigured() && !autoError && Date.now() < autoDeadline) {
       // Hunter-only runs back-fill hunter listings the last runs didn't reach; full scans do yours first.
       const [mineRecent, hunterRecent] = await Promise.all([
-        opts.only === "hunter" ? Promise.resolve({ data: [], error: null }) : listRecentHits(300, false, "mine"),
+        hunterOnly ? Promise.resolve({ data: [], error: null }) : listRecentHits(300, false, "mine"),
         listRecentHits(500, false, "hunter"),
       ]);
       const hunterHitKeys = new Set(
@@ -247,7 +258,8 @@ export async function runAllScans(
 
   // Re-check valued listings on eBay so displayed details stay under 6 hours old
   // (eBay API licence §8.1.3), sold/ended listings drop out, and price drops can alert.
-  try {
+  // Quick runs skip this (the hourly full run and the 3-hourly scan keep details fresh).
+  if (!quick) try {
     const [recentMine, recentHunter] = await Promise.all([listRecentHits(1000, false, "mine"), listRecentHits(1000, false, "hunter")]);
     const recent = { data: [...recentMine.data, ...recentHunter.data], error: recentMine.error ?? recentHunter.error };
     if (!recent.error) {
@@ -255,7 +267,7 @@ export async function runAllScans(
       const hunterIds = new Set(searches.data.filter((x) => x.kind === "hunter").map((x) => x.id));
       const already = new Set(toEmail.map((h) => h.itemId));
       for (const h of pickRechecks(recent.data, settings, values.map)) {
-        if (Date.now() - started > (opts.only === "hunter" ? 52_000 : RECHECK_TIME_BUDGET_MS)) break;
+        if (Date.now() - started > (hunterOnly ? 52_000 : RECHECK_TIME_BUDGET_MS)) break;
         const r = await getListing(h.itemId, marketBySearch.get(h.searchId) ?? "EBAY_US", shipToFor(settings));
         if (!r.ok && r.code === 429) break;
         if (!r.ok && r.code !== 404) continue; // temporary problem — try again next scan

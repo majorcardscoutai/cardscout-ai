@@ -283,3 +283,4 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - "T206" / "E90" style set codes are no longer read as card numbers.
 - Unmatched cards saved before 20 Oct are re-checked once under the new rules (MATCHER_UPDATED_AT).
 - "View on eBay ↗" on every listing (Top Deals, Profit Hunter, Scanner, Overview) and a button on Analyse with "Purchases are made on eBay — CardHawk doesn't sell cards." (src/components/EbayLink.tsx)
+- Faster Profit Hunter (20 Oct 2026): quick "new listings" runs every 10 minutes (hunt-quick.yml at :07/:27/:47/:57, plus :17 outside the 3-hourly scan hours) — newest 100 per sport, up to 10 item-specifics lookups, no re-checks (~13 eBay calls max per run). Full sweep (newest 200, 40 lookups, re-checks) moved from every 30 minutes to hourly at :37 (hunt.yml). Endpoint: /api/cron/scan?only=hunter-quick. eBay calls/day stay about the same as before (~1,600 quick + ~1,000–2,000 full + scans).

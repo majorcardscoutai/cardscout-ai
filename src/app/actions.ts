@@ -278,7 +278,7 @@ export async function saveHunterAction(formData: FormData) {
     "/hunter",
     "saved",
     parsed.value.enabled
-      ? "Profit Hunter is on. It runs every 30 minutes — click Hunt now to run it straight away."
+      ? "Profit Hunter is on. It checks new listings every 10 minutes — click Hunt now to run it straight away."
       : "Saved. The Profit Hunter is off.",
   );
 }

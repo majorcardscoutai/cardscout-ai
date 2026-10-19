@@ -1,0 +1,31 @@
+# CardHawk Profit Hunter — quick runs: only the newest listings, every 10 minutes between the
+# hourly full sweep (:37, hunt.yml) and the 3-hourly scan (:17). Small eBay budget per run.
+name: CardHawk Profit Hunter (new listings)
+
+on:
+  schedule:
+    # With the hourly full sweep at :37 this gives a Hunter run every 10 minutes (UTC).
+    - cron: "7,27,47,57 * * * *"
+    # :17 too, except in hours when the 3-hourly scan (which includes the Hunter) runs at :17.
+    - cron: "17 1,2,4,5,7,8,10,11,13,14,16,17,19,20,22,23 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: hunter-quick
+  cancel-in-progress: false
+
+jobs:
+  hunt:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Trigger quick Profit Hunter
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          status=$(curl -s -o response.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://cardscout-ai.vercel.app/api/cron/scan?source=github&only=hunter-quick")
+          cat response.json
+          echo
+          test "$status" = "200"
