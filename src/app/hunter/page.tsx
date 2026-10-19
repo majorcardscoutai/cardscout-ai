@@ -305,6 +305,28 @@ function CoveragePanel({ c }: { c: HunterCoverage }) {
           .
         </p>
       )}
+      {c.setsToAdd.length > 0 && (
+        <div className="mt-5 rounded-xl border border-line bg-panel-2 px-4 py-3">
+          <div className="text-sm font-medium">Sets worth adding to Popular sets</div>
+          <p className="mt-1 text-xs text-muted">
+            These sets show up most in listings still waiting for a value. Add them in{" "}
+            <Link href="/settings" className="underline">Settings → Popular sets</Link> and their cards are valued instantly from a daily download.
+            Open the set on the price guide, then copy its “Download Price List” link.
+          </p>
+          <ul className="mt-2 space-y-1 text-sm">
+            {c.setsToAdd.map((x) => (
+              <li key={x.label} className="flex items-center justify-between gap-3">
+                <span>
+                  {x.label} <span className="text-xs text-faint">· {x.count} listing{x.count === 1 ? "" : "s"}</span>
+                </span>
+                <a href={x.searchUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-accent hover:underline">
+                  Find set ↗
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {c.examples.unreadable.length > 0 && (
         <details className="mt-3 text-xs">
           <summary className="cursor-pointer text-accent">Examples: titles missing details</summary>

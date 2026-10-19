@@ -10,6 +10,7 @@ import { cardFromListing } from "@/lib/ebay/parse";
 import { providerConfigured } from "@/lib/provider-client";
 import type { CardIdentity, Sport } from "@/lib/types";
 import { fillProviderValues, identityFromTitle, isBrandOnlySet, pendingLookups, resolveSetless } from "./provider";
+import { refreshGuideSets } from "./guide";
 import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
 import { parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
@@ -47,6 +48,9 @@ export interface ScanSummary {
   enrichHelped: number;
   /** Profit Hunter: listings whose unknown set was confirmed from the price guide. */
   setResolved: number;
+  /** Cards valued instantly from your Popular sets download, and sets refreshed this run. */
+  autoLocal: number;
+  guideSets: number;
   errors: string[];
 }
 
@@ -56,6 +60,8 @@ const RECHECK_TIME_BUDGET_MS = 45_000;
 /** Price-guide lookups (1 per second) stop after this long, leaving time for re-checks. */
 const AUTO_VALUE_TIME_BUDGET_MS = 25_000;
 const HUNTER_AUTO_VALUE_TIME_BUDGET_MS = 42_000;
+/** Popular sets downloads stop after this long (they refresh once a day, a few per run). */
+const GUIDE_TIME_BUDGET_MS = 12_000;
 /** Profit Hunter: when a title is too vague, fetch the listing's item specifics (max per scan / time). */
 export const ENRICH_MAX_PER_SCAN = 40;
 const ENRICH_TIME_BUDGET_MS = 14_000;
@@ -105,7 +111,7 @@ export async function runAllScans(
   opts: { only?: "hunter" } = {},
 ): Promise<ScanSummary> {
   const started = Date.now();
-  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, enriched: 0, enrichHelped: 0, setResolved: 0, errors: [] };
+  const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, enriched: 0, enrichHelped: 0, setResolved: 0, autoLocal: 0, guideSets: 0, errors: [] };
   if (!ebayConfigured()) {
     summary.errors.push("eBay isn't connected.");
     return summary;
@@ -117,6 +123,13 @@ export async function runAllScans(
     summary.errors.push(`Saved searches: ${searches.error}`);
     await recordScanRun({ trigger, searches: 0, newListings: 0, deals: 0, emailed: 0, error: summary.errors.join("; ") });
     return summary;
+  }
+
+  // Popular sets: refresh any older than a day (a few downloads at most), before valuing anything.
+  if (providerConfigured()) {
+    const g = await refreshGuideSets({ deadline: started + GUIDE_TIME_BUDGET_MS, maxRequests: 3 });
+    summary.guideSets = g.setsUpdated;
+    summary.errors.push(...g.errors);
   }
 
   const toEmail: (ScanHit & { searchName: string })[] = [];
@@ -134,6 +147,7 @@ export async function runAllScans(
     const f = await fillProviderValues(cards, mineKeys, autoDeadline);
     summary.autoLooked += f.looked;
     summary.autoValued += f.matched;
+    summary.autoLocal += f.local;
     for (const [k, v] of f.newValues) values.map.set(k, v);
     if (f.error) autoError = f.error;
   };

@@ -18,6 +18,9 @@ import {
   deleteSavedSearch,
   insertSavedSearch,
   saveHunterConfig,
+  listGuideSets,
+  addGuideSets,
+  removeGuideSet,
   setSavedSearchActive,
   setSavedSearchExclude,
   updateCardValueAmount,
@@ -44,6 +47,8 @@ import {
   toUsd,
 } from "@/lib/forms";
 import { parseHunterForm } from "@/lib/hunter";
+import { MAX_GUIDE_SETS, parseGuideLink } from "@/lib/guide-csv";
+import { refreshGuideSets } from "@/data/guide";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -287,8 +292,45 @@ export async function huntNowAction() {
   back(
     "/hunter",
     "saved",
-    `Hunt done: ${r.newListings} new listing${r.newListings === 1 ? "" : "s"} checked${r.enriched ? `, ${r.enrichHelped} of ${r.enriched} vague titles identified from eBay item specifics` : ""}${r.setResolved ? `, ${r.setResolved} unknown sets confirmed from the price guide` : ""}, ${r.autoValued} of ${r.autoLooked} new cards valued, ${r.deals} profitable${r.emailed ? `, ${r.emailed} emailed` : ""}${r.pushed ? `, sent to ${r.pushed} phone${r.pushed === 1 ? "" : "s"}` : ""}.`,
+    `Hunt done: ${r.newListings} new listing${r.newListings === 1 ? "" : "s"} checked${r.enriched ? `, ${r.enrichHelped} of ${r.enriched} vague titles identified from eBay item specifics` : ""}${r.setResolved ? `, ${r.setResolved} unknown sets confirmed from the price guide` : ""}, ${r.autoValued} of ${r.autoLooked} new cards valued${r.autoLocal ? ` (${r.autoLocal} instantly from your Popular sets)` : ""}${r.guideSets ? `, ${r.guideSets} Popular set${r.guideSets === 1 ? "" : "s"} refreshed` : ""}, ${r.deals} profitable${r.emailed ? `, ${r.emailed} emailed` : ""}${r.pushed ? `, sent to ${r.pushed} phone${r.pushed === 1 ? "" : "s"}` : ""}.`,
   );
+}
+
+/** Settings → Popular sets: add from a pasted "Download Price List" link (the token in it is never kept). */
+export async function addGuideSetAction(formData: FormData) {
+  const parsed = parseGuideLink(String(formData.get("link") ?? ""));
+  if (!parsed.ok) back("/settings", "error", parsed.error);
+  const current = await listGuideSets();
+  if (current.error && /guide_sets/.test(current.error))
+    back("/settings", "error", "Popular sets need a one-time database update — run the Popular sets SQL in Supabase (see PROGRESS.md), then add again.");
+  const fresh = parsed.uids.filter((u) => !current.data.some((x) => x.uid === u));
+  if (fresh.length === 0) back("/settings", "saved", "That set is already in your Popular sets.");
+  if (current.data.length + fresh.length > MAX_GUIDE_SETS)
+    back("/settings", "error", `You can keep up to ${MAX_GUIDE_SETS} Popular sets (SportsCardsPro's downloads are meant for particular sets). Remove one first.`);
+  const err = await addGuideSets(parsed.host, fresh);
+  if (err) back("/settings", "error", `Couldn't add: ${err}`);
+  // Download it straight away so its cards are valued from the next hunt.
+  const r = await refreshGuideSets({ deadline: Date.now() + 40_000, maxRequests: fresh.length, only: fresh });
+  revalidatePath("/", "layout");
+  if (r.errors.length) back("/settings", "error", `Added, but the first download failed: ${r.errors.join("; ")} — it will retry on the next scan.`);
+  const sets = (await listGuideSets()).data.filter((x) => fresh.includes(x.uid));
+  back("/settings", "saved", `Added ${sets.map((x) => `${x.name ?? x.uid} (${(x.rows ?? 0).toLocaleString("en-US")} cards)`).join(", ")}. Downloaded daily from now on.`);
+}
+
+export async function removeGuideSetAction(formData: FormData) {
+  const uid = String(formData.get("uid") ?? "");
+  if (!/^[A-Z]{0,3}\d{1,10}$/.test(uid)) back("/settings", "error", "Invalid set.");
+  const err = await removeGuideSet(uid);
+  if (err) back("/settings", "error", `Couldn't remove: ${err}`);
+  revalidatePath("/", "layout");
+  back("/settings", "saved", "Set removed from your Popular sets.");
+}
+
+export async function refreshGuideAction() {
+  const r = await refreshGuideSets({ deadline: Date.now() + 45_000, maxRequests: 6 });
+  revalidatePath("/", "layout");
+  if (r.errors.length) back("/settings", "error", r.errors.join("; "));
+  back("/settings", "saved", r.requests === 0 ? "All Popular sets are up to date (they refresh once a day)." : `Refreshed ${r.setsUpdated} set${r.setsUpdated === 1 ? "" : "s"} (${r.rows.toLocaleString("en-US")} cards).`);
 }
 
 /** Settings → test the SportsCardsPro connection with a well-known card. */

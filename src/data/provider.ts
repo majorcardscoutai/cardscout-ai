@@ -10,6 +10,7 @@ import { getProduct, providerConfigured, searchProducts } from "@/lib/provider-c
 import type { CardValue } from "@/lib/scan";
 import type { CardIdentity } from "@/lib/types";
 import { listProviderValues, queueProviderLookups, saveProviderValue, type ProviderValueRow } from "./db";
+import { localGuide } from "./guide";
 
 export const REFRESH_MATCHED_MS = 24 * 3_600_000;
 export const RETRY_UNMATCHED_MS = 7 * 86_400_000;
@@ -97,6 +98,8 @@ export function rowFromProduct(card: CardIdentity, key: string, product: Provide
 
 
 export interface FillSummary {
+  /** Valued from your downloaded Popular sets (no lookup needed). */
+  local: number;
   looked: number;
   matched: number;
   newValues: Map<string, CardValue>;
@@ -114,7 +117,7 @@ export async function fillProviderValues(
   mineKeys: Set<string>,
   deadlineAt: number,
 ): Promise<FillSummary> {
-  const out: FillSummary = { looked: 0, matched: 0, newValues: new Map(), error: null, pending: 0 };
+  const out: FillSummary = { local: 0, looked: 0, matched: 0, newValues: new Map(), error: null, pending: 0 };
   if (!providerConfigured()) return out;
   const cached = await listProviderValues();
   if (cached.error && /provider_values/.test(cached.error)) {
@@ -156,8 +159,25 @@ export async function fillProviderValues(
     }
   };
 
+  // Your Popular sets (downloaded daily) are checked first — instant, no lookup, same exact-match rules.
+  const local = await localGuide(ordered.flatMap((g) => [...g.members.values()].map((c) => normNumber(c.cardNumber))));
+
   for (const grp of ordered) {
     const members = [...grp.members.entries()];
+    const firstCard = members[0][1];
+    const candidates = local.get(normNumber(firstCard.cardNumber)) ?? [];
+    if (candidates.length > 0) {
+      const pick = pickProduct(firstCard, candidates);
+      if (pick.ok) {
+        for (const [key, card] of members) {
+          const row = { ...rowFromProduct(card, key, pick.product), detail: "From your Popular sets download" };
+          await saveProviderValue(row);
+          record(key, row);
+        }
+        out.local += members.length;
+        continue;
+      }
+    }
     if (Date.now() > deadline) {
       for (const [key, card] of members) {
         out.pending++;
@@ -277,7 +297,10 @@ export async function resolveSetless<T extends { title: string; aspects: Aspect[
     if (valued(cardKey(card))) continue; // brand-only reading already matched the guide
     const site = siteFor(card);
     const qKey = ["setq", card.sport, (card.player ?? "").toLowerCase(), card.year ?? "", normNumber(card.cardNumber)].join("|");
-    let products = lists.get(qKey);
+    // Popular sets first: if the card is in a set you download, no search is needed.
+    const localCands = (await localGuide([normNumber(card.cardNumber)])).get(normNumber(card.cardNumber)) ?? [];
+    const localMatch = localCands.length > 0 ? matchBySetInTitle(card, l.title, localCands) : null;
+    let products = localMatch?.ok ? localCands : lists.get(qKey);
     if (products === undefined) {
       const row = byKey.get(qKey);
       const fresh = row && row.status === "setlist" && Date.now() - new Date(row.fetchedAt).getTime() < SETLIST_TTL_MS;

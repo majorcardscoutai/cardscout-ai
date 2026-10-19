@@ -1015,3 +1015,135 @@ export async function savePsaCert(c: import("@/lib/sales").PsaCert): Promise<str
     return message(e);
   }
 }
+
+// ---------- Popular sets: daily price-guide download (your chosen sets only) ----------
+
+export interface GuideSet {
+  uid: string;
+  host: "sportscardspro" | "pricecharting";
+  name: string | null;
+  rows: number | null;
+  addedAt: string;
+  downloadedAt: string | null;
+  error: string | null;
+}
+
+export async function listGuideSets(): Promise<DbResult<GuideSet[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("guide_sets").select("*").order("added_at", { ascending: true });
+    if (error) throw error;
+    return {
+      error: null,
+      data: (data ?? []).map((r: Record<string, unknown>) => ({
+        uid: String(r.uid),
+        host: r.host === "pricecharting" ? "pricecharting" : "sportscardspro",
+        name: r.name ? String(r.name) : null,
+        rows: numOrNull(r.rows),
+        addedAt: String(r.added_at),
+        downloadedAt: r.downloaded_at ? String(r.downloaded_at) : null,
+        error: r.error ? String(r.error) : null,
+      })),
+    };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}
+
+export async function addGuideSets(host: string, uids: string[]): Promise<string | null> {
+  try {
+    const { error } = await db()
+      .from("guide_sets")
+      .upsert(uids.map((uid) => ({ uid, host, added_at: new Date().toISOString() })), { onConflict: "uid", ignoreDuplicates: true });
+    if (error) throw error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function removeGuideSet(uid: string): Promise<string | null> {
+  try {
+    const r1 = await db().from("guide_prices").delete().eq("set_uid", uid);
+    if (r1.error) throw r1.error;
+    const r2 = await db().from("guide_sets").delete().eq("uid", uid);
+    if (r2.error) throw r2.error;
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export async function markGuideSet(uid: string, patch: { name?: string | null; rows?: number | null; error?: string | null; downloaded?: boolean }): Promise<void> {
+  try {
+    await db()
+      .from("guide_sets")
+      .update({
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.rows !== undefined ? { rows: patch.rows } : {}),
+        error: patch.error ?? null,
+        ...(patch.downloaded ? { downloaded_at: new Date().toISOString() } : {}),
+      })
+      .eq("uid", uid);
+  } catch {
+    // non-fatal
+  }
+}
+
+/** Save downloaded prices (in chunks; Supabase handles ~1,000 rows per call comfortably). */
+export async function saveGuidePrices(
+  rows: { productId: string; setUid: string; consoleName: string; productName: string; numberNorm: string | null; prices: Record<string, number>; salesVolume: number | null }[],
+): Promise<string | null> {
+  try {
+    const now = new Date().toISOString();
+    for (let i = 0; i < rows.length; i += 1000) {
+      const { error } = await db()
+        .from("guide_prices")
+        .upsert(
+          rows.slice(i, i + 1000).map((r) => ({
+            product_id: r.productId,
+            set_uid: r.setUid,
+            console_name: r.consoleName,
+            product_name: r.productName,
+            number_norm: r.numberNorm,
+            prices: r.prices,
+            sales_volume: r.salesVolume,
+            updated_at: now,
+          })),
+          { onConflict: "product_id" },
+        );
+      if (error) throw error;
+    }
+    return null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+/** Guide cards from your downloaded sets with these card numbers (normalised, e.g. "us1"). */
+export async function guidePricesByNumber(
+  numbers: string[],
+): Promise<DbResult<{ productId: string; consoleName: string; productName: string; prices: Record<string, number>; salesVolume: number | null; numberNorm: string | null; updatedAt: string }[]>> {
+  if (!dbConfigured() || numbers.length === 0) return { data: [], error: null };
+  try {
+    const out: { productId: string; consoleName: string; productName: string; prices: Record<string, number>; salesVolume: number | null; numberNorm: string | null; updatedAt: string }[] = [];
+    const uniq = [...new Set(numbers)];
+    for (let i = 0; i < uniq.length; i += 200) {
+      const { data, error } = await db().from("guide_prices").select("*").in("number_norm", uniq.slice(i, i + 200)).limit(5000);
+      if (error) throw error;
+      for (const r of (data ?? []) as Record<string, unknown>[])
+        out.push({
+          productId: String(r.product_id),
+          consoleName: String(r.console_name),
+          productName: String(r.product_name),
+          prices: (r.prices as Record<string, number>) ?? {},
+          salesVolume: numOrNull(r.sales_volume),
+          numberNorm: r.number_norm ? String(r.number_norm) : null,
+          updatedAt: String(r.updated_at),
+        });
+    }
+    return { data: out, error: null };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}

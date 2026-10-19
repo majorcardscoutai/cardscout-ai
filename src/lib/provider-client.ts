@@ -3,6 +3,7 @@
  * Their limit is 1 call per second — every call here waits its turn. Never throws.
  */
 import { parseApiProduct, type ProviderProduct, type ProviderSite } from "./provider";
+import { guideDownloadUrl, type GuideHost } from "./guide-csv";
 
 const HOSTS: Record<ProviderSite, string> = {
   sportscardspro: "https://www.sportscardspro.com",
@@ -73,4 +74,20 @@ export async function getProduct(site: ProviderSite, id: string): Promise<Provid
 
 export function resetProviderThrottle() {
   lastCall = 0;
+}
+
+/** Download the price list CSV for up to 5 of your chosen sets (Settings → Popular sets). */
+export async function downloadGuideCsv(host: GuideHost, uids: string[]): Promise<ProviderResult<string>> {
+  const token = process.env.SPORTSCARDSPRO_TOKEN;
+  if (!token) return { ok: false, error: "SportsCardsPro isn't connected (SPORTSCARDSPRO_TOKEN missing in Vercel)." };
+  await waitTurn();
+  try {
+    const res = await fetch(guideDownloadUrl(host, uids, token), { signal: AbortSignal.timeout(25_000), cache: "no-store" } as RequestInit);
+    if (res.status === 429) return { ok: false, code: 429, error: "SportsCardsPro download limit reached — will retry next run." };
+    if (res.status === 401 || res.status === 403) return { ok: false, code: res.status, error: "SportsCardsPro rejected the token for downloads." };
+    if (!res.ok) return { ok: false, code: res.status, error: `SportsCardsPro download returned HTTP ${res.status}.` };
+    return { ok: true, data: await res.text() };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.name === "TimeoutError" ? "The price list download took too long." : "Couldn't reach SportsCardsPro." };
+  }
 }

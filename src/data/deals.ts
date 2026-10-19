@@ -7,7 +7,7 @@ import { pickDeals, type DealHit, type PickedDeals } from "@/lib/deals";
 import { hunterRules, liquidEnough, parseHunterSport, type HunterConfig } from "@/lib/hunter";
 import { isFresh } from "@/lib/freshness";
 import type { Settings } from "@/lib/types";
-import { cardValueMap, listProviderValues, listRecentHits, listSavedSearches, loadHunterConfig, loadSettings, type SavedSearch } from "./db";
+import { cardValueMap, listGuideSets, listProviderValues, listRecentHits, listSavedSearches, loadHunterConfig, loadSettings, type SavedSearch } from "./db";
 import { cardKey } from "@/lib/cardKey";
 import { cardFromListing } from "@/lib/ebay/parse";
 import { priceFieldFor } from "@/lib/provider";
@@ -79,18 +79,21 @@ export interface HunterCoverage {
   noPrice: number;
   rejected: number;
   valued: number;
+  /** Sets that appear most in listings still without a value — worth adding to Popular sets. */
+  setsToAdd: { label: string; count: number; searchUrl: string }[];
   /** A few real titles per reason, so you can see the patterns. */
   examples: { unreadable: { title: string; url: string; missing: string[] }[]; noMatch: { title: string; url: string; detail: string }[] };
 }
 
 export async function hunterView(): Promise<HunterView> {
-  const [{ settings }, hits, values, searches, hunter, guide] = await Promise.all([
+  const [{ settings }, hits, values, searches, hunter, guide, guideSets] = await Promise.all([
     loadSettings(),
     listRecentHits(1000, false, "hunter"),
     cardValueMap(),
     listSavedSearches(),
     loadHunterConfig(),
     listProviderValues(),
+    listGuideSets(),
   ]);
   const mine = searches.data.filter((x) => x.kind === "hunter");
   const ids = new Set(mine.map((x) => x.id));
@@ -104,6 +107,18 @@ export async function hunterView(): Promise<HunterView> {
   const cov: HunterCoverage = {
     total: 0, unreadable: 0, missing: [], noGradePrice: 0, waiting: 0, noMatch: 0, ambiguous: 0, noPrice: 0, rejected: 0, valued: 0,
     examples: { unreadable: [], noMatch: [] },
+    setsToAdd: [],
+  };
+  const setCounts = new Map<string, { label: string; count: number; sport?: string; q: string }>();
+  const countSet = (card: { sport?: string; year?: number; set?: string }) => {
+    if (!card.set || !card.sport) return;
+    const set = card.set.replace(/^\s*(19|20)\d\d(-\d\d)?\s+/, "");
+    const yr = card.sport === "Pokemon" ? "" : card.year ? `${card.year} ` : "";
+    const label = `${yr}${set}${card.sport === "Pokemon" ? " (Pokémon)" : card.sport === "NBA" ? " (Basketball)" : " (Baseball)"}`;
+    const k = label.toLowerCase();
+    const cur = setCounts.get(k) ?? { label, count: 0, sport: card.sport, q: `${yr}${set}` };
+    cur.count++;
+    setCounts.set(k, cur);
   };
   const missingCount = new Map<string, number>();
   const seenItems = new Set<string>();
@@ -122,6 +137,7 @@ export async function hunterView(): Promise<HunterView> {
       continue;
     }
     if (values.map.has(key)) { cov.valued++; continue; }
+    if (titleKey) countSet(parsed.card);
     if (titleKey && !priceFieldFor(parsed.card)) { cov.noGradePrice++; continue; }
     const row = rowByKey.get(key);
     const st = row?.status;
@@ -136,6 +152,17 @@ export async function hunterView(): Promise<HunterView> {
     else cov.waiting++;
   }
   cov.missing = [...missingCount.entries()].sort((a, b) => b[1] - a[1]);
+  // Sets you already download don't need adding.
+  const have = guideSets.data.map((g) => (g.name ?? "").toLowerCase());
+  cov.setsToAdd = [...setCounts.values()]
+    .filter((x) => !have.some((h) => h.includes(x.q.toLowerCase())))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
+    .map((x) => ({
+      label: x.label,
+      count: x.count,
+      searchUrl: `${x.sport === "Pokemon" ? "https://www.pricecharting.com" : "https://www.sportscardspro.com"}/search-products?${new URLSearchParams({ q: x.q, type: "prices" })}`,
+    }));
   const rules = hunterRules(settings, hunter.config);
   return {
     settings,

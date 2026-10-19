@@ -199,3 +199,28 @@ create table if not exists public.psa_certs (
   fetched_at timestamptz not null default now()
 );
 alter table public.psa_certs enable row level security;
+
+-- ---------- 20 Oct 2026: Popular sets — daily price-guide download (your chosen sets only) ----------
+create table if not exists public.guide_sets (
+  uid text primary key,
+  host text not null default 'sportscardspro',
+  name text,
+  rows integer,
+  added_at timestamptz not null default now(),
+  downloaded_at timestamptz,
+  error text
+);
+create table if not exists public.guide_prices (
+  product_id text primary key,
+  set_uid text not null,
+  console_name text not null,
+  product_name text not null,
+  number_norm text,
+  prices jsonb not null default '{}'::jsonb,
+  sales_volume integer,
+  updated_at timestamptz not null default now()
+);
+create index if not exists guide_prices_number_norm on public.guide_prices (number_norm);
+create index if not exists guide_prices_set_uid on public.guide_prices (set_uid);
+alter table public.guide_sets enable row level security;
+alter table public.guide_prices enable row level security;

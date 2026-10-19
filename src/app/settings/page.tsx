@@ -1,6 +1,7 @@
 import { saveSettingsAction } from "@/app/actions";
 import { logout } from "@/app/login/actions";
-import { testProviderAction } from "@/app/actions";
+import { addGuideSetAction, refreshGuideAction, removeGuideSetAction, testProviderAction } from "@/app/actions";
+import { MAX_GUIDE_SETS } from "@/lib/guide-csv";
 import ProviderCredit from "@/components/ProviderCredit";
 import { providerConfigured } from "@/lib/provider-client";
 import { psaConfigured } from "@/lib/psa";
@@ -8,7 +9,7 @@ import { removeDeviceAction, testPushAction } from "@/app/push-actions";
 import PushSetup from "@/components/PushSetup";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { PageHeader, Panel, Tag } from "@/components/ui";
-import { listPushSubscriptions, listWaitlist } from "@/data/db";
+import { listGuideSets, listPushSubscriptions, listWaitlist } from "@/data/db";
 import { loadSettings } from "@/data/source";
 import { vapidPublicKey } from "@/lib/webpush";
 import { OTHER_COUNTRIES, REGION_LABELS, taxHint, taxLabel } from "@/lib/region";
@@ -26,10 +27,11 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { saved, error } = await searchParams;
-  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices, waitlist] = await Promise.all([
+  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices, waitlist, guideSets] = await Promise.all([
     loadSettings(),
     listPushSubscriptions(),
     listWaitlist(),
+    listGuideSets(),
   ]);
   const pushKey = vapidPublicKey();
 
@@ -207,6 +209,54 @@ export default async function SettingsPage({
           </span>
           <Tag tone={psaConfigured() ? "default" : "warn"}>{psaConfigured() ? "Connected" : "Add PSA_API_TOKEN"}</Tag>
         </div>
+      </Panel>
+
+      <Panel
+        title="Popular sets — daily price download"
+        className="mt-6"
+        right={<Tag>{guideSets.data.length} / {MAX_GUIDE_SETS} sets</Tag>}
+      >
+        <p className="mb-3 text-sm text-muted">
+          Cards from these sets are valued instantly from a daily SportsCardsPro/PriceCharting download, instead of one lookup per second.
+          Add the sets most flipped cards come from — the Profit Hunter page lists the best ones to add.
+        </p>
+        {guideSets.error && /guide_sets/.test(guideSets.error) ? (
+          <p className="mb-3 text-xs text-warn">Run the Popular sets SQL in Supabase first (bottom of supabase/schema.sql).</p>
+        ) : null}
+        <form action={addGuideSetAction} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <Field label="Set's “Download Price List” link" className="flex-1" hint="On the set's page: right-click “Download Price List” → Copy Link Address. Only the set code is kept — never your token.">
+            <input name="link" required placeholder="https://www.sportscardspro.com/price-guide/download-custom?t=…&console-uids=G23347" className={inputCls} />
+          </Field>
+          <SubmitButton>Add set</SubmitButton>
+        </form>
+        {guideSets.data.length > 0 && (
+          <ul className="mt-4 divide-y divide-line text-sm">
+            {guideSets.data.map((g) => (
+              <li key={g.uid} className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0">
+                  <span className="font-medium">{g.name ?? g.uid}</span>
+                  <span className="block text-xs text-muted">
+                    {g.rows !== null ? `${g.rows.toLocaleString("en-US")} cards · ` : ""}
+                    {g.downloadedAt ? `updated ${new Date(g.downloadedAt).toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}` : "not downloaded yet"}
+                    {g.error ? <span className="text-loss"> · {g.error}</span> : null}
+                  </span>
+                </span>
+                <form action={removeGuideSetAction}>
+                  <input type="hidden" name="uid" value={g.uid} />
+                  <button className="text-xs text-muted hover:text-loss">Remove</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        {guideSets.data.length > 0 && (
+          <form action={refreshGuideAction} className="mt-3">
+            <SubmitButton tone="neutral">Refresh now</SubmitButton>
+          </form>
+        )}
+        <p className="mt-3 text-[11px] text-faint">
+          SportsCardsPro&apos;s downloads are meant for particular sets, so CardHawk downloads only the sets you add, up to 5 per request, once a day.
+        </p>
       </Panel>
 
       <div id="alerts" className="scroll-mt-24">

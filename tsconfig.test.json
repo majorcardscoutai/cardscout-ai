@@ -31,6 +31,7 @@
     "tests/webpush.test.ts",
     "tests/provider.test.ts",
     "tests/hunter.test.ts",
-    "tests/sales.test.ts"
+    "tests/sales.test.ts",
+    "tests/guide.test.ts"
   ]
 }
