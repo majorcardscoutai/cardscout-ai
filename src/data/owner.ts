@@ -46,7 +46,7 @@ const stamp = (v: Row | Row[], uid: string) => (Array.isArray(v) ? v.map((r) => 
 type AnyQuery = any;
 
 export async function tbl(table: string): Promise<AnyQuery> {
-  const q = db().from(table);
+  const q: AnyQuery = db().from(table);
   // Wrapped (not returned as-is) so awaiting tbl() never runs a query by accident.
   if (!PER_USER_TABLES.has(table))
     return {
