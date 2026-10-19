@@ -4,6 +4,7 @@ import { ValueSource } from "@/components/ProviderCredit";
 import { formatMoney } from "@/lib/currency";
 import { Money, Pct, Tag } from "@/components/ui";
 import type { DealHit } from "@/lib/deals";
+import { EbayLink } from "@/components/EbayLink";
 
 /** One deal row — used by Top Deals and Profit Hunter. */
 export function ago(iso: string): string {
@@ -37,6 +38,7 @@ export function DealRow({ d, fx, rank, returnTo = "/deals" }: { d: DealHit; fx: 
           </a>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
             {d.isAuction ? <Tag tone="warn">Auction · {endsIn(d.endsAt) ?? "end time unknown"}</Tag> : <Tag>Buy It Now</Tag>}
+            <EbayLink url={d.url} />
             <ValueSource source={d.valueSource} />
             <span>{d.searchName}</span>
             {d.salesVolume !== null && d.salesVolume !== undefined && <span>· sells ~{d.salesVolume}/yr</span>}

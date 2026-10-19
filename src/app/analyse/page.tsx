@@ -17,6 +17,7 @@ import { cardKey } from "@/lib/cardKey";
 import { ebayConfigured, getListing, toUsd, type EbayListing, type Marketplace } from "@/lib/ebay/client";
 import { cardFromListing, type CardSuggestion } from "@/lib/ebay/parse";
 import { displayFx, isImport, shipToCountry, shipToFor, taxLabel } from "@/lib/region";
+import { EbayLink } from "@/components/EbayLink";
 
 export const dynamic = "force-dynamic";
 
@@ -163,8 +164,12 @@ export default async function ManualScannerPage({
             )}
             <div className="min-w-0 flex-1 space-y-3">
               <a href={listing.url} target="_blank" rel="noopener noreferrer" className="block font-medium hover:text-accent">
-                {listing.title} ↗
+                {listing.title}
               </a>
+              <div className="flex flex-wrap items-center gap-2">
+                <EbayLink url={listing.url} size="md" />
+                <span className="text-xs text-faint">Purchases are made on eBay — CardHawk doesn&apos;t sell cards.</span>
+              </div>
               <div className="flex flex-wrap gap-6">
                 <div>
                   <div className="text-xs text-muted">{listing.isAuction ? "Current bid" : "Asking price"}</div>

@@ -25,6 +25,7 @@ import { excludedBy, excludeWordsText, parseExcludeWords } from "@/lib/exclude";
 import { isEnded, isFresh } from "@/lib/freshness";
 import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit } from "@/lib/scan";
 import { displayFx, shipToFor } from "@/lib/region";
+import { EbayLink } from "@/components/EbayLink";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -273,6 +274,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                           <Tag>{l.isAuction ? `Auction${l.bidCount !== null ? ` · ${l.bidCount} bids` : ""}` : l.acceptsOffers ? "Buy It Now · Offers" : "Buy It Now"}</Tag>
                           {l.isAuction && endsIn(l.endsAt) && <Tag tone="warn">{endsIn(l.endsAt)}</Tag>}
                           {l.country && <Tag>{l.country}</Tag>}
+                          <EbayLink url={l.url} />
                           <ValueSource source={h.valueSource} />
                           {h.valueUsd !== null ? (
                             h.meetsCriteria ? (
@@ -469,6 +471,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
                     <span>{searchNames.get(h.searchId) ?? "Search"}</span>
                     <span>· found {ago(h.createdAt)}</span>
+                    <EbayLink url={h.url} />
                     {h.isAuction && <Tag tone="warn">Auction{endsIn(h.endsAt) ? ` · ${endsIn(h.endsAt)}` : ""}</Tag>}
                     <ValueSource source={h.valueSource} />
                     {h.meetsCriteria && <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Deal</span>}

@@ -8,6 +8,7 @@ import { ebayConfigured } from "@/lib/ebay/client";
 import { providerConfigured } from "@/lib/provider-client";
 import { listHoldings, listWatchlist, loadSettings } from "@/data/source";
 import { displayFx, REGION_LABELS } from "@/lib/region";
+import { EbayLink } from "@/components/EbayLink";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +85,7 @@ export default async function OverviewPage() {
                       {d.isAuction ? <Tag tone="warn">Auction</Tag> : <Tag>Buy It Now</Tag>}
                       <Pct value={d.roiPercent} />
                       <span className="text-faint">ROI</span>
+                      <EbayLink url={d.url} />
                     </div>
                   </div>
                   <div className="text-right">

@@ -282,3 +282,4 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - One-letter spelling differences in first names ("Satchel" vs "Satchell" Paige) match; the surname must be exact, and short first names (Mike/Mark) must be exact.
 - "T206" / "E90" style set codes are no longer read as card numbers.
 - Unmatched cards saved before 20 Oct are re-checked once under the new rules (MATCHER_UPDATED_AT).
+- "View on eBay ↗" on every listing (Top Deals, Profit Hunter, Scanner, Overview) and a button on Analyse with "Purchases are made on eBay — CardHawk doesn't sell cards." (src/components/EbayLink.tsx)
