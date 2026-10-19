@@ -296,3 +296,11 @@ Decisions (20 Oct): invite-only beta · email + password sign-in only · 5 saved
 - Setup (Travis): Supabase → Authentication → Sign In / Providers: turn OFF "Allow new users to sign up"; URL Configuration: Site URL https://cardscout-ai.vercel.app + Redirect URL https://cardscout-ai.vercel.app/auth/reset; Users → Add user (Auto Confirm). Vercel: ADMIN_EMAILS.
 - Note: Supabase's built-in email only sends to project team members and has a low hourly limit — fine for Travis; custom SMTP (e.g. Resend) needed before beta invites (step 6).
 - 108 unit tests + e2e scenario 20.
+
+### Step 2 — your data moves into your account (built 20 Oct 2026)
+- Every per-user table (settings, hunter_config, saved_searches, scan_hits, scan_runs, watchlist, holdings, card_values, push_subscriptions) gets user_id; the one-time SQL (bottom of supabase/schema.sql, "Phase 6 step 2") gives all existing rows to your account and makes settings / Hunter one row per account and Card Values unique per account.
+- src/data/owner.ts: tbl(table) filters every read/update/delete by the signed-in account and stamps inserts; scheduled scans run per account (runAsUser) — the cron endpoint loops over accounts with active searches.
+- The old site password (APP_PASSWORD) is retired — sign in with your email. APP_PASSWORD can be deleted from Vercel.
+- Order: run the SQL first, then publish (the SQL defaults new rows to your account so the old code keeps working in between).
+- To do in step 4: "This match is wrong" (rejectProviderValue) currently rejects the shared guide value for everyone → make it per account; email alerts still go to ALERT_EMAIL → each account's own email; remove the user_id default set by the step 2 SQL before anyone else joins.
+- 108 unit tests + e2e scenarios 8 (updated), 20, 21 (accounts are separate).

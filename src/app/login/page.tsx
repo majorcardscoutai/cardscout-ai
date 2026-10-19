@@ -1,6 +1,6 @@
 import { safeNextPath } from "@/lib/auth";
 import { WAITLIST_GOALS } from "@/lib/forms";
-import { joinWaitlist, login, signIn } from "./actions";
+import { joinWaitlist, signIn } from "./actions";
 import HawkLogo from "@/components/HawkLogo";
 
 export const metadata = { title: "CardHawk AI · Sign in or join the waitlist" };
@@ -8,16 +8,9 @@ export const metadata = { title: "CardHawk AI · Sign in or join the waitlist" }
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string; joined?: string; wl?: string; account?: string; email?: string }>;
+  searchParams: Promise<{ next?: string; joined?: string; wl?: string; account?: string; email?: string }>;
 }) {
-  const { error, next, joined, wl, account, email } = await searchParams;
-  const oldPasswordOn = Boolean(process.env.APP_PASSWORD);
-  const message =
-    error === "wrong"
-      ? "That password isn't right."
-      : error === "not-configured"
-        ? "APP_PASSWORD isn't set in .env.local (or in Vercel's environment variables)."
-        : null;
+  const { next, joined, wl, account, email } = await searchParams;
   const inputCls =
     "mt-1 w-full rounded-lg border border-line bg-panel-2 px-3 py-2.5 text-sm outline-none focus:border-accent";
 
@@ -51,23 +44,6 @@ export default async function LoginPage({
           <div className="mt-3 text-center text-xs">
             <a href="/login/forgot" className="text-accent hover:underline">Forgot password?</a>
           </div>
-          {oldPasswordOn && (
-            <details className="mt-5 border-t border-line pt-4" open={Boolean(message)}>
-              <summary className="cursor-pointer text-xs text-faint">Use the old site password</summary>
-              <form action={login} className="mt-3">
-                <input type="hidden" name="next" value={safeNextPath(next)} />
-                <label className="block">
-                  <span className="text-xs text-muted">Site password</span>
-                  <input type="password" name="password" required autoComplete="off" className={inputCls} />
-                </label>
-                {message && <p className="mt-3 text-sm text-loss">{message}</p>}
-                <button className="mt-3 w-full rounded-lg bg-panel-2 px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line-strong hover:bg-line">
-                  Sign in with site password
-                </button>
-              </form>
-            </details>
-          )}
-          {!oldPasswordOn && message && <p className="mt-3 text-sm text-loss">{message}</p>}
         </div>
 
         <figure className="overflow-hidden rounded-2xl border border-line bg-panel">

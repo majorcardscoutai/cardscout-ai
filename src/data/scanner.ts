@@ -113,6 +113,18 @@ async function enrichVague(
   return { items: out, fetched, helped };
 }
 
+/** Add up several accounts' scan results. */
+export function mergeSummaries(runs: ScanSummary[]): ScanSummary {
+  const out: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, enriched: 0, enrichHelped: 0, setResolved: 0, autoLocal: 0, guideSets: 0, errors: [] };
+  for (const r of runs) {
+    for (const k of Object.keys(out) as (keyof ScanSummary)[]) {
+      if (k === "errors") out.errors.push(...r.errors);
+      else (out[k] as number) += r[k] as number;
+    }
+  }
+  return out;
+}
+
 export async function runAllScans(
   trigger: "schedule" | "manual" | "daily" | "hunter",
   opts: { only?: "hunter" | "hunter-quick" } = {},

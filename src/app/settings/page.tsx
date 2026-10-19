@@ -353,13 +353,7 @@ export default async function SettingsPage({
               </span>
             </p>
           ) : (
-            <p className="text-sm text-muted">
-              Signed in with the old site password (shared login).
-              <span className="block text-xs text-faint">
-                Accounts are being switched on: once yours works, sign out and sign in with your email. The site password is removed
-                at the end of Phase 6.
-              </span>
-            </p>
+            <p className="text-sm text-muted">Not signed in.</p>
           )}
           <form action={logout}>
             <SubmitButton tone="neutral">Log out</SubmitButton>

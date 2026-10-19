@@ -8,7 +8,8 @@ import {
   parseWatchlistForm,
   toUsd,
 } from "../src/lib/forms";
-import { sessionToken, safeNextPath } from "../src/lib/auth";
+import { safeNextPath } from "../src/lib/auth";
+import { isAdminEmail, passwordProblem, tokenExpiry } from "../src/lib/supabase-auth";
 
 function fd(values: Record<string, string>): FormData {
   const f = new FormData();
@@ -128,11 +129,21 @@ test("parcel-locker shipping setting is parsed, defaulting to eBay shipping", ()
   assert.equal(parseSettingsForm(fd({ ...base, inboundShippingMode: "fixed", inboundShippingFixed: "-1" })).ok, false);
 });
 
-test("session token is stable, password-specific and hex", async () => {
-  const a = await sessionToken("hunter2");
-  assert.equal(a, await sessionToken("hunter2"));
-  assert.notEqual(a, await sessionToken("hunter3"));
-  assert.match(a, /^[0-9a-f]{64}$/);
+test("accounts: password rules, admin list, token expiry", () => {
+  assert.equal(passwordProblem("short", "short"), "Use at least 8 characters.");
+  assert.equal(passwordProblem("longenough", "longenougH"), "The two passwords don't match.");
+  assert.equal(passwordProblem("x".repeat(73), "x".repeat(73)), "Use at most 72 characters.");
+  assert.equal(passwordProblem("longenough", "longenough"), null);
+  process.env.ADMIN_EMAILS = " Travis@Example.com,other@x.com ";
+  assert.equal(isAdminEmail("travis@example.com"), true);
+  assert.equal(isAdminEmail("TRAVIS@EXAMPLE.COM"), true);
+  assert.equal(isAdminEmail("someone@example.com"), false);
+  assert.equal(isAdminEmail(null), false);
+  delete process.env.ADMIN_EMAILS;
+  assert.equal(isAdminEmail("travis@example.com"), false, "no list = no admins");
+  const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  assert.equal(tokenExpiry(`${b64({ alg: "ES256" })}.${b64({ exp: 2000000000 })}.sig`), 2000000000 * 1000);
+  assert.equal(tokenExpiry("not-a-token"), 0);
 });
 
 test("login redirect only allows paths inside the app", () => {

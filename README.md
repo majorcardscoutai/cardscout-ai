@@ -2,7 +2,7 @@
 
 A private trading-card investment dashboard. It compares asking prices with **verified sold prices**, works out profit after every cost, and scores each opportunity out of 100.
 
-> **Phase 2 status:** your settings, watchlist and portfolio are saved in Supabase, and the app is password-protected. Deal listings and sold comparisons are still clearly labelled **demonstration data** until Phase 3. Automatic scanning is **not** built yet.
+> **Status (Oct 2026):** sign-in is by account (email + password, invite only — Phase 6); each account's data is kept separate. Older note: your settings, watchlist and portfolio are saved in Supabase. Deal listings and sold comparisons are still clearly labelled **demonstration data** until Phase 3. Automatic scanning is **not** built yet.
 
 ## Your private keys (.env.local)
 
@@ -11,7 +11,7 @@ The app needs a file called `.env.local` in the project folder (never shared, ne
 ```
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SECRET_KEY=sb_secret_...
-APP_PASSWORD=your-own-password
+ADMIN_EMAILS=you@example.com         # Phase 6: your sign-in email (admin)
 EBAY_CLIENT_ID=your-ebay-app-id        # Phase 3, Production keyset
 EBAY_CLIENT_SECRET=your-ebay-cert-id
 ```

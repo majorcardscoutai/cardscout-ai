@@ -11,6 +11,7 @@ import { parseRegion } from "@/lib/region";
 import { DEFAULT_HUNTER, HUNTER_SPORTS, hunterSearchName, parseHunterSport, type HunterConfig, type HunterSport } from "@/lib/hunter";
 import type { CardValue, ScanHit } from "@/lib/scan";
 import { db, dbConfigured } from "@/lib/supabase";
+import { tbl } from "@/data/owner";
 import type { CardIdentity, Holding, Settings, WatchlistEntry } from "@/lib/types";
 
 export interface DbResult<T> {
@@ -49,7 +50,7 @@ export async function loadSettings(): Promise<SettingsLoad> {
 async function loadSavedSettings(): Promise<SettingsLoad> {
   if (!dbConfigured()) return { settings: DEFAULT_SETTINGS, source: "defaults", error: "Database not configured" };
   try {
-    const { data, error } = await db().from("settings").select("*").eq("id", 1).maybeSingle();
+    const { data, error } = await (await tbl("settings")).select("*").maybeSingle();
     if (error) throw error;
     if (!data) return { settings: DEFAULT_SETTINGS, source: "defaults", error: "Settings row missing — run supabase/schema.sql" };
     return {
@@ -82,10 +83,8 @@ async function loadSavedSettings(): Promise<SettingsLoad> {
 
 export async function saveSettings(s: Settings): Promise<string | null> {
   try {
-    const { error } = await db()
-      .from("settings")
+    const { error } = await (await tbl("settings"))
       .upsert({
-        id: 1,
         usd_to_aud: s.usdToAud,
         marketplace_fee_rate: s.marketplaceFeeRate,
         marketplace_fixed_fee_usd: s.marketplaceFixedFeeUsd,
@@ -100,7 +99,7 @@ export async function saveSettings(s: Settings): Promise<string | null> {
         ship_to_country: s.shipToCountry,
         ship_to_postcode: s.shipToPostcode,
         updated_at: new Date().toISOString(),
-      });
+      }, { onConflict: "user_id" });
     if (error) throw error;
     return null;
   } catch (e) {
@@ -113,7 +112,7 @@ export async function saveSettings(s: Settings): Promise<string | null> {
 export async function listWatchlist(): Promise<DbResult<WatchlistEntry[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("watchlist").select("*").order("created_at", { ascending: false });
+    const { data, error } = await (await tbl("watchlist")).select("*").order("created_at", { ascending: false });
     if (error) throw error;
     return {
       error: null,
@@ -138,7 +137,7 @@ export async function listWatchlist(): Promise<DbResult<WatchlistEntry[]>> {
 
 export async function insertWatchlist(w: WatchlistInput): Promise<string | null> {
   try {
-    const { error } = await db().from("watchlist").insert({
+    const { error } = await (await tbl("watchlist")).insert({
       title: w.title,
       card: w.card,
       asking_price_usd: w.askingPriceUsd,
@@ -158,7 +157,7 @@ export async function insertWatchlist(w: WatchlistInput): Promise<string | null>
 
 export async function deleteWatchlist(id: string): Promise<string | null> {
   try {
-    const { error } = await db().from("watchlist").delete().eq("id", id);
+    const { error } = await (await tbl("watchlist")).delete().eq("id", id);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -171,7 +170,7 @@ export async function deleteWatchlist(id: string): Promise<string | null> {
 export async function listHoldings(): Promise<DbResult<Holding[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("holdings").select("*").order("purchased_at", { ascending: false });
+    const { data, error } = await (await tbl("holdings")).select("*").order("purchased_at", { ascending: false });
     if (error) throw error;
     return {
       error: null,
@@ -200,7 +199,7 @@ export async function listHoldings(): Promise<DbResult<Holding[]>> {
 
 export async function insertHolding(h: HoldingInput): Promise<string | null> {
   try {
-    const { error } = await db().from("holdings").insert({
+    const { error } = await (await tbl("holdings")).insert({
       title: h.title,
       card: h.card,
       purchase_price_usd: h.purchasePriceUsd,
@@ -219,7 +218,7 @@ export async function insertHolding(h: HoldingInput): Promise<string | null> {
 
 export async function deleteHolding(id: string): Promise<string | null> {
   try {
-    const { error } = await db().from("holdings").delete().eq("id", id);
+    const { error } = await (await tbl("holdings")).delete().eq("id", id);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -236,8 +235,7 @@ export async function getWatchlistItem(id: string): Promise<DbResult<WatchlistEn
 
 export async function updateWatchlist(id: string, w: WatchlistInput): Promise<string | null> {
   try {
-    const { error } = await db()
-      .from("watchlist")
+    const { error } = await (await tbl("watchlist"))
       .update({
         title: w.title,
         card: w.card,
@@ -263,8 +261,7 @@ export async function getHolding(id: string): Promise<DbResult<Holding | null>> 
 
 export async function updateHolding(id: string, h: HoldingInput): Promise<string | null> {
   try {
-    const { error } = await db()
-      .from("holdings")
+    const { error } = await (await tbl("holdings"))
       .update({
         title: h.title,
         card: h.card,
@@ -293,7 +290,7 @@ export interface CardValueRow extends CardValue {
 export async function listCardValues(): Promise<DbResult<CardValueRow[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("card_values").select("*").order("updated_at", { ascending: false });
+    const { data, error } = await (await tbl("card_values")).select("*").order("updated_at", { ascending: false });
     if (error) throw error;
     return {
       error: null,
@@ -360,7 +357,7 @@ export interface ProviderValueRow {
 export async function listProviderValues(): Promise<DbResult<ProviderValueRow[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("provider_values").select("*").order("fetched_at", { ascending: false }).limit(5000);
+    const { data, error } = await (await tbl("provider_values")).select("*").order("fetched_at", { ascending: false }).limit(5000);
     if (error) throw error;
     return {
       error: null,
@@ -389,8 +386,7 @@ export async function listProviderValues(): Promise<DbResult<ProviderValueRow[]>
 export async function queueProviderLookups(cards: { key: string; card: CardIdentity; site: string }[]): Promise<string | null> {
   if (cards.length === 0) return null;
   try {
-    const { error } = await db()
-      .from("provider_values")
+    const { error } = await (await tbl("provider_values"))
       .upsert(
         cards.map((c) => ({ card_key: c.key, status: "pending", site: c.site, card: c.card, grader_specific: true, fetched_at: new Date().toISOString() })),
         { onConflict: "card_key", ignoreDuplicates: true },
@@ -404,8 +400,7 @@ export async function queueProviderLookups(cards: { key: string; card: CardIdent
 
 export async function saveProviderValue(v: Omit<ProviderValueRow, "fetchedAt">): Promise<string | null> {
   try {
-    const { error } = await db()
-      .from("provider_values")
+    const { error } = await (await tbl("provider_values"))
       .upsert(
         {
           card_key: v.key,
@@ -433,7 +428,7 @@ export async function saveProviderValue(v: Omit<ProviderValueRow, "fetchedAt">):
 /** "This match is wrong" — stop using the automatic value for this card. */
 export async function rejectProviderValue(key: string): Promise<string | null> {
   try {
-    const { error } = await db().from("provider_values").update({ status: "rejected" }).eq("card_key", key);
+    const { error } = await (await tbl("provider_values")).update({ status: "rejected" }).eq("card_key", key);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -449,8 +444,7 @@ export async function upsertCardValue(input: {
   note?: string | null;
 }): Promise<string | null> {
   try {
-    const { error } = await db()
-      .from("card_values")
+    const { error } = await (await tbl("card_values"))
       .upsert(
         {
           card_key: input.key,
@@ -460,7 +454,7 @@ export async function upsertCardValue(input: {
           note: input.note ?? null,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "card_key" },
+        { onConflict: "user_id,card_key" },
       );
     if (error) throw error;
     return null;
@@ -471,8 +465,7 @@ export async function upsertCardValue(input: {
 
 export async function updateCardValueAmount(id: string, valueUsd: number): Promise<string | null> {
   try {
-    const { error } = await db()
-      .from("card_values")
+    const { error } = await (await tbl("card_values"))
       .update({ value_usd: valueUsd, updated_at: new Date().toISOString() })
       .eq("id", id);
     if (error) throw error;
@@ -485,7 +478,7 @@ export async function updateCardValueAmount(id: string, valueUsd: number): Promi
 /** Record the card you confirmed for a listing (all saved searches that found it). Non-fatal. */
 export async function linkHitsToCard(itemId: string, key: string): Promise<void> {
   try {
-    await db().from("scan_hits").update({ card_key: key }).eq("item_id", itemId);
+    await (await tbl("scan_hits")).update({ card_key: key }).eq("item_id", itemId);
   } catch {
     // non-fatal: the value is saved either way
   }
@@ -493,7 +486,7 @@ export async function linkHitsToCard(itemId: string, key: string): Promise<void>
 
 export async function deleteCardValue(id: string): Promise<string | null> {
   try {
-    const { error } = await db().from("card_values").delete().eq("id", id);
+    const { error } = await (await tbl("card_values")).delete().eq("id", id);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -540,7 +533,7 @@ function mapSearch(r: Record<string, unknown>): SavedSearch {
 export async function listSavedSearches(): Promise<DbResult<SavedSearch[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("saved_searches").select("*").order("created_at", { ascending: true });
+    const { data, error } = await (await tbl("saved_searches")).select("*").order("created_at", { ascending: true });
     if (error) throw error;
     return { error: null, data: (data ?? []).map((r) => mapSearch(r)) };
   } catch (e) {
@@ -550,7 +543,7 @@ export async function listSavedSearches(): Promise<DbResult<SavedSearch[]>> {
 
 export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" | "lastRunStatus" | "active" | "kind">): Promise<string | null> {
   try {
-    const { error } = await db().from("saved_searches").insert({
+    const { error } = await (await tbl("saved_searches")).insert({
       name: s.name,
       query: s.query,
       market: s.market,
@@ -569,7 +562,7 @@ export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" 
 
 export async function setSavedSearchExclude(id: string, excludeWords: string): Promise<string | null> {
   try {
-    const { error } = await db().from("saved_searches").update({ exclude_words: excludeWords }).eq("id", id);
+    const { error } = await (await tbl("saved_searches")).update({ exclude_words: excludeWords }).eq("id", id);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -579,7 +572,7 @@ export async function setSavedSearchExclude(id: string, excludeWords: string): P
 
 export async function setSavedSearchActive(id: string, active: boolean): Promise<string | null> {
   try {
-    const { error } = await db().from("saved_searches").update({ active }).eq("id", id);
+    const { error } = await (await tbl("saved_searches")).update({ active }).eq("id", id);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -589,7 +582,7 @@ export async function setSavedSearchActive(id: string, active: boolean): Promise
 
 export async function deleteSavedSearch(id: string): Promise<string | null> {
   try {
-    const { error } = await db().from("saved_searches").delete().eq("id", id);
+    const { error } = await (await tbl("saved_searches")).delete().eq("id", id);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -599,7 +592,7 @@ export async function deleteSavedSearch(id: string): Promise<string | null> {
 
 export async function markSearchRun(id: string, status: string): Promise<void> {
   try {
-    await db().from("saved_searches").update({ last_run_at: new Date().toISOString(), last_run_status: status }).eq("id", id);
+    await (await tbl("saved_searches")).update({ last_run_at: new Date().toISOString(), last_run_status: status }).eq("id", id);
   } catch {
     // non-fatal
   }
@@ -610,7 +603,7 @@ export async function markSearchRun(id: string, status: string): Promise<void> {
 export async function loadHunterConfig(): Promise<{ config: HunterConfig; saved: boolean; error: string | null }> {
   if (!dbConfigured()) return { config: DEFAULT_HUNTER, saved: false, error: "Database not configured" };
   try {
-    const { data, error } = await db().from("hunter_config").select("*").eq("id", 1).maybeSingle();
+    const { data, error } = await (await tbl("hunter_config")).select("*").maybeSingle();
     if (error) throw error;
     if (!data) return { config: DEFAULT_HUNTER, saved: false, error: null };
     const r = data as Record<string, unknown>;
@@ -642,9 +635,8 @@ export async function loadHunterConfig(): Promise<{ config: HunterConfig; saved:
 /** Save the Hunter settings and make the hidden per-sport searches match them. */
 export async function saveHunterConfig(c: HunterConfig): Promise<string | null> {
   try {
-    const { error } = await db().from("hunter_config").upsert(
+    const { error } = await (await tbl("hunter_config")).upsert(
       {
-        id: 1,
         enabled: c.enabled,
         budget: c.budget,
         min_price: c.minPrice,
@@ -657,7 +649,7 @@ export async function saveHunterConfig(c: HunterConfig): Promise<string | null> 
         min_profit: c.minProfit,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "id" },
+      { onConflict: "user_id" },
     );
     if (error) throw error;
     const all = await listSavedSearches();
@@ -667,7 +659,7 @@ export async function saveHunterConfig(c: HunterConfig): Promise<string | null> 
       const row = mine.find((x) => x.query === sport);
       const want = c.sports.includes(sport);
       if (!row && want) {
-        const { error: e2 } = await db().from("saved_searches").insert({
+        const { error: e2 } = await (await tbl("saved_searches")).insert({
           name: hunterSearchName(sport),
           query: sport,
           market: c.market,
@@ -679,8 +671,7 @@ export async function saveHunterConfig(c: HunterConfig): Promise<string | null> 
         });
         if (e2) throw e2;
       } else if (row) {
-        const { error: e3 } = await db()
-          .from("saved_searches")
+        const { error: e3 } = await (await tbl("saved_searches"))
           .update({ active: c.enabled && want, market: c.market, max_price: c.budget, format: c.includeAuctions ? "ALL" : "FIXED_PRICE" })
           .eq("id", row.id);
         if (e3) throw e3;
@@ -707,15 +698,14 @@ export interface StoredHit extends ScanHit {
 
 export async function existingItemIds(searchId: string, itemIds: string[]): Promise<Set<string>> {
   if (itemIds.length === 0) return new Set();
-  const { data, error } = await db().from("scan_hits").select("item_id").eq("search_id", searchId).in("item_id", itemIds);
+  const { data, error } = await (await tbl("scan_hits")).select("item_id").eq("search_id", searchId).in("item_id", itemIds);
   if (error) throw error;
   return new Set((data ?? []).map((r) => String(r.item_id)));
 }
 
 export async function insertHits(searchId: string, hits: (ScanHit & { alerted: boolean })[]): Promise<void> {
   if (hits.length === 0) return;
-  const { error } = await db()
-    .from("scan_hits")
+  const { error } = await (await tbl("scan_hits"))
     .upsert(
       hits.map((h) => ({
         search_id: searchId,
@@ -747,7 +737,7 @@ export async function insertHits(searchId: string, hits: (ScanHit & { alerted: b
 export async function listRecentHits(limit = 60, onlyDeals = false, scope?: "mine" | "hunter"): Promise<DbResult<StoredHit[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    let q = db().from("scan_hits").select("*").order("created_at", { ascending: false }).limit(limit);
+    let q = (await tbl("scan_hits")).select("*").order("created_at", { ascending: false }).limit(limit);
     if (onlyDeals) q = q.eq("meets_criteria", true);
     if (scope) {
       const all = await listSavedSearches();
@@ -801,7 +791,7 @@ export async function updateHitsForItem(itemId: string, u: RecheckUpdate): Promi
     if (u.isAuction !== undefined) row.is_auction = u.isAuction;
   }
   try {
-    const { error } = await db().from("scan_hits").update(row).eq("item_id", itemId);
+    const { error } = await (await tbl("scan_hits")).update(row).eq("item_id", itemId);
     if (error) throw error;
     return null;
   } catch (e) {
@@ -811,7 +801,7 @@ export async function updateHitsForItem(itemId: string, u: RecheckUpdate): Promi
 
 export async function markItemAlerted(itemId: string): Promise<void> {
   try {
-    await db().from("scan_hits").update({ alerted: true }).eq("item_id", itemId);
+    await (await tbl("scan_hits")).update({ alerted: true }).eq("item_id", itemId);
   } catch {
     // non-fatal
   }
@@ -829,7 +819,7 @@ export interface ScanRun {
 
 export async function recordScanRun(r: Omit<ScanRun, "createdAt">): Promise<void> {
   try {
-    await db().from("scan_runs").insert({
+    await (await tbl("scan_runs")).insert({
       trigger: r.trigger,
       searches: r.searches,
       new_listings: r.newListings,
@@ -845,7 +835,7 @@ export async function recordScanRun(r: Omit<ScanRun, "createdAt">): Promise<void
 export async function lastScanRuns(limit = 5): Promise<DbResult<ScanRun[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("scan_runs").select("*").order("created_at", { ascending: false }).limit(limit);
+    const { data, error } = await (await tbl("scan_runs")).select("*").order("created_at", { ascending: false }).limit(limit);
     if (error) throw error;
     return {
       error: null,
@@ -880,7 +870,7 @@ export interface PushSub {
 export async function listPushSubscriptions(): Promise<DbResult<PushSub[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("push_subscriptions").select("*").order("created_at", { ascending: true });
+    const { data, error } = await (await tbl("push_subscriptions")).select("*").order("created_at", { ascending: true });
     if (error) throw error;
     return {
       error: null,
@@ -902,8 +892,7 @@ export async function listPushSubscriptions(): Promise<DbResult<PushSub[]>> {
 
 export async function savePushSubscription(s: { endpoint: string; p256dh: string; auth: string; label: string | null }): Promise<string | null> {
   try {
-    const { error } = await db()
-      .from("push_subscriptions")
+    const { error } = await (await tbl("push_subscriptions"))
       .upsert({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth, label: s.label, last_error: null }, { onConflict: "endpoint" });
     if (error) throw error;
     return null;
@@ -914,7 +903,7 @@ export async function savePushSubscription(s: { endpoint: string; p256dh: string
 
 export async function deletePushSubscription(by: { id?: string; endpoint?: string }): Promise<string | null> {
   try {
-    let q = db().from("push_subscriptions").delete();
+    let q = (await tbl("push_subscriptions")).delete();
     if (by.id) q = q.eq("id", by.id);
     else if (by.endpoint) q = q.eq("endpoint", by.endpoint);
     else return "Nothing to remove.";
@@ -928,8 +917,7 @@ export async function deletePushSubscription(by: { id?: string; endpoint?: strin
 
 export async function markPushResult(id: string, ok: boolean, err: string | null): Promise<void> {
   try {
-    await db()
-      .from("push_subscriptions")
+    await (await tbl("push_subscriptions"))
       .update(ok ? { last_ok_at: new Date().toISOString(), last_error: null } : { last_error: (err ?? "").slice(0, 300) })
       .eq("id", id);
   } catch {
@@ -957,12 +945,11 @@ export async function addToWaitlist(w: {
   if (!dbConfigured()) return "Database not configured";
   try {
     const row = { email: w.email, interests: w.interests.join(","), source: "login-page" };
-    let { error } = await db()
-      .from("waitlist")
+    let { error } = await (await tbl("waitlist"))
       .upsert({ ...row, region: w.region ?? null, goals: (w.goals ?? []).join(",") }, { onConflict: "email", ignoreDuplicates: true });
     // Newer columns not added yet (one-time SQL) — still save the sign-up.
     if (error && /region|goals/.test(message(error))) {
-      ({ error } = await db().from("waitlist").upsert(row, { onConflict: "email", ignoreDuplicates: true }));
+      ({ error } = await (await tbl("waitlist")).upsert(row, { onConflict: "email", ignoreDuplicates: true }));
     }
     if (error) throw error;
     return null;
@@ -974,7 +961,7 @@ export async function addToWaitlist(w: {
 export async function listWaitlist(): Promise<DbResult<WaitlistEntry[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("waitlist").select("*").order("created_at", { ascending: false }).limit(5000);
+    const { data, error } = await (await tbl("waitlist")).select("*").order("created_at", { ascending: false }).limit(5000);
     if (error) throw error;
     return {
       error: null,
@@ -996,7 +983,7 @@ export async function listWaitlist(): Promise<DbResult<WaitlistEntry[]>> {
 export async function getCachedPsaCert(cert: string): Promise<{ data: import("@/lib/sales").PsaCert | null; fetchedAt: string | null; error: string | null }> {
   if (!dbConfigured()) return { data: null, fetchedAt: null, error: "Database not configured" };
   try {
-    const { data, error } = await db().from("psa_certs").select("*").eq("cert", cert).maybeSingle();
+    const { data, error } = await (await tbl("psa_certs")).select("*").eq("cert", cert).maybeSingle();
     if (error) throw error;
     if (!data) return { data: null, fetchedAt: null, error: null };
     const r = data as Record<string, unknown>;
@@ -1008,7 +995,7 @@ export async function getCachedPsaCert(cert: string): Promise<{ data: import("@/
 
 export async function savePsaCert(c: import("@/lib/sales").PsaCert): Promise<string | null> {
   try {
-    const { error } = await db().from("psa_certs").upsert({ cert: c.certNumber, data: c, fetched_at: new Date().toISOString() }, { onConflict: "cert" });
+    const { error } = await (await tbl("psa_certs")).upsert({ cert: c.certNumber, data: c, fetched_at: new Date().toISOString() }, { onConflict: "cert" });
     if (error) throw error;
     return null;
   } catch (e) {
@@ -1031,7 +1018,7 @@ export interface GuideSet {
 export async function listGuideSets(): Promise<DbResult<GuideSet[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("guide_sets").select("*").order("added_at", { ascending: true });
+    const { data, error } = await (await tbl("guide_sets")).select("*").order("added_at", { ascending: true });
     if (error) throw error;
     return {
       error: null,
@@ -1052,8 +1039,7 @@ export async function listGuideSets(): Promise<DbResult<GuideSet[]>> {
 
 export async function addGuideSets(host: string, uids: string[]): Promise<string | null> {
   try {
-    const { error } = await db()
-      .from("guide_sets")
+    const { error } = await (await tbl("guide_sets"))
       .upsert(uids.map((uid) => ({ uid, host, added_at: new Date().toISOString() })), { onConflict: "uid", ignoreDuplicates: true });
     if (error) throw error;
     return null;
@@ -1064,9 +1050,9 @@ export async function addGuideSets(host: string, uids: string[]): Promise<string
 
 export async function removeGuideSet(uid: string): Promise<string | null> {
   try {
-    const r1 = await db().from("guide_prices").delete().eq("set_uid", uid);
+    const r1 = await (await tbl("guide_prices")).delete().eq("set_uid", uid);
     if (r1.error) throw r1.error;
-    const r2 = await db().from("guide_sets").delete().eq("uid", uid);
+    const r2 = await (await tbl("guide_sets")).delete().eq("uid", uid);
     if (r2.error) throw r2.error;
     return null;
   } catch (e) {
@@ -1076,8 +1062,7 @@ export async function removeGuideSet(uid: string): Promise<string | null> {
 
 export async function markGuideSet(uid: string, patch: { name?: string | null; rows?: number | null; error?: string | null; downloaded?: boolean }): Promise<void> {
   try {
-    await db()
-      .from("guide_sets")
+    await (await tbl("guide_sets"))
       .update({
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.rows !== undefined ? { rows: patch.rows } : {}),
@@ -1097,8 +1082,7 @@ export async function saveGuidePrices(
   try {
     const now = new Date().toISOString();
     for (let i = 0; i < rows.length; i += 1000) {
-      const { error } = await db()
-        .from("guide_prices")
+      const { error } = await (await tbl("guide_prices"))
         .upsert(
           rows.slice(i, i + 1000).map((r) => ({
             product_id: r.productId,
@@ -1129,7 +1113,7 @@ export async function guidePricesByNumber(
     const out: { productId: string; consoleName: string; productName: string; prices: Record<string, number>; salesVolume: number | null; numberNorm: string | null; updatedAt: string }[] = [];
     const uniq = [...new Set(numbers)];
     for (let i = 0; i < uniq.length; i += 200) {
-      const { data, error } = await db().from("guide_prices").select("*").in("number_norm", uniq.slice(i, i + 200)).limit(5000);
+      const { data, error } = await (await tbl("guide_prices")).select("*").in("number_norm", uniq.slice(i, i + 200)).limit(5000);
       if (error) throw error;
       for (const r of (data ?? []) as Record<string, unknown>[])
         out.push({
@@ -1143,6 +1127,22 @@ export async function guidePricesByNumber(
         });
     }
     return { data: out, error: null };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}
+
+// ---------- Scheduled scans: which accounts to scan (system query, not tied to a signed-in person) ----------
+
+/** Accounts with an active saved search or Profit Hunter search. */
+export async function listScanOwners(): Promise<DbResult<string[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const { data, error } = await db().from("saved_searches").select("user_id").eq("active", true);
+    if (error) throw error;
+    const ids: string[] = [];
+    for (const r of (data ?? []) as { user_id?: unknown }[]) if (typeof r.user_id === "string" && r.user_id && !ids.includes(r.user_id)) ids.push(r.user_id);
+    return { data: ids, error: null };
   } catch (e) {
     return { data: [], error: message(e) };
   }

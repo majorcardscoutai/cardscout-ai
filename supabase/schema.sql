@@ -224,3 +224,49 @@ create index if not exists guide_prices_number_norm on public.guide_prices (numb
 create index if not exists guide_prices_set_uid on public.guide_prices (set_uid);
 alter table public.guide_sets enable row level security;
 alter table public.guide_prices enable row level security;
+
+-- ---------- 20 Oct 2026: Phase 6 step 2 — each account's own data ----------
+-- Moves everything that's yours (settings, Hunter, searches, finds, watchlist, portfolio, your Card Values,
+-- phones) into your account. Run it once, AFTER creating your account in Authentication → Users.
+-- Safe to run again. Shared data (price-guide values, PSA certs, Popular sets, waitlist) is untouched.
+do $$
+declare
+  uid uuid;
+  n int;
+  t text;
+begin
+  select count(*) into n from auth.users;
+  if n <> 1 then
+    raise exception 'This step expects exactly one account (yours) — found %. Ask Claude before running it.', n;
+  end if;
+  select id into uid from auth.users;
+
+  foreach t in array array['settings','hunter_config','saved_searches','scan_hits','scan_runs','watchlist','holdings','card_values','push_subscriptions']
+  loop
+    execute format('alter table public.%I add column if not exists user_id uuid references auth.users(id) on delete cascade', t);
+    execute format('update public.%I set user_id = %L where user_id is null', t, uid);
+    -- Until step 4, anything still written without an account goes to yours (removed when other people join).
+    execute format('alter table public.%I alter column user_id set default %L', t, uid);
+    execute format('alter table public.%I alter column user_id set not null', t);
+    execute format('create index if not exists %I on public.%I (user_id)', t || '_user_id_idx', t);
+  end loop;
+
+  -- Settings and Profit Hunter: one row per account (was a single row with id 1).
+  alter table public.settings drop constraint if exists settings_id_check;
+  create sequence if not exists public.settings_id_seq start 1000;
+  alter table public.settings alter column id set default nextval('public.settings_id_seq');
+  create sequence if not exists public.hunter_config_id_seq start 1000;
+  alter table public.hunter_config alter column id set default nextval('public.hunter_config_id_seq');
+  if not exists (select 1 from pg_constraint where conname = 'settings_user_id_key') then
+    alter table public.settings add constraint settings_user_id_key unique (user_id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'hunter_config_user_id_key') then
+    alter table public.hunter_config add constraint hunter_config_user_id_key unique (user_id);
+  end if;
+
+  -- Card Values: each account has its own (two people can value the same card differently).
+  alter table public.card_values drop constraint if exists card_values_card_key_key;
+  if not exists (select 1 from pg_constraint where conname = 'card_values_user_card_key') then
+    alter table public.card_values add constraint card_values_user_card_key unique (user_id, card_key);
+  end if;
+end $$;
