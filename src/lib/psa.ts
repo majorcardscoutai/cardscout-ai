@@ -52,11 +52,17 @@ export async function fetchPsaCert(cert: string): Promise<PsaResult> {
   if (!/^\d{6,12}$/.test(cert)) return { ok: false, error: "That doesn't look like a PSA cert number." };
   try {
     const res = await fetch(API + cert, {
-      headers: { Authorization: `bearer ${token}`, Accept: "application/json" },
+      headers: { Authorization: `bearer ${token}`, Accept: "application/json", "User-Agent": "CardHawkAI/1.0 (slab check)" },
       signal: AbortSignal.timeout(8000),
       cache: "no-store",
     } as RequestInit);
-    if (res.status === 401 || res.status === 403) return { ok: false, code: res.status, error: "PSA rejected the token — re-copy it from psacard.com/publicapi into PSA_API_TOKEN in Vercel, then redeploy." };
+    if (res.status === 401 || res.status === 403) {
+      // A firewall block returns a web page; a bad token returns PSA's own error. Tell them apart.
+      const body = (await res.text().catch(() => "")).slice(0, 2000);
+      if (/cloudflare|just a moment|attention required|access denied|<html/i.test(body))
+        return { ok: false, code: res.status, error: `PSA's firewall blocked CardHawk's server (HTTP ${res.status}) — the token may be fine` };
+      return { ok: false, code: res.status, error: `PSA rejected the token (HTTP ${res.status}) — get a fresh one at psacard.com/publicapi, update PSA_API_TOKEN in Vercel, then redeploy` };
+    }
     if (res.status === 429) return { ok: false, code: 429, error: "PSA's daily lookup limit is reached — try again tomorrow." };
     if (!res.ok) return { ok: false, code: res.status, error: `PSA returned HTTP ${res.status}.` };
     const parsed = parsePsaCert(await res.json().catch(() => null));
