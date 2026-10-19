@@ -152,3 +152,21 @@ test("one lookup prices every grade of the same card", async () => {
   assert.equal(sameCardKey("mlb|shohei ohtani|2018|topps update|us1||||psa|10"), sameCardKey("mlb|shohei ohtani|2018|topps update|us1||||psa|9"));
   assert.notEqual(sameCardKey("mlb|shohei ohtani|2018|topps update|us1|gold|||psa|10"), sameCardKey("mlb|shohei ohtani|2018|topps update|us1||||psa|10"));
 });
+
+test("naming quirks: Blue Refractor = [Blue], #83-2, unwritten print runs, Satchel/Satchell, T206", async () => {
+  const { cardFromListing } = await import("../src/lib/ebay/parse.js");
+  const judge: CardIdentity = { ...ohtani, player: "Aaron Judge", year: 2017, set: "Topps Chrome", cardNumber: "169", parallel: "Blue Refractor", serialNumbered: 150, grader: "BGS", grade: 9.5 };
+  const chrome = (id: string, br: string) => P(id, `Aaron Judge [${br}] #169`, "Baseball Cards 2017 Topps Chrome");
+  const r = pickProduct(judge, [chrome("b", "Blue"), chrome("r", "Refractor"), chrome("w", "Blue Wave")]);
+  assert.ok(r.ok); if (r.ok) assert.equal(r.product.id, "b");
+  assert.equal(pickProduct({ ...judge, parallel: "Refractor", serialNumbered: null }, [chrome("b", "Blue"), chrome("w", "Blue Wave")]).ok, false, "plain Refractor never matches Blue");
+  assert.equal(pickProduct(judge, [chrome("b", "Blue"), chrome("b2", "Blue")]).ok, false, "unwritten print run only when exactly one fits");
+  assert.equal(pickProduct(judge, [chrome("b", "Blue /99")]).ok, false, "a different written print run never matches");
+  const c = cardFromListing("2018 Topps Update Shohei Ohtani 1983 Rookie RC GOLD /50 #83-2 Angels PSA 9 Mint").card;
+  assert.equal(c.cardNumber, "83-2");
+  assert.equal(cardFromListing("1909 T206 Lenox Black Back PSA 3 Larry Doyle", [], { sport: "MLB" }).card.cardNumber, undefined, "T206 is a set, not a number");
+  const paige: CardIdentity = { ...ohtani, player: "Satchel Paige", year: 1949, set: "Bowman", cardNumber: "224", grade: 6, isRookie: true };
+  assert.equal(scoreProduct(paige, P("p", "Satchell Paige #224", "Baseball Cards 1949 Bowman")).ok, true);
+  assert.equal(scoreProduct(paige, P("q", "Satchel Page #224", "Baseball Cards 1949 Bowman")).ok, false, "surname must match exactly");
+  assert.equal(scoreProduct({ ...paige, player: "Mike Trout" }, P("t", "Mark Trout #224", "Baseball Cards 1949 Bowman")).ok, false, "short first names must match exactly");
+});

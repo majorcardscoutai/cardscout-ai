@@ -15,7 +15,7 @@ import { localGuide } from "./guide";
 export const REFRESH_MATCHED_MS = 24 * 3_600_000;
 export const RETRY_UNMATCHED_MS = 7 * 86_400_000;
 /** Matching rules last improved — unmatched results saved before this are retried once. */
-export const MATCHER_UPDATED_AT = Date.parse("2026-10-16T03:00:00Z");
+export const MATCHER_UPDATED_AT = Date.parse("2026-10-20T00:00:00Z");
 /** Parallels must now match exactly ("Refractor" ≠ "Gold Refractor"): parallel values saved before this are redone. */
 export const PARALLEL_RULE_AT = Date.parse("2026-10-16T03:00:00Z");
 

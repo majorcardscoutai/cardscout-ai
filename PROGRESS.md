@@ -274,3 +274,11 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - Project folder: `~/Projects/cardscout-ai` (GitHub majorcardscoutai/cardscout-ai, auto-deploys to Vercel)
 - Unzip: `cd ~/Downloads && Z=$(ls -t cardhawk-ai*.zip | head -1) && echo "Zip: $Z" && ditto -x -k "$Z" ~/Projects && cd ~/Projects/cardscout-ai && <grep check for a new file/line>`
 - Publish: `cd ~/Projects/cardscout-ai && git add -A && git commit -m "<what changed>" && git push`
+
+## 20 Oct 2026 — fewer "no exact match" results (from the Hunter examples)
+- Chrome/Prizm parallels: "Blue Refractor" now matches the guide's "[Blue]" (and "Silver Prizm" ↔ "[Silver]"). "Blue Wave" and plain "Refractor" still never match "Blue".
+- Card numbers with a suffix ("#83-2", Topps 1983 inserts) are read in full.
+- Print runs the guide leaves out of its name (Blue /150 ↔ "[Blue]") are accepted only when exactly one guide card fits and its name shows no number at all.
+- One-letter spelling differences in first names ("Satchel" vs "Satchell" Paige) match; the surname must be exact, and short first names (Mike/Mark) must be exact.
+- "T206" / "E90" style set codes are no longer read as card numbers.
+- Unmatched cards saved before 20 Oct are re-checked once under the new rules (MATCHER_UPDATED_AT).

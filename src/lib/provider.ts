@@ -91,7 +91,7 @@ export function scoreProduct(card: Partial<CardIdentity>, p: ProviderProduct): M
   if (!number || normNumber(number) !== normNumber(card.cardNumber)) return { ok: false, extra: 99, reason: "different card number" };
 
   const baseTokens = new Set(tokens(base));
-  if (!tokens(card.player).every((t) => baseTokens.has(t))) return { ok: false, extra: 99, reason: "different player/character" };
+  if (!samePlayer(tokens(card.player), [...baseTokens])) return { ok: false, extra: 99, reason: "different player/character" };
 
   if (card.sport !== "Pokemon" && card.year && !consoleN.includes(String(card.year)) && !norm(p.productName).includes(String(card.year)))
     return { ok: false, extra: 99, reason: "different year" };
@@ -106,7 +106,7 @@ export function scoreProduct(card: Partial<CardIdentity>, p: ProviderProduct): M
   if (par) {
     if (!bracket) return { ok: false, extra: 99, reason: "product is the base card" };
     // Exact: "Refractor" ≠ "Gold Refractor" (print-run numbers like "/50" are checked separately below).
-    const words = (x: string) => new Set(tokens(x).filter((t) => !/^\d+$/.test(t.replace("/", ""))));
+    const words = parallelWords;
     const bt = words(bracket);
     const pt = words(par);
     if (bt.size !== pt.size || ![...pt].every((t) => bt.has(t))) return { ok: false, extra: 99, reason: `different parallel (${bracket})` };
@@ -130,7 +130,16 @@ export type PickResult =
 /** Choose THE matching product, or none. Two equally good different products = ambiguous = no value. */
 export function pickProduct(card: Partial<CardIdentity>, products: ProviderProduct[]): PickResult {
   const all = products.map((p) => ({ p, s: scoreProduct(card, p) }));
-  const scored = all.filter((x) => x.s.ok);
+  let scored = all.filter((x) => x.s.ok);
+  if (scored.length === 0 && card.serialNumbered) {
+    // The guide often leaves the print run out of the name ("[Blue]" for Blue /150): accept only
+    // when exactly one guide card fits and its parallel name shows no number at all.
+    const relaxed = products
+      .filter((p) => { const b = parseProductName(p.productName).bracket; return !!b && !/\d/.test(b); })
+      .map((p) => ({ p, s: scoreProduct({ ...card, serialNumbered: null }, p) }))
+      .filter((x) => x.s.ok);
+    if (relaxed.length === 1) scored = relaxed;
+  }
   if (scored.length === 0) {
     if (all.length === 0) return { ok: false, reason: "no_match", detail: "The price guide's search found nothing for this card." };
     // Show the closest few so you can see why (same number + player first).
@@ -231,7 +240,7 @@ export function matchBySetInTitle(card: Partial<CardIdentity>, title: string, pr
   const titleTok = new Set(tokens(title));
   const sportWord = card.sport === "MLB" ? "baseball" : card.sport === "NBA" ? "basketball" : card.sport === "Pokemon" ? "pokemon" : null;
   const par = card.parallel && !/^(base|base set|none|n\/a)$/i.test(card.parallel.trim()) ? card.parallel : null;
-  const words = (x: string) => new Set(tokens(x).filter((t) => !/^\d+$/.test(t.replace("/", ""))));
+  const words = parallelWords;
   const ok: { p: ProviderProduct; score: number; set: string; player: string }[] = [];
   for (const p of products) {
     const { base, bracket, number } = parseProductName(p.productName);
@@ -264,4 +273,28 @@ export function matchBySetInTitle(card: Partial<CardIdentity>, title: string, pr
 /** Same card, any grade: the cache key without its grader + grade parts. One lookup prices every grade. */
 export function sameCardKey(key: string): string {
   return key.split("|").slice(0, -2).join("|");
+}
+
+/** Parallel name words for comparing: print-run numbers dropped; "Refractor"/"Prizm" optional
+ *  (the guide writes a Chrome "Blue Refractor" as "[Blue]", a Prizm "Silver Prizm" as "[Silver]"). */
+function parallelWords(x: string): Set<string> {
+  return new Set(tokens(x).filter((t) => !/^\d+$/.test(t.replace("/", "")) && t !== "refractor" && t !== "refractors" && t !== "prizm"));
+}
+
+function editDistance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+
+/** Same player: every word appears; or the surname appears exactly and each other word appears
+ *  or is one letter off a word that's there ("Satchel" / "Satchell"; words of 4+ letters only). */
+export function samePlayer(want: string[], have: string[]): boolean {
+  const h = new Set(have);
+  if (want.every((t) => h.has(t))) return true;
+  const w = want.filter((t) => !/^(jr|sr|ii|iii)$/.test(t));
+  if (w.length < 2 || !h.has(w[w.length - 1])) return false;
+  return w.slice(0, -1).every((t) => h.has(t) || (t.length >= 4 && have.some((x) => x.length >= 4 && editDistance(t, x) <= 1)));
 }

@@ -273,11 +273,11 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
   if (numAspect) set("cardNumber", numAspect.replace(/^#/, ""), "item specifics");
   else {
     const m =
-      title.match(/#\s*([A-Z]{0,6}-?\d+[A-Z]?)\b/i) ??
+      title.match(/#\s*([A-Z]{0,6}-?\d+(?:-\d+)?[A-Z]?)\b/i) ??
       title.match(/\bNo\.?\s*(\d{1,4}[A-Z]?)\b/i) ??
       (sport === "Pokemon"
         ? title.match(/\b(\d{1,3}\/\d{2,3})\b/)
-        : title.match(/\b(?!(?:PSA|BGS|SGC|CGC|GEM|MT|NM|RC|SP|SSP|HOF|MVP|POP|LOT|QTY|GMA|HGA|TAG|KSA)-?\d)([A-Z]{1,4}-?\d{1,4}[A-Z]?)\b/));
+        : title.match(/\b(?!(?:PSA|BGS|SGC|CGC|GEM|MT|NM|RC|SP|SSP|HOF|MVP|POP|LOT|QTY|GMA|HGA|TAG|KSA)-?\d)(?!(?:T2\d\d|E\d{2,3})\b)([A-Z]{1,4}-?\d{1,4}[A-Z]?)\b/));
     if (m) set("cardNumber", m[1].toUpperCase(), "title");
   }
 
