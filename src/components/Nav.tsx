@@ -45,7 +45,7 @@ function Logo() {
 
 export default function Nav() {
   const pathname = usePathname();
-  if (pathname === "/login") return null;
+  if (pathname.startsWith("/login") || pathname.startsWith("/auth/")) return null;
 
   return (
     <>

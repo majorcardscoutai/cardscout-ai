@@ -1,6 +1,6 @@
 import { safeNextPath } from "@/lib/auth";
 import { WAITLIST_GOALS } from "@/lib/forms";
-import { joinWaitlist, login } from "./actions";
+import { joinWaitlist, login, signIn } from "./actions";
 import HawkLogo from "@/components/HawkLogo";
 
 export const metadata = { title: "CardHawk AI · Sign in or join the waitlist" };
@@ -8,9 +8,10 @@ export const metadata = { title: "CardHawk AI · Sign in or join the waitlist" }
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string; joined?: string; wl?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; joined?: string; wl?: string; account?: string; email?: string }>;
 }) {
-  const { error, next, joined, wl } = await searchParams;
+  const { error, next, joined, wl, account, email } = await searchParams;
+  const oldPasswordOn = Boolean(process.env.APP_PASSWORD);
   const message =
     error === "wrong"
       ? "That password isn't right."
@@ -24,24 +25,50 @@ export default async function LoginPage({
     // Covers the whole screen, including the sidebar. Scrolls on small phones.
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg px-4 py-10">
       <div className="mx-auto flex min-h-full w-full max-w-sm flex-col justify-center gap-5">
-        <form action={login} className="rounded-2xl border border-line bg-panel p-6">
+        <div className="rounded-2xl border border-line bg-panel p-6">
           <div className="mb-6 flex items-center gap-2.5">
             <HawkLogo framed className="h-12 w-12 shrink-0" />
             <div>
               <div className="font-semibold">CardHawk AI</div>
-              <div className="text-xs text-faint">Private — sign in to continue</div>
+              <div className="text-xs text-faint">Invite only — sign in to continue</div>
             </div>
           </div>
-          <input type="hidden" name="next" value={safeNextPath(next)} />
-          <label className="block">
-            <span className="text-xs text-muted">Password</span>
-            <input type="password" name="password" required autoComplete="current-password" className={inputCls} />
-          </label>
-          {message && <p className="mt-3 text-sm text-loss">{message}</p>}
-          <button className="mt-5 w-full rounded-lg bg-gain px-4 py-2.5 text-sm font-semibold text-bg hover:bg-gain/90">
-            Sign in
-          </button>
-        </form>
+          <form action={signIn}>
+            <input type="hidden" name="next" value={safeNextPath(next)} />
+            <label className="block">
+              <span className="text-xs text-muted">Email</span>
+              <input type="email" name="email" required maxLength={254} autoComplete="email" defaultValue={email ?? ""} className={inputCls} />
+            </label>
+            <label className="mt-3 block">
+              <span className="text-xs text-muted">Password</span>
+              <input type="password" name="password" required autoComplete="current-password" className={inputCls} />
+            </label>
+            {account && <p className="mt-3 text-sm text-loss">{account}</p>}
+            <button className="mt-5 w-full rounded-lg bg-gain px-4 py-2.5 text-sm font-semibold text-bg hover:bg-gain/90">
+              Sign in
+            </button>
+          </form>
+          <div className="mt-3 text-center text-xs">
+            <a href="/login/forgot" className="text-accent hover:underline">Forgot password?</a>
+          </div>
+          {oldPasswordOn && (
+            <details className="mt-5 border-t border-line pt-4" open={Boolean(message)}>
+              <summary className="cursor-pointer text-xs text-faint">Use the old site password</summary>
+              <form action={login} className="mt-3">
+                <input type="hidden" name="next" value={safeNextPath(next)} />
+                <label className="block">
+                  <span className="text-xs text-muted">Site password</span>
+                  <input type="password" name="password" required autoComplete="off" className={inputCls} />
+                </label>
+                {message && <p className="mt-3 text-sm text-loss">{message}</p>}
+                <button className="mt-3 w-full rounded-lg bg-panel-2 px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line-strong hover:bg-line">
+                  Sign in with site password
+                </button>
+              </form>
+            </details>
+          )}
+          {!oldPasswordOn && message && <p className="mt-3 text-sm text-loss">{message}</p>}
+        </div>
 
         <figure className="overflow-hidden rounded-2xl border border-line bg-panel">
           <video

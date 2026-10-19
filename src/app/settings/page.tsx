@@ -1,5 +1,6 @@
 import { saveSettingsAction } from "@/app/actions";
 import { logout } from "@/app/login/actions";
+import { currentViewer } from "@/data/session";
 import { addGuideSetAction, refreshGuideAction, removeGuideSetAction, testProviderAction } from "@/app/actions";
 import { MAX_GUIDE_SETS } from "@/lib/guide-csv";
 import ProviderCredit from "@/components/ProviderCredit";
@@ -27,11 +28,12 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { saved, error } = await searchParams;
-  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices, waitlist, guideSets] = await Promise.all([
+  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices, waitlist, guideSets, viewer] = await Promise.all([
     loadSettings(),
     listPushSubscriptions(),
     listWaitlist(),
     listGuideSets(),
+    currentViewer(),
   ]);
   const pushKey = vapidPublicKey();
 
@@ -340,11 +342,25 @@ export default async function SettingsPage({
         )}
       </Panel>
 
-      <Panel title="Security" className="mt-6">
+      <Panel title="Account" className="mt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted">
-            Signed in on this device for 30 days. To log out everywhere, change APP_PASSWORD.
-          </p>
+          {viewer?.kind === "account" ? (
+            <p className="text-sm text-muted">
+              Signed in as <span className="text-ink">{viewer.email}</span>
+              {viewer.admin && <span className="ml-2 rounded-md bg-gain-soft px-1.5 py-0.5 text-[11px] font-medium text-gain">Admin</span>}
+              <span className="block text-xs text-faint">
+                Stays signed in on this device for 30 days. Forgot your password? Sign out, then use &ldquo;Forgot password?&rdquo;.
+              </span>
+            </p>
+          ) : (
+            <p className="text-sm text-muted">
+              Signed in with the old site password (shared login).
+              <span className="block text-xs text-faint">
+                Accounts are being switched on: once yours works, sign out and sign in with your email. The site password is removed
+                at the end of Phase 6.
+              </span>
+            </p>
+          )}
           <form action={logout}>
             <SubmitButton tone="neutral">Log out</SubmitButton>
           </form>

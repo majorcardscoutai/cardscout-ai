@@ -1,16 +1,42 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE, sessionToken } from "@/lib/auth";
+import { AT_COOKIE, RT_COOKIE, refreshSession, sessionCookieOptions, userForToken } from "@/lib/supabase-auth";
+
+/** Pages anyone can open without signing in. */
+const PUBLIC_PATHS = new Set(["/login", "/login/forgot", "/auth/reset"]);
 
 /**
- * Runs before every page. Anyone without a valid login cookie is sent to
- * /login. If APP_PASSWORD isn't set, nobody can get in (fail closed).
+ * Runs before every page. Signed in = a valid account session (Supabase) OR the old site password
+ * cookie (kept until accounts are checked — Phase 6). Everyone else is sent to /login.
+ * If neither is set up, nobody can get in (fail closed).
  */
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
-  if (pathname === "/login") return NextResponse.next();
+  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   // The scheduled scan endpoint has its own secret check (CRON_SECRET).
   if (pathname.startsWith("/api/cron/")) return NextResponse.next();
 
+  // 1. Account session.
+  const at = req.cookies.get(AT_COOKIE)?.value;
+  const rt = req.cookies.get(RT_COOKIE)?.value;
+  if (at && (await userForToken(at))) return NextResponse.next();
+  if (rt) {
+    const r = await refreshSession(rt);
+    if (r.ok) {
+      // Pass the new tokens on to this request's page and save them in the browser.
+      const headers = new Headers(req.headers ?? undefined);
+      const others = (headers.get("cookie") ?? "")
+        .split(/;\s*/)
+        .filter((c) => c && !c.startsWith(`${AT_COOKIE}=`) && !c.startsWith(`${RT_COOKIE}=`));
+      headers.set("cookie", [...others, `${AT_COOKIE}=${r.data.accessToken}`, `${RT_COOKIE}=${r.data.refreshToken}`].join("; "));
+      const res = NextResponse.next({ request: { headers } });
+      res.cookies.set(AT_COOKIE, r.data.accessToken, sessionCookieOptions());
+      res.cookies.set(RT_COOKIE, r.data.refreshToken, sessionCookieOptions());
+      return res;
+    }
+  }
+
+  // 2. The old site password (one shared login) — removed in Phase 6 step 6.
   const password = process.env.APP_PASSWORD;
   const cookie = req.cookies.get(AUTH_COOKIE)?.value;
   if (password && cookie && cookie === (await sessionToken(password))) {
@@ -21,7 +47,13 @@ export async function middleware(req: NextRequest) {
   url.pathname = "/login";
   url.search = "";
   if (pathname !== "/") url.searchParams.set("next", pathname + search);
-  return NextResponse.redirect(url);
+  const res = NextResponse.redirect(url);
+  // A dead account session (signed out elsewhere, or a used refresh token) is cleared so it isn't retried.
+  if (at || rt) {
+    res.cookies.delete(AT_COOKIE);
+    res.cookies.delete(RT_COOKIE);
+  }
+  return res;
 }
 
 export const config = {

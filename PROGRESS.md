@@ -284,3 +284,15 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - Unmatched cards saved before 20 Oct are re-checked once under the new rules (MATCHER_UPDATED_AT).
 - "View on eBay ↗" on every listing (Top Deals, Profit Hunter, Scanner, Overview) and a button on Analyse with "Purchases are made on eBay — CardHawk doesn't sell cards." (src/components/EbayLink.tsx)
 - Faster Profit Hunter (20 Oct 2026): quick "new listings" runs every 10 minutes (hunt-quick.yml at :07/:27/:47/:57, plus :17 outside the 3-hourly scan hours) — newest 100 per sport, up to 10 item-specifics lookups, no re-checks (~13 eBay calls max per run). Full sweep (newest 200, 40 lookups, re-checks) moved from every 30 minutes to hourly at :37 (hunt.yml). Endpoint: /api/cron/scan?only=hunter-quick. eBay calls/day stay about the same as before (~1,600 quick + ~1,000–2,000 full + scans).
+
+## Phase 6 — user accounts (plan: Claude Docs "CardHawk AI — Phase 6 Plan: User Accounts", 20 Oct 2026)
+Decisions (20 Oct): invite-only beta · email + password sign-in only · 5 saved searches per beta user · Popular sets managed by admin only. SportsCardsPro commercial use already approved (Brady, 15 Oct); eBay approval pending (Application Growth Check sent 20 Oct) — invite beta users only after eBay's OK.
+
+### Step 1 — accounts and sign-in (built 20 Oct 2026)
+- Supabase Auth via its REST API (src/lib/supabase-auth.ts — no new packages, server-side only, no browser keys). httpOnly cookies ch_at (access token) + ch_rt (refresh token), 30 days. Tokens checked with Supabase and cached 5 min; expired tokens refreshed in the middleware.
+- Sign-in page: email + password; "Forgot password?" (/login/forgot → emailed link → /auth/reset to choose a new password, then signed in). Invite links will use the same page (step 6). No public sign-up.
+- The old site password (APP_PASSWORD) still works alongside ("Use the old site password") until step 6.
+- Admin = emails in ADMIN_EMAILS (Vercel env). Settings → Account shows who is signed in.
+- Setup (Travis): Supabase → Authentication → Sign In / Providers: turn OFF "Allow new users to sign up"; URL Configuration: Site URL https://cardscout-ai.vercel.app + Redirect URL https://cardscout-ai.vercel.app/auth/reset; Users → Add user (Auto Confirm). Vercel: ADMIN_EMAILS.
+- Note: Supabase's built-in email only sends to project team members and has a low hourly limit — fine for Travis; custom SMTP (e.g. Resend) needed before beta invites (step 6).
+- 108 unit tests + e2e scenario 20.

@@ -5,6 +5,67 @@ import { redirect } from "next/navigation";
 import { addToWaitlist } from "@/data/db";
 import { AUTH_COOKIE, SESSION_DAYS, safeNextPath, sessionToken } from "@/lib/auth";
 import { parseWaitlistForm } from "@/lib/forms";
+import {
+  AT_COOKIE,
+  RT_COOKIE,
+  passwordProblem,
+  sendPasswordReset,
+  sessionCookieOptions,
+  signInWithPassword,
+  signOutToken,
+  updatePassword,
+  userForToken,
+} from "@/lib/supabase-auth";
+
+const slow = () => new Promise((r) => setTimeout(r, 800)); // makes password guessing slower
+
+async function saveSession(accessToken: string, refreshToken: string) {
+  const jar = await cookies();
+  jar.set(AT_COOKIE, accessToken, sessionCookieOptions());
+  jar.set(RT_COOKIE, refreshToken, sessionCookieOptions());
+}
+
+/** Sign in with an account (email + password). */
+export async function signIn(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  const next = safeNextPath(String(formData.get("next") ?? "/"));
+  const back = (msg: string) => `/login?account=${encodeURIComponent(msg)}&email=${encodeURIComponent(email.slice(0, 254))}&next=${encodeURIComponent(next)}`;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) redirect(back("Enter your email address."));
+  if (!password || password.length > 200) redirect(back("Enter your password."));
+  const r = await signInWithPassword(email, password);
+  if (!r.ok) {
+    if (r.code === "credentials") await slow();
+    redirect(back(r.error));
+  }
+  await saveSession(r.data.accessToken, r.data.refreshToken);
+  redirect(next);
+}
+
+/** "Forgot password?" — emails a reset link (same message whether or not the account exists). */
+export async function forgotPassword(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)
+    redirect(`/login/forgot?error=${encodeURIComponent("Enter the email address you sign in with.")}`);
+  const appUrl = (process.env.APP_URL ?? "https://cardscout-ai.vercel.app").replace(/\/+$/, "");
+  const r = await sendPasswordReset(email, `${appUrl}/auth/reset`);
+  if (!r.ok && (r.code === "rate" || r.code === "config")) redirect(`/login/forgot?error=${encodeURIComponent(r.error)}`);
+  redirect("/login/forgot?sent=1");
+}
+
+/** New password from the emailed link (reset now, invites later). Signs you in afterwards. */
+export async function completePasswordReset(_prev: { error: string } | null, formData: FormData): Promise<{ error: string } | null> {
+  const at = String(formData.get("at") ?? "");
+  const rt = String(formData.get("rt") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const problem = passwordProblem(password, String(formData.get("confirm") ?? ""));
+  if (problem) return { error: problem };
+  if (!at || !rt) return { error: "That link is incomplete. Ask for a new one." };
+  const r = await updatePassword(at, password);
+  if (!r.ok) return { error: r.error };
+  await saveSession(at, rt);
+  redirect("/");
+}
 
 export async function login(formData: FormData) {
   const password = process.env.APP_PASSWORD;
@@ -32,6 +93,10 @@ export async function login(formData: FormData) {
 
 export async function logout() {
   const jar = await cookies();
+  const at = jar.get(AT_COOKIE)?.value;
+  if (at && (await userForToken(at))) await signOutToken(at);
+  jar.delete(AT_COOKIE);
+  jar.delete(RT_COOKIE);
   jar.delete(AUTH_COOKIE);
   redirect("/login");
 }
