@@ -241,7 +241,7 @@ Recommended order: get real market-value data sorted and proven first → run pr
 - **PSA SQL (one-time):** bottom of supabase/schema.sql (`create table public.psa_certs …`).
 - Setup: register/sign in at psacard.com → Public API → generate token → Vercel env PSA_API_TOKEN → redeploy.
 - Fix 19 Oct: eBay keeps grader / grade / Certification Number for graded cards in "conditionDescriptors" (not item specifics) — mapItem now merges them into aspects (item specifics win on duplicates); non-PSA certs get a lookup link + "automatic checks are PSA only". 103 unit tests + e2e.
-- [x] PSA_API_TOKEN added in Vercel; Settings shows "PSA slab checks: Connected" (19 Oct 2026)
+- [x] PSA_API_TOKEN added in Vercel (19 Oct 2026) — but PSA replies 403 "Access to this API is limited to approved customers." → [ ] request approval from PSA (Help & Support / Request Center). Until then the slab check shows the cert number + "Verify on PSA" link.
 - [ ] **Licence check before charging users:** read PSA's API End User Agreement (commercial use, display of population data, daily call limit, caching) — same as eBay/SportsCardsPro.
 - [ ] Later: in-app "last 5 sales" needs a licensed source — ask Brady (SportsCardsPro recent sales via API?) or apply for eBay Marketplace Insights (limited release). eBay Partner Network could earn commission on the eBay links.
 - 102 unit tests + e2e (scenario 18).

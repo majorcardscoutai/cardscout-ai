@@ -81,5 +81,7 @@ test("PSA errors: firewall block vs bad token", async () => {
     let r = await fetchPsaCert("156774743"); assert.equal(r.ok, false); if (!r.ok) assert.match(r.error, /firewall blocked/);
     globalThis.fetch = (async () => new Response(JSON.stringify({ Message: "Authorization has been denied for this request." }), { status: 401 })) as typeof fetch;
     r = await fetchPsaCert("156774743"); if (!r.ok) assert.match(r.error, /rejected the token \(HTTP 401\)/);
+    globalThis.fetch = (async () => new Response(JSON.stringify({ Message: "Access to this API is limited to approved customers." }), { status: 403 })) as typeof fetch;
+    r = await fetchPsaCert("156774743"); if (!r.ok) assert.match(r.error, /hasn't approved this account for API access/);
   } finally { globalThis.fetch = prev; delete process.env.PSA_API_TOKEN; }
 });

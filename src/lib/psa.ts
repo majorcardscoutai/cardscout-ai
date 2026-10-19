@@ -59,6 +59,8 @@ export async function fetchPsaCert(cert: string): Promise<PsaResult> {
     if (res.status === 401 || res.status === 403) {
       // A firewall block returns a web page; a bad token returns PSA's own error. Tell them apart.
       const body = (await res.text().catch(() => "")).slice(0, 2000);
+      if (/approved customers/i.test(body))
+        return { ok: false, code: res.status, error: "PSA hasn't approved this account for API access yet — use the link to check the cert on PSA" };
       if (/cloudflare|just a moment|attention required|access denied|<html/i.test(body))
         return { ok: false, code: res.status, error: `PSA's firewall blocked CardHawk's server (HTTP ${res.status}) — the token may be fine` };
       return { ok: false, code: res.status, error: `PSA rejected the token (HTTP ${res.status}) — get a fresh one at psacard.com/publicapi, update PSA_API_TOKEN in Vercel, then redeploy` };
