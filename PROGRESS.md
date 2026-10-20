@@ -348,3 +348,13 @@ Decisions (20 Oct): invite-only beta · email + password sign-in only · 5 saved
 - "Graded or raw" on Search eBay now: Both / Graded only / Ungraded (raw) only. eBay filters by its trading-card condition (conditionIds 2750 Graded, 4000 Ungraded); listings that slip through are checked again (eBay condition → Professional Grader/Grade item specifics → grader name in the title).
 - Saved with the search (saved_searches.grading) and used by every scan; the saved-search list shows "Graded only" / "Raw only".
 - SQL (bottom of schema.sql): saved_searches.grading. 109 unit tests + e2e scenario 26.
+
+## Later (noted 20 Oct 2026): "Scan a card" — photo → card details
+Not built yet. Idea and decisions so far:
+- Analyse → "Scan a card" opens the phone camera (file input with capture, works in the installed web app — no App Store). Front photo; raw cards also the back (card number).
+- An AI vision model reads player/character, year, set, number, parallel; slabs also grader, grade and cert number. Every field shown as "from photo — check this"; the user confirms before any value is used (never-guess rule). Slab cert → PSA check where available.
+- Accuracy: slabs very good (printed label); raw player/set usually good; parallels (Silver vs Refractor vs Gold) the weak spot — always confirmed by the user. NO grade predictions from photos.
+- Build order: 1) slabs, 2) raw cards front + back.
+- Needs ANTHROPIC_API_KEY (console.anthropic.com) in Vercel. Photos read then discarded (not stored). Daily scan limit per plan.
+- Cost estimate (Anthropic published prices, Oct 2026; ~1,560 image tokens + ~500 prompt + ~300 answer per photo): Haiku 5.5 ≈ US$0.0004/photo (≈ US$0.35 per 1,000) — suits slab labels; Sonnet 5.5 ≈ US$0.007/photo (≈ US$7 per 1,000) — suits raw cards; Opus 5.5 ≈ US$0.014/photo. Raw front + back ≈ double. Heavy user (20 scans/day on Sonnet) ≈ US$4/month.
+- Sources: platform.claude.com/docs/en/about-claude/pricing · platform.claude.com/docs/en/build-with-claude/vision
