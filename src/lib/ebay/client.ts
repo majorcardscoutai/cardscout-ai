@@ -264,6 +264,22 @@ export interface SearchInput {
   minPrice?: number | null;
   /** eBay item-specifics filter, e.g. "Sport:{Baseball}" (category is added automatically). */
   aspectFilter?: string;
+  /** Graded slabs only, ungraded (raw) cards only, or both. */
+  grading?: Grading;
+}
+
+export type Grading = "any" | "graded" | "raw";
+/** eBay's trading-card condition ids: Graded / Ungraded. */
+const CONDITION_IDS = { graded: "2750", raw: "4000" } as const;
+const GRADER_WORDS = /\b(PSA|BGS|SGC|CGC|BECKETT|HGA|TAG|ISA|KSA|GMA|CSG)\b/i;
+
+/** Is this listing a graded slab? eBay's condition first, then the seller's item specifics, then the title. */
+export function isGradedListing(l: Pick<EbayListing, "title" | "condition" | "aspects">): boolean {
+  const c = (l.condition ?? "").trim().toLowerCase();
+  if (c === "graded") return true;
+  if (c === "ungraded") return false;
+  if (l.aspects.some((a) => /^(professional grader|grade)$/i.test(a.name.trim()) && !/^(ungraded|not graded|n\/a)$/i.test(a.value.trim()))) return true;
+  return GRADER_WORDS.test(l.title);
 }
 
 export function buildSearchPath(s: SearchInput): string {
@@ -272,6 +288,7 @@ export function buildSearchPath(s: SearchInput): string {
   const min = s.minPrice !== undefined && s.minPrice !== null && s.minPrice > 0 ? s.minPrice : null;
   if (s.maxPrice !== null || min !== null) filters.push(`price:[${min ?? ""}..${s.maxPrice ?? ""}]`, `priceCurrency:${currency}`);
   filters.push(s.format === "ALL" ? "buyingOptions:{FIXED_PRICE|AUCTION}" : `buyingOptions:{${s.format}}`);
+  if (s.grading === "graded" || s.grading === "raw") filters.push(`conditionIds:{${CONDITION_IDS[s.grading]}}`);
   const params = new URLSearchParams({
     q: s.q,
     category_ids: CATEGORY_IDS[s.category],
@@ -294,6 +311,8 @@ export async function searchListings(
   const seen = new Set<string>();
   const unique = items.filter((i) => (seen.has(i.itemId) ? false : (seen.add(i.itemId), true)));
   const words = s.exclude ?? [];
-  const kept = words.length ? unique.filter((i) => !excludedBy(i.title, words)) : unique;
+  // Graded / raw: eBay filters by condition; listings that slip through are dropped here too.
+  const graded = s.grading === "graded" || s.grading === "raw" ? unique.filter((i) => isGradedListing(i) === (s.grading === "graded")) : unique;
+  const kept = words.length ? graded.filter((i) => !excludedBy(i.title, words)) : graded;
   return { ok: true, data: { total: r.data.total ?? unique.length, items: kept, excluded: unique.length - kept.length } };
 }

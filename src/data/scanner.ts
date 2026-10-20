@@ -253,7 +253,7 @@ export async function runAllScans(
     const hint: { sport?: Sport } = isHunter ? { sport: parseHunterSport(s.query) ?? undefined } : {};
     const input = isHunter
       ? { ...hunterSearchInput(parseHunterSport(s.query)!, hunterCfg), ...(quick ? { limit: QUICK_HUNTER_PAGE_SIZE } : {}), shipTo: shipToFor(settings) }
-      : { q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), shipTo: shipToFor(settings) };
+      : { q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), grading: s.grading, shipTo: shipToFor(settings) };
     // Profit Hunter: one broad search shared by every account, then this account's own rules.
     const group = isHunter ? opts.hunterGroups?.get(hunterGroupKey(parseHunterSport(s.query)!, hunterCfg.market, input.shipTo)) : undefined;
     const broad = group

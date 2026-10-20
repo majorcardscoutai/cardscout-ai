@@ -214,6 +214,8 @@ export async function addSavedSearchAction(formData: FormData) {
   if (!viewer?.admin && (await countOwnSavedSearches()) >= MAX_SAVED_SEARCHES)
     back("/scanner", "error", `You can have up to ${MAX_SAVED_SEARCHES} saved searches. Delete one to add another.`);
   const error = await insertSavedSearch(parsed.value);
+  if (error && /grading/.test(error))
+    back("/scanner", "error", "The graded / raw filter needs a one-time database update — run the newest SQL in Supabase (bottom of supabase/schema.sql), then save again.");
   if (error && /exclude_words/.test(error))
     back("/scanner", "error", "Exclude words need a one-time database update — run the Phase 5 SQL in Supabase (see PROGRESS.md), then save again.");
   if (error) back("/scanner", "error", `Couldn't save: ${error}`);

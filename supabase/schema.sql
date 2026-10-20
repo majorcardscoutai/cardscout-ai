@@ -348,3 +348,6 @@ revoke all on public.api_usage from anon, authenticated;
 
 -- ---------- 20 Oct 2026: Phase 6 step 6 — invites ----------
 alter table public.waitlist add column if not exists invited_at timestamptz;
+
+-- ---------- 20 Oct 2026: graded / raw filter on saved searches ----------
+alter table public.saved_searches add column if not exists grading text not null default 'any';

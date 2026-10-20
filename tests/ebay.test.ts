@@ -238,3 +238,19 @@ test("search returns de-duplicated listings", async () => {
   if (r.ok) assert.deepEqual(r.data.items.map((i) => i.itemId), ["111111111111", "222222222222"]);
   assert.equal((await searchListings({ q: "a", market: "EBAY_US", category: "sportsCards", maxPrice: null, format: "ALL" })).ok, false);
 });
+
+test("graded / raw filter: eBay condition ids, then condition, item specifics, title", async () => {
+  const { buildSearchPath, isGradedListing } = await import("../src/lib/ebay/client.js");
+  const base = { q: "ohtani topps update", market: "EBAY_US" as const, category: "sportsCards" as const, maxPrice: null, format: "FIXED_PRICE" as const };
+  assert.match(decodeURIComponent(buildSearchPath({ ...base, grading: "graded" })), /conditionIds:\{2750\}/);
+  assert.match(decodeURIComponent(buildSearchPath({ ...base, grading: "raw" })), /conditionIds:\{4000\}/);
+  assert.doesNotMatch(decodeURIComponent(buildSearchPath({ ...base, grading: "any" })), /conditionIds/);
+  assert.doesNotMatch(decodeURIComponent(buildSearchPath(base)), /conditionIds/);
+  const l = (title: string, condition: string | null = null, aspects: { name: string; value: string }[] = []) => ({ title, condition, aspects });
+  assert.equal(isGradedListing(l("2018 Topps Update Ohtani PSA 10")), true);
+  assert.equal(isGradedListing(l("2018 Topps Update Ohtani RC raw NM")), false);
+  assert.equal(isGradedListing(l("Ohtani rookie PSA 10 candidate?", "Ungraded")), false, "eBay's condition wins over the title");
+  assert.equal(isGradedListing(l("Ohtani rookie gem", "Graded")), true);
+  assert.equal(isGradedListing(l("Ohtani rookie gem", null, [{ name: "Professional Grader", value: "Beckett (BGS)" }])), true);
+  assert.equal(isGradedListing(l("Ohtani rookie", null, [{ name: "Grade", value: "Ungraded" }])), false);
+});

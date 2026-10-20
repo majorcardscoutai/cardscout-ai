@@ -28,6 +28,7 @@ import { displayFx, shipToFor } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
 import { currentViewer } from "@/data/session";
 import { MAX_SAVED_SEARCHES } from "@/lib/limits";
+import { parseGrading } from "@/lib/forms";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -40,6 +41,7 @@ type Params = {
   max?: string;
   format?: string;
   x?: string;
+  grading?: string;
   saved?: string;
   error?: string;
   deals?: string;
@@ -60,6 +62,7 @@ function parseSearch(p: Params): SearchInput | null {
     maxPrice: p.max && Number.isFinite(max) && max > 0 ? max : null,
     format: p.format === "FIXED_PRICE" || p.format === "AUCTION" || p.format === "BEST_OFFER" ? p.format : "ALL",
     exclude: parseExcludeWords(p.x),
+    grading: parseGrading(p.grading),
   };
 }
 
@@ -211,7 +214,14 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               <option value="ALL">All</option>
             </select>
           </Field>
-          <Field label="Exclude words" hint="Hide titles containing any of these, e.g. lot, reprint, custom, digital" className="col-span-2 sm:col-span-4">
+          <Field label="Graded or raw">
+            <select name="grading" defaultValue={search?.grading ?? "any"} className={inputCls}>
+              <option value="any">Both</option>
+              <option value="graded">Graded only</option>
+              <option value="raw">Ungraded (raw) only</option>
+            </select>
+          </Field>
+          <Field label="Exclude words" hint="Hide titles containing any of these, e.g. lot, reprint, custom, digital" className="col-span-2 sm:col-span-3">
             <input name="x" defaultValue={search ? excludeWordsText(search.exclude ?? []) : (params.x ?? "")} placeholder="lot, reprint, custom" maxLength={300} className={inputCls} />
           </Field>
           <div className="col-span-2 flex items-end justify-end">
@@ -243,6 +253,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                 <input type="hidden" name="format" value={search.format} />
                 <input type="hidden" name="max" value={search.maxPrice ?? ""} />
                 <input type="hidden" name="x" value={excludeWordsText(search.exclude ?? [])} />
+                <input type="hidden" name="grading" value={search.grading ?? "any"} />
                 <Field label="Save this search as" className="flex-1">
                   <input name="name" defaultValue={search.q} maxLength={80} className={inputCls} />
                 </Field>
@@ -345,7 +356,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                       {s.name}
                     </div>
                     <div className="text-xs text-faint">
-                      “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"} · {FORMAT_LABEL[s.format]}
+                      “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"} · {FORMAT_LABEL[s.format]}{s.grading === "graded" ? " · Graded only" : s.grading === "raw" ? " · Raw only" : ""}
                       {s.maxPrice ? ` · ≤ ${s.market === "EBAY_AU" ? "A$" : "US$"}${s.maxPrice}` : ""}
                     </div>
                     <form action={updateSavedSearchExcludeAction} className="mt-1.5 flex items-center gap-2">

@@ -282,6 +282,11 @@ export interface SavedSearchInput {
   format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
   maxPrice: number | null;
   excludeWords: string;
+  grading: "any" | "graded" | "raw";
+}
+
+export function parseGrading(v: unknown): "any" | "graded" | "raw" {
+  return v === "graded" || v === "raw" ? v : "any";
 }
 
 export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {
@@ -301,6 +306,7 @@ export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {
       format: fmt === "ALL" || fmt === "AUCTION" || fmt === "BEST_OFFER" ? fmt : "FIXED_PRICE",
       maxPrice: max.value,
       excludeWords: excludeWordsText(parseExcludeWords(str(fd, "x"))),
+      grading: parseGrading(str(fd, "grading")),
     },
   };
 }

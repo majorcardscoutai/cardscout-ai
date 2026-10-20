@@ -343,3 +343,8 @@ Decisions (20 Oct): invite-only beta · email + password sign-in only · 5 saved
 - [ ] Supabase → Authentication → URL Configuration: Site URL + /auth/reset redirect on the new domain (if the address changes).
 - [ ] Replace the exposed SportsCardsPro token (Brady).
 - [ ] Terms of use + privacy policy page (Phase 7, before charging; good practice before beta).
+
+## Graded / raw filter on the Automatic Scanner (20 Oct 2026)
+- "Graded or raw" on Search eBay now: Both / Graded only / Ungraded (raw) only. eBay filters by its trading-card condition (conditionIds 2750 Graded, 4000 Ungraded); listings that slip through are checked again (eBay condition → Professional Grader/Grade item specifics → grader name in the title).
+- Saved with the search (saved_searches.grading) and used by every scan; the saved-search list shows "Graded only" / "Raw only".
+- SQL (bottom of schema.sql): saved_searches.grading. 109 unit tests + e2e scenario 26.
