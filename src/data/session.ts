@@ -10,5 +10,9 @@ export type Viewer = { kind: "account"; id: string; email: string; admin: boolea
 export async function currentViewer(): Promise<Viewer> {
   const jar = await cookies();
   const user = await userForToken(jar.get(AT_COOKIE)?.value);
-  return user ? { kind: "account", id: user.id, email: user.email, admin: isAdminEmail(user.email) } : null;
+  if (!user) return null;
+  // Keep the account's email on file for alerts (once per server instance).
+  const { recordProfile } = await import("@/data/db");
+  await recordProfile(user.id, user.email);
+  return { kind: "account", id: user.id, email: user.email, admin: isAdminEmail(user.email) };
 }

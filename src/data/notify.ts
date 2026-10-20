@@ -22,7 +22,8 @@ export function dealsMessage(hits: ScanHit[]): PushMessage {
   const price = best.priceUsd !== null ? `${formatMoney(best.priceUsd, "USD")}` : "";
   return {
     title: n === 1 ? "CardHawk: new deal" : `CardHawk: ${n} new deals`,
-    body: `${best.title.slice(0, 90)} — ${price}${profit}${roi}`,
+    // Price-guide values carry their source (SportsCardsPro / PriceCharting attribution).
+    body: `${best.title.slice(0, 90)} — ${price}${profit}${roi}${best.valueSource === "pricecharting" ? " · value: PriceCharting" : best.valueSource === "sportscardspro" ? " · value: SportsCardsPro" : ""}`,
     url: "/deals",
     tag: "cardscout-deals",
   };

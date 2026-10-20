@@ -28,6 +28,7 @@ export const PER_USER_TABLES = new Set([
   "holdings",
   "card_values",
   "push_subscriptions",
+  "value_rejections",
 ]);
 
 const als = new AsyncLocalStorage<{ userId: string }>();

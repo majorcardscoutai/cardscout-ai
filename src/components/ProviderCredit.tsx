@@ -18,9 +18,18 @@ export default function ProviderCredit({ className = "" }: { className?: string 
 /** Small label showing where a listing's value came from. */
 export function ValueSource({ source }: { source?: string | null }) {
   if (!source) return null;
-  const label = source === "you" ? "Your value" : source === "pricecharting" ? "PriceCharting value" : "SportsCardsPro value";
+  if (source === "you") return <span className="rounded-md bg-panel-2 px-1.5 py-0.5 text-[11px] text-muted">Your value</span>;
+  const pc = source === "pricecharting";
+  // Attribution: every price-guide value links to its source.
   return (
-    <span className={`rounded-md px-1.5 py-0.5 text-[11px] ${source === "you" ? "bg-panel-2 text-muted" : "bg-accent/10 text-accent"}`}>{label}</span>
+    <a
+      href={pc ? "https://www.pricecharting.com" : "https://www.sportscardspro.com"}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="rounded-md bg-accent/10 px-1.5 py-0.5 text-[11px] text-accent hover:underline"
+    >
+      {pc ? "PriceCharting value" : "SportsCardsPro value"}
+    </a>
   );
 }
 

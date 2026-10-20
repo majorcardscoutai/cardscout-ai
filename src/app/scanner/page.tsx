@@ -388,7 +388,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               status={scheduleHealthy ? "ok" : "off"}
               detail={lastScheduled ? `Last scheduled scan ${ago(lastScheduled.createdAt)}` : "No scheduled scan has run yet"}
             />
-            <StatusRow label="Email alerts" status={emailConfigured() ? "ok" : "off"} detail={emailConfigured() ? "Resend connected" : "Add RESEND_API_KEY + ALERT_EMAIL"} />
+            <StatusRow label="Email alerts" status={emailConfigured() ? "ok" : "off"} detail={emailConfigured() ? "Resend connected · sent to your sign-in email" : "Add RESEND_API_KEY"} />
             <StatusRow
               label="Phone notifications"
               status={pushConfigured() && devices.data.length > 0 ? "ok" : "off"}

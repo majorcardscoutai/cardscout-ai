@@ -11,7 +11,9 @@ import { providerConfigured } from "@/lib/provider-client";
 import type { CardIdentity, Sport } from "@/lib/types";
 import { fillProviderValues, identityFromTitle, isBrandOnlySet, pendingLookups, resolveSetless } from "./provider";
 import { refreshGuideSets } from "./guide";
-import { alertEmailHtml, emailConfigured, sendAlertEmail } from "@/lib/email";
+import { alertEmailHtml, alertRecipient, emailConfigured, sendAlertEmail } from "@/lib/email";
+import { isAdminEmail } from "@/lib/supabase-auth";
+import { ownerId } from "./owner";
 import { parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
 import { dealsMessage, pushToAllDevices } from "./notify";
@@ -19,6 +21,7 @@ import { evaluateListing, revalueHit, shouldAlert, type ScanHit } from "@/lib/sc
 import { hunterRules, hunterSearchInput, liquidEnough, parseHunterSport } from "@/lib/hunter";
 import {
   cardValueMap,
+  profileEmail,
   existingItemIds,
   loadHunterConfig,
   insertHits,
@@ -319,12 +322,19 @@ export async function runAllScans(
   if (toEmail.length > 0 && emailConfigured()) {
     const best = toEmail.sort((a, b) => (b.roiPercent ?? 0) - (a.roiPercent ?? 0)).slice(0, MAX_EMAIL_ROWS);
     const appUrl = process.env.APP_URL ?? "https://cardscout-ai.vercel.app";
-    const err = await sendAlertEmail(
-      `CardHawk: ${toEmail.length} new deal${toEmail.length === 1 ? "" : "s"}`,
-      alertEmailHtml(best, displayFx(settings), appUrl),
-    );
-    if (err) summary.errors.push(err);
-    else summary.emailed = best.length;
+    // This account's own email (admins: ALERT_EMAIL if set).
+    const email = await profileEmail(await ownerId());
+    const to = alertRecipient(email, isAdminEmail(email));
+    if (!to) summary.errors.push("No email address on file for this account yet — open CardHawk once while signed in.");
+    else {
+      const err = await sendAlertEmail(
+        `CardHawk: ${toEmail.length} new deal${toEmail.length === 1 ? "" : "s"}`,
+        alertEmailHtml(best, displayFx(settings), appUrl),
+        to,
+      );
+      if (err) summary.errors.push(err);
+      else summary.emailed = best.length;
+    }
   }
 
   // Phone notifications for the same alert-worthy deals as the email.

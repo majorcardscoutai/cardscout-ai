@@ -1,5 +1,7 @@
 "use server";
 
+import { currentViewer } from "@/data/session";
+
 /**
  * Server actions — run on the server when you submit a form.
  * Each one: validate input → write to the database → refresh the page.
@@ -259,10 +261,14 @@ export async function rejectAutoValueAction(formData: FormData) {
   const ret = String(formData.get("returnTo") ?? "/values");
   const to = ["/scanner", "/deals", "/values", "/hunter"].includes(ret) ? ret : "/values";
   if (!key) back(to, "error", "Missing card.");
-  const err = await rejectProviderValue(key);
+  const viewer = await currentViewer();
+  const err = await rejectProviderValue(key, viewer?.admin === true);
+  if (err && /value_rejections/.test(err)) back(to, "error", "This needs the Phase 6 step 4 database update — run that SQL in Supabase, then try again.");
   if (err) back(to, "error", `Couldn't update: ${err}`);
   revalidatePath("/", "layout");
-  back(to, "saved", "Got it — that automatic value won't be used. Set your own value for this card if you like.");
+  back(to, "saved", viewer?.admin
+    ? "Got it — that automatic value won't be used (for every account, as you're an admin). Set your own value for this card if you like."
+    : "Got it — that automatic value won't be used for you. Set your own value for this card if you like.");
 }
 
 /** Profit Hunter → save settings (and the hidden per-sport searches). */

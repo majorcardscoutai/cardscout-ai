@@ -293,3 +293,41 @@ begin
   end loop;
 end $$;
 grant usage, select on sequence public.settings_id_seq, public.hunter_config_id_seq to authenticated;
+
+-- ---------- 20 Oct 2026: Phase 6 step 4 — per-account alerts and "wrong match" ----------
+-- profiles: each account's email (for its alert emails; written by the server).
+create table if not exists public.profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz
+);
+alter table public.profiles enable row level security;
+drop policy if exists profiles_own_row on public.profiles;
+create policy profiles_own_row on public.profiles for select to authenticated using (user_id = (select auth.uid()));
+revoke all on public.profiles from anon;
+
+-- value_rejections: "Wrong match?" now only affects the account that clicked it (admins: everyone).
+create table if not exists public.value_rejections (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  card_key text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, card_key)
+);
+alter table public.value_rejections enable row level security;
+drop policy if exists value_rejections_own_rows on public.value_rejections;
+create policy value_rejections_own_rows on public.value_rejections for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+grant select, insert, update, delete on public.value_rejections to authenticated;
+revoke all on public.value_rejections from anon;
+
+-- Remove step 2's temporary "new rows belong to Travis" default — every row now names its account.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['settings','hunter_config','saved_searches','scan_hits','scan_runs','watchlist','holdings','card_values','push_subscriptions']
+  loop
+    execute format('alter table public.%I alter column user_id drop default', t);
+  end loop;
+end $$;

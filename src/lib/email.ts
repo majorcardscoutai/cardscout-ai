@@ -1,13 +1,21 @@
 /**
  * Deal alert emails via Resend (https://resend.com) — free tier, no extra package.
- * Server-only (uses RESEND_API_KEY). Without the key or ALERT_EMAIL, alerts
- * simply aren't emailed; they still appear on the Scanner page.
+ * Server-only (uses RESEND_API_KEY). Without the key, alerts simply aren't emailed; they still appear
+ * in the app. Each account's alerts go to its own sign-in email (admins: ALERT_EMAIL if set).
+ * Note: until a domain is verified in Resend (ALERT_FROM on that domain), Resend only delivers to the
+ * Resend account owner's own address.
  */
 import { formatMoney } from "./currency";
 import type { ScanHit } from "./scan";
 
 export function emailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.ALERT_EMAIL);
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
+/** Where an account's alert emails go: its sign-in email; admins can redirect theirs with ALERT_EMAIL. */
+export function alertRecipient(accountEmail: string | null, isAdmin: boolean): string | null {
+  if (isAdmin && process.env.ALERT_EMAIL) return process.env.ALERT_EMAIL;
+  return accountEmail;
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
@@ -43,7 +51,7 @@ export function alertEmailHtml(hits: (ScanHit & { searchName: string })[], usdTo
 </div>`;
 }
 
-export async function sendAlertEmail(subject: string, html: string): Promise<string | null> {
+export async function sendAlertEmail(subject: string, html: string, to: string): Promise<string | null> {
   if (!emailConfigured()) return "Email not configured";
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -51,7 +59,7 @@ export async function sendAlertEmail(subject: string, html: string): Promise<str
       headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: process.env.ALERT_FROM ?? "CardHawk AI <onboarding@resend.dev>",
-        to: [process.env.ALERT_EMAIL],
+        to: [to],
         subject,
         html,
       }),

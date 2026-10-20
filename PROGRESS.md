@@ -311,3 +311,12 @@ Decisions (20 Oct): invite-only beta · email + password sign-in only · 5 saved
 - Settings → Account shows "Database protection: on" (or "app only" until SUPABASE_PUBLISHABLE_KEY is set).
 - Order: SQL → publish → add SUPABASE_PUBLISHABLE_KEY in Vercel → redeploy. (Adding the key before the SQL would hide your data until the SQL runs.)
 - e2e scenario 22.
+
+### Step 4 — per-account settings, Hunter, alerts (built 20 Oct 2026)
+- New accounts start with default Settings and the Profit Hunter off (already true after step 2; checked in e2e 21).
+- Alert emails go to each account's own sign-in email (profiles table, recorded when the account opens CardHawk); admins can redirect theirs with ALERT_EMAIL. Settings → Account shows where alerts go. Push alerts already go only to the account's own devices.
+- NOTE: Resend only delivers to other people's addresses once a domain is verified in Resend and ALERT_FROM uses it — needed before beta users get email alerts (push works without it).
+- "Wrong match?" is per account (value_rejections table); an admin's click also rejects the shared guide value for everyone. (A shared rejection can be overwritten if another account's lookup re-prices that card — personal rejections can't.)
+- Attribution: every "SportsCardsPro value"/"PriceCharting value" label links to the source; push alerts name the guide; email footer already credits both.
+- SQL (bottom of schema.sql, "Phase 6 step 4"): profiles, value_rejections (+ row-level security), and removes step 2's temporary user_id default.
+- e2e scenario 23 (+ updated 11, 16, 17 expectations).

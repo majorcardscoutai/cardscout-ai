@@ -357,13 +357,17 @@ export interface ProviderValueRow {
 export async function listProviderValues(): Promise<DbResult<ProviderValueRow[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await (await tbl("provider_values")).select("*").order("fetched_at", { ascending: false }).limit(5000);
+    const [{ data, error }, mineRejected] = await Promise.all([
+      (await tbl("provider_values")).select("*").order("fetched_at", { ascending: false }).limit(5000),
+      myRejectedKeys(),
+    ]);
     if (error) throw error;
     return {
       error: null,
       data: (data ?? []).map((r: Record<string, unknown>) => ({
         key: String(r.card_key),
-        status: String(r.status) as ProviderValueRow["status"],
+        // Shared guide values; a match YOU marked as wrong shows as rejected for you only.
+        status: (mineRejected.has(String(r.card_key)) ? "rejected" : String(r.status)) as ProviderValueRow["status"],
         site: r.site === "pricecharting" ? "pricecharting" : "sportscardspro",
         productId: r.product_id ? String(r.product_id) : null,
         matchedName: r.matched_name ? String(r.matched_name) : null,
@@ -425,11 +429,29 @@ export async function saveProviderValue(v: Omit<ProviderValueRow, "fetchedAt">):
   }
 }
 
-/** "This match is wrong" — stop using the automatic value for this card. */
-export async function rejectProviderValue(key: string): Promise<string | null> {
+/** Cards whose automatic value this account marked as wrong (empty if the table isn't there yet). */
+async function myRejectedKeys(): Promise<Set<string>> {
   try {
-    const { error } = await (await tbl("provider_values")).update({ status: "rejected" }).eq("card_key", key);
+    const { data, error } = await (await tbl("value_rejections")).select("card_key");
+    if (error) return new Set();
+    return new Set((data ?? []).map((r: { card_key: unknown }) => String(r.card_key)));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * "This match is wrong" — stop using the automatic value for this card, for this account.
+ * forEveryone (admins only): also stop it for all accounts.
+ */
+export async function rejectProviderValue(key: string, forEveryone = false): Promise<string | null> {
+  try {
+    const { error } = await (await tbl("value_rejections")).upsert({ card_key: key, created_at: new Date().toISOString() }, { onConflict: "user_id,card_key" });
     if (error) throw error;
+    if (forEveryone) {
+      const { error: e2 } = await (await tbl("provider_values")).update({ status: "rejected" }).eq("card_key", key);
+      if (e2) throw e2;
+    }
     return null;
   } catch (e) {
     return message(e);
@@ -1145,5 +1167,33 @@ export async function listScanOwners(): Promise<DbResult<string[]>> {
     return { data: ids, error: null };
   } catch (e) {
     return { data: [], error: message(e) };
+  }
+}
+
+// ---------- Profiles: each account's email, for alerts and the Admin page (server key only) ----------
+
+const profilesSeen = new Set<string>();
+
+/** Remember an account's email (once per server instance; never fails a page). */
+export async function recordProfile(userId: string, email: string): Promise<void> {
+  if (!dbConfigured() || profilesSeen.has(userId)) return;
+  try {
+    const { error } = await db()
+      .from("profiles")
+      .upsert({ user_id: userId, email, last_seen_at: new Date().toISOString() }, { onConflict: "user_id" });
+    if (!error) profilesSeen.add(userId);
+  } catch {
+    // profiles table not created yet — try again next time
+  }
+}
+
+export async function profileEmail(userId: string): Promise<string | null> {
+  if (!dbConfigured()) return null;
+  try {
+    const { data, error } = await db().from("profiles").select("email").eq("user_id", userId).maybeSingle();
+    if (error || !data) return null;
+    return typeof data.email === "string" ? data.email : null;
+  } catch {
+    return null;
   }
 }
