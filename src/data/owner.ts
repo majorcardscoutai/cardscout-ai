@@ -44,8 +44,14 @@ const stamp = (v: Row | Row[], uid: string) => (Array.isArray(v) ? v.map((r) => 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyQuery = any;
+/** Same type as db().from(table), so every query keeps Supabase's own types. */
+type Table = ReturnType<ReturnType<typeof db>["from"]>;
 
-export async function tbl(table: string): Promise<AnyQuery> {
+export async function tbl(table: string): Promise<Table> {
+  return (await scopedTable(table)) as unknown as Table;
+}
+
+async function scopedTable(table: string): Promise<AnyQuery> {
   const q: AnyQuery = db().from(table);
   // Wrapped (not returned as-is) so awaiting tbl() never runs a query by accident.
   if (!PER_USER_TABLES.has(table))
