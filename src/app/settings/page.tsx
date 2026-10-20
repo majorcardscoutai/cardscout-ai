@@ -1,6 +1,7 @@
 import { saveSettingsAction } from "@/app/actions";
 import { logout } from "@/app/login/actions";
 import { currentViewer } from "@/data/session";
+import { databaseRulesOn } from "@/data/owner";
 import { addGuideSetAction, refreshGuideAction, removeGuideSetAction, testProviderAction } from "@/app/actions";
 import { MAX_GUIDE_SETS } from "@/lib/guide-csv";
 import ProviderCredit from "@/components/ProviderCredit";
@@ -350,6 +351,13 @@ export default async function SettingsPage({
               {viewer.admin && <span className="ml-2 rounded-md bg-gain-soft px-1.5 py-0.5 text-[11px] font-medium text-gain">Admin</span>}
               <span className="block text-xs text-faint">
                 Stays signed in on this device for 30 days. Forgot your password? Sign out, then use &ldquo;Forgot password?&rdquo;.
+              </span>
+              <span className="mt-1 block text-xs text-faint">
+                {databaseRulesOn() ? (
+                  <>Database protection: <span className="text-gain">on</span> — the database itself only lets this account reach its own data.</>
+                ) : (
+                  <>Database protection: <span className="text-warn">app only</span> — add SUPABASE_PUBLISHABLE_KEY in Vercel to switch on the database&apos;s own per-account rules.</>
+                )}
               </span>
             </p>
           ) : (

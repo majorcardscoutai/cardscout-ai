@@ -304,3 +304,10 @@ Decisions (20 Oct): invite-only beta · email + password sign-in only · 5 saved
 - Order: run the SQL first, then publish (the SQL defaults new rows to your account so the old code keeps working in between).
 - To do in step 4: "This match is wrong" (rejectProviderValue) currently rejects the shared guide value for everyone → make it per account; email alerts still go to ALERT_EMAIL → each account's own email; remove the user_id default set by the step 2 SQL before anyone else joins.
 - 108 unit tests + e2e scenarios 8 (updated), 20, 21 (accounts are separate).
+
+### Step 3 — database rules (built 20 Oct 2026)
+- SQL (bottom of supabase/schema.sql, "Phase 6 step 3"): row-level security policy "<table>_own_rows" on the 9 per-account tables — signed-in accounts reach only rows with their own user_id; anon has no access; shared tables keep RLS on with no policies (server only).
+- Pages and forms query per-account tables AS the signed-in person (SUPABASE_PUBLISHABLE_KEY + their access token — src/lib/supabase.ts userDb), so the database enforces separation even if the app had a bug. Shared tables and scheduled scans use the server key (with the user_id filter).
+- Settings → Account shows "Database protection: on" (or "app only" until SUPABASE_PUBLISHABLE_KEY is set).
+- Order: SQL → publish → add SUPABASE_PUBLISHABLE_KEY in Vercel → redeploy. (Adding the key before the SQL would hide your data until the SQL runs.)
+- e2e scenario 22.

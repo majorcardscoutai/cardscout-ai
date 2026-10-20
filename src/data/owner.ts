@@ -7,10 +7,16 @@
  * tbl("watchlist") hands back a table that can only see and change that person's rows: reads, updates
  * and deletes are filtered by user_id, and inserts are stamped with it. Shared tables (price-guide
  * values, PSA certs, Popular sets, waitlist) are returned unchanged.
+ *
+ * Step 3: on pages and forms, per-account tables are also queried AS the signed-in person (their
+ * token + the publishable key), so the database's own rules block other accounts' rows too.
+ * Scheduled scans have no sign-in token and use the server key with the user_id filter.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
+import { cookies } from "next/headers";
 import { currentViewer } from "@/data/session";
-import { db } from "@/lib/supabase";
+import { AT_COOKIE } from "@/lib/supabase-auth";
+import { db, userDb, userDbConfigured } from "@/lib/supabase";
 
 export const PER_USER_TABLES = new Set([
   "settings",
@@ -26,17 +32,32 @@ export const PER_USER_TABLES = new Set([
 
 const als = new AsyncLocalStorage<{ userId: string }>();
 
+/** Tests only: run as a signed-in visitor would (outside any scheduled run). */
+export function __outsideScheduledRun<T>(fn: () => Promise<T>): Promise<T> {
+  return als.exit(fn);
+}
+
 /** Run scheduled work for one account. */
 export function runAsUser<T>(userId: string, fn: () => Promise<T>): Promise<T> {
   return als.run({ userId }, fn);
 }
 
 export async function ownerId(): Promise<string> {
+  return (await owner()).id;
+}
+
+async function owner(): Promise<{ id: string; token: string | null }> {
   const store = als.getStore();
-  if (store) return store.userId;
+  if (store) return { id: store.userId, token: null };
   const v = await currentViewer();
-  if (v) return v.id;
-  throw new Error("Not signed in");
+  if (!v) throw new Error("Not signed in");
+  const token = (await cookies()).get(AT_COOKIE)?.value ?? null;
+  return { id: v.id, token };
+}
+
+/** Is the database's own per-account rule (row-level security) being used for this person's queries? */
+export function databaseRulesOn(): boolean {
+  return userDbConfigured();
 }
 
 type Row = Record<string, unknown>;
@@ -52,9 +73,9 @@ export async function tbl(table: string): Promise<Table> {
 }
 
 async function scopedTable(table: string): Promise<AnyQuery> {
-  const q: AnyQuery = db().from(table);
   // Wrapped (not returned as-is) so awaiting tbl() never runs a query by accident.
-  if (!PER_USER_TABLES.has(table))
+  if (!PER_USER_TABLES.has(table)) {
+    const q: AnyQuery = db().from(table);
     return {
       select: (...a: unknown[]) => q.select(...a),
       insert: (v: Row | Row[], o?: unknown) => q.insert(v, o),
@@ -62,7 +83,9 @@ async function scopedTable(table: string): Promise<AnyQuery> {
       update: (v: Row, o?: unknown) => q.update(v, o),
       delete: (o?: unknown) => q.delete(o),
     };
-  const uid = await ownerId();
+  }
+  const { id: uid, token } = await owner();
+  const q: AnyQuery = (token && userDbConfigured() ? userDb(token) : db()).from(table);
   return {
     select: (...a: unknown[]) => q.select(...a).eq("user_id", uid),
     insert: (v: Row | Row[], o?: unknown) => q.insert(stamp(v, uid), o),

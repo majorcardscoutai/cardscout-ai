@@ -270,3 +270,26 @@ begin
     alter table public.card_values add constraint card_values_user_card_key unique (user_id, card_key);
   end if;
 end $$;
+
+-- ---------- 20 Oct 2026: Phase 6 step 3 — database rules (row-level security) ----------
+-- Each signed-in account can only read and change rows with its own user_id. The server's secret key
+-- (scheduled scans) is unaffected. Shared tables keep row-level security on with NO rules, so only the
+-- server can reach them. Run once; safe to run again.
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['settings','hunter_config','saved_searches','scan_hits','scan_runs','watchlist','holdings','card_values','push_subscriptions']
+  loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists %I on public.%I', t || '_own_rows', t);
+    execute format('create policy %I on public.%I for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))', t || '_own_rows', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+    execute format('revoke all on public.%I from anon', t);
+  end loop;
+  foreach t in array array['waitlist','provider_values','psa_certs','guide_sets','guide_prices']
+  loop
+    execute format('alter table public.%I enable row level security', t);
+  end loop;
+end $$;
+grant usage, select on sequence public.settings_id_seq, public.hunter_config_id_seq to authenticated;
