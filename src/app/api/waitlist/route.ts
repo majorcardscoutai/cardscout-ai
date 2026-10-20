@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { listWaitlist } from "@/data/db";
+import { currentViewer } from "@/data/session";
 
-/** Download the waitlist as CSV. Behind the login (middleware), so only you can open it. */
+/** Download the waitlist as CSV. Admins only (signed in, and listed in ADMIN_EMAILS). */
 export const dynamic = "force-dynamic";
 
 const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 
 export async function GET() {
+  if (!(await currentViewer())?.admin) return NextResponse.json({ error: "Admins only" }, { status: 403 });
   const r = await listWaitlist();
   if (r.error) return NextResponse.json({ error: r.error }, { status: 500 });
   const rows = [

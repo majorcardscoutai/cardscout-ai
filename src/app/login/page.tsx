@@ -8,9 +8,9 @@ export const metadata = { title: "CardHawk AI · Sign in or join the waitlist" }
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; joined?: string; wl?: string; account?: string; email?: string }>;
+  searchParams: Promise<{ next?: string; joined?: string; wl?: string; account?: string; email?: string; deleted?: string }>;
 }) {
-  const { next, joined, wl, account, email } = await searchParams;
+  const { next, joined, wl, account, email, deleted } = await searchParams;
   const inputCls =
     "mt-1 w-full rounded-lg border border-line bg-panel-2 px-3 py-2.5 text-sm outline-none focus:border-accent";
 
@@ -37,6 +37,7 @@ export default async function LoginPage({
               <input type="password" name="password" required autoComplete="current-password" className={inputCls} />
             </label>
             {account && <p className="mt-3 text-sm text-loss">{account}</p>}
+            {deleted && <p className="mt-3 text-sm text-gain">Your account and its data have been deleted.</p>}
             <button className="mt-5 w-full rounded-lg bg-gain px-4 py-2.5 text-sm font-semibold text-bg hover:bg-gain/90">
               Sign in
             </button>

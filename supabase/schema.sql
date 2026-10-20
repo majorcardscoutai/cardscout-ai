@@ -331,3 +331,20 @@ begin
     execute format('alter table public.%I alter column user_id drop default', t);
   end loop;
 end $$;
+
+-- ---------- 20 Oct 2026: Phase 6 step 5 — API usage per account (for the Admin page) ----------
+-- One row per day per scope: an account id, "shared" (the shared Profit Hunter search) or "app".
+-- Written by the server only.
+create table if not exists public.api_usage (
+  day date not null,
+  scope text not null,
+  ebay_calls integer not null default 0,
+  guide_calls integer not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (day, scope)
+);
+alter table public.api_usage enable row level security;
+revoke all on public.api_usage from anon, authenticated;
+
+-- ---------- 20 Oct 2026: Phase 6 step 6 — invites ----------
+alter table public.waitlist add column if not exists invited_at timestamptz;

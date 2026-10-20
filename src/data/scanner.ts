@@ -3,6 +3,8 @@
  * Called by the scheduled endpoint (/api/cron/scan) and the "Scan now" button.
  */
 import { ebayConfigured, getListing, searchListings, type EbayListing, type Marketplace } from "@/lib/ebay/client";
+import { scanContext, takeUsage } from "@/lib/scan-context";
+import { runAsUser, runShared } from "./owner";
 import type { ShipTo } from "@/lib/region";
 import { pickRechecks, recheckUpdate } from "@/lib/freshness";
 import { cardKey } from "@/lib/cardKey";
@@ -14,7 +16,8 @@ import { refreshGuideSets } from "./guide";
 import { alertEmailHtml, alertRecipient, emailConfigured, sendAlertEmail } from "@/lib/email";
 import { isAdminEmail } from "@/lib/supabase-auth";
 import { ownerId } from "./owner";
-import { parseExcludeWords } from "@/lib/exclude";
+import { listScanOwners, recordUsage } from "./db";
+import { excludedBy, parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
 import { dealsMessage, pushToAllDevices } from "./notify";
 import { evaluateListing, revalueHit, shouldAlert, type ScanHit } from "@/lib/scan";
@@ -92,6 +95,7 @@ async function enrichVague(
   shipTo: ShipTo | undefined,
   budget: { left: number; deadline: number },
   hint: { sport?: Sport },
+  get: EbayGetter = getListing,
 ): Promise<{ items: EbayListing[]; fetched: number; helped: number }> {
   const out = [...items];
   let fetched = 0;
@@ -103,7 +107,7 @@ async function enrichVague(
     if (budget.left <= 0 || Date.now() > budget.deadline) break;
     const batch = vague.slice(b, b + Math.min(ENRICH_BATCH, budget.left));
     budget.left -= batch.length;
-    const got = await Promise.all(batch.map(({ l }) => getListing(l.itemId, market, shipTo)));
+    const got = await Promise.all(batch.map(({ l }) => get(l.itemId, market, shipTo)));
     fetched += batch.length;
     got.forEach((g, j) => {
       if (!g.ok || g.data.aspects.length === 0) return;
@@ -114,6 +118,60 @@ async function enrichVague(
     if (got.some((g) => !g.ok && g.code === 429)) break; // eBay daily limit
   }
   return { items: out, fetched, helped };
+}
+
+export type EbaySearcher = typeof searchListings;
+export type EbayGetter = typeof getListing;
+
+/** Options for scheduled runs over many accounts (Phase 6 step 5). */
+export interface ScanOptions {
+  only?: "hunter" | "hunter-quick";
+  /** Shared, remembered eBay calls: the same search or listing is fetched once per run for everyone. */
+  ebay?: { search: EbaySearcher; get: EbayGetter };
+  /** Profit Hunter: one broad eBay search per sport + market + delivery address, shared by every account. */
+  hunterGroups?: Map<string, HunterGroup>;
+  /** Stop starting new work after this time (the run must fit Vercel's 60-second limit). */
+  deadline?: number;
+  /** Popular sets were already refreshed once for this run. */
+  skipGuideRefresh?: boolean;
+}
+
+export interface HunterGroup {
+  maxBudget: number;
+  minPrice: number;
+  auctions: boolean;
+}
+
+export function hunterGroupKey(sport: string, market: string, shipTo: ShipTo | undefined): string {
+  return [sport, market, shipTo?.country ?? "", shipTo?.postcode ?? ""].join("|");
+}
+
+/** Remember eBay calls for the length of one scheduled run (shared across accounts). */
+export function rememberingEbay(): { search: EbaySearcher; get: EbayGetter } {
+  const searches = new Map<string, ReturnType<EbaySearcher>>();
+  const items = new Map<string, ReturnType<EbayGetter>>();
+  return {
+    search: (input) => {
+      const k = JSON.stringify(input);
+      if (!searches.has(k)) searches.set(k, searchListings(input));
+      return searches.get(k)!;
+    },
+    get: (id, market, shipTo) => {
+      const k = JSON.stringify([id, market, shipTo ?? null]);
+      if (!items.has(k)) items.set(k, getListing(id, market, shipTo));
+      return items.get(k)!;
+    },
+  };
+}
+
+/** Does a listing from the shared Hunter search fit this account's own Hunter rules? */
+export function fitsHunterInput(l: EbayListing, input: { maxPrice: number | null; minPrice?: number | null; format: string; exclude?: string[] }): boolean {
+  const price = l.price ? Number(l.price.value) : null;
+  if (price !== null && input.maxPrice !== null && price > input.maxPrice) return false;
+  if (price !== null && input.minPrice && price < input.minPrice) return false;
+  if (input.format === "FIXED_PRICE" && l.isAuction) return false;
+  if (input.exclude?.length && excludedBy(l.title, input.exclude)) return false;
+  return true;
 }
 
 /** Add up several accounts' scan results. */
@@ -130,9 +188,13 @@ export function mergeSummaries(runs: ScanSummary[]): ScanSummary {
 
 export async function runAllScans(
   trigger: "schedule" | "manual" | "daily" | "hunter",
-  opts: { only?: "hunter" | "hunter-quick" } = {},
+  opts: ScanOptions = {},
 ): Promise<ScanSummary> {
   const started = Date.now();
+  const end = opts.deadline ?? Infinity;
+  const until = (ms: number) => Math.min(started + ms, end);
+  const search = opts.ebay?.search ?? searchListings;
+  const get = opts.ebay?.get ?? getListing;
   const quick = opts.only === "hunter-quick";
   const hunterOnly = opts.only === "hunter" || quick;
   const summary: ScanSummary = { searches: 0, newListings: 0, deals: 0, emailed: 0, pushed: 0, rechecked: 0, ended: 0, autoLooked: 0, autoValued: 0, enriched: 0, enrichHelped: 0, setResolved: 0, autoLocal: 0, guideSets: 0, errors: [] };
@@ -150,8 +212,8 @@ export async function runAllScans(
   }
 
   // Popular sets: refresh any older than a day (a few downloads at most), before valuing anything.
-  if (providerConfigured()) {
-    const g = await refreshGuideSets({ deadline: started + GUIDE_TIME_BUDGET_MS, maxRequests: 3 });
+  if (providerConfigured() && !opts.skipGuideRefresh) {
+    const g = await refreshGuideSets({ deadline: until(GUIDE_TIME_BUDGET_MS), maxRequests: 3 });
     summary.guideSets = g.setsUpdated;
     summary.errors.push(...g.errors);
   }
@@ -160,14 +222,14 @@ export async function runAllScans(
   // Your own Card Values always win; automatic values fill the rest.
   const mineKeys = new Set([...values.map.values()].filter((v) => v.source === "you").map((v) => v.key));
   // A Hunter-only run has no saved searches to share time with, so it can value more cards.
-  const autoDeadline = started + (hunterOnly ? HUNTER_AUTO_VALUE_TIME_BUDGET_MS : AUTO_VALUE_TIME_BUDGET_MS);
+  const autoDeadline = until(hunterOnly ? HUNTER_AUTO_VALUE_TIME_BUDGET_MS : AUTO_VALUE_TIME_BUDGET_MS);
   let autoError: string | null = null;
   const sportBySearch = new Map<string, Sport>(
     searches.data.filter((x) => x.kind === "hunter" && parseHunterSport(x.query)).map((x) => [x.id, parseHunterSport(x.query)!]),
   );
   const enrichBudget = quick
-    ? { left: QUICK_ENRICH_MAX, deadline: started + QUICK_ENRICH_TIME_BUDGET_MS }
-    : { left: ENRICH_MAX_PER_SCAN, deadline: started + ENRICH_TIME_BUDGET_MS };
+    ? { left: QUICK_ENRICH_MAX, deadline: until(QUICK_ENRICH_TIME_BUDGET_MS) }
+    : { left: ENRICH_MAX_PER_SCAN, deadline: until(ENRICH_TIME_BUDGET_MS) };
   const autoFill = async (cards: { key: string; card: CardIdentity }[]) => {
     if (!providerConfigured() || autoError || cards.length === 0 || Date.now() > autoDeadline) return;
     const f = await fillProviderValues(cards, mineKeys, autoDeadline);
@@ -184,6 +246,7 @@ export async function runAllScans(
     return !hunterOnly;
   });
   for (const s of toRun) {
+    if (Date.now() > end) break; // out of time — the next run carries on (oldest searches first)
     summary.searches++;
     const isHunter = s.kind === "hunter";
     // The Hunter searches one sport at a time, so every listing it finds is that sport.
@@ -191,7 +254,13 @@ export async function runAllScans(
     const input = isHunter
       ? { ...hunterSearchInput(parseHunterSport(s.query)!, hunterCfg), ...(quick ? { limit: QUICK_HUNTER_PAGE_SIZE } : {}), shipTo: shipToFor(settings) }
       : { q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), shipTo: shipToFor(settings) };
-    const r = await searchListings(input);
+    // Profit Hunter: one broad search shared by every account, then this account's own rules.
+    const group = isHunter ? opts.hunterGroups?.get(hunterGroupKey(parseHunterSport(s.query)!, hunterCfg.market, input.shipTo)) : undefined;
+    const broad = group
+      ? { ...input, maxPrice: group.maxBudget, minPrice: group.minPrice > 0 ? group.minPrice : null, format: group.auctions ? ("ALL" as const) : ("FIXED_PRICE" as const), exclude: [] }
+      : null;
+    const fetched = broad ? await asShared(() => search(broad)) : await search(input);
+    const r = fetched.ok && broad ? { ...fetched, data: { ...fetched.data, items: fetched.data.items.filter((l) => fitsHunterInput(l, input)) } } : fetched;
     if (!r.ok) {
       summary.errors.push(`${s.name}: ${r.error}`);
       await markSearchRun(s.id, `Error: ${r.error}`);
@@ -202,7 +271,7 @@ export async function runAllScans(
       const seen = await existingItemIds(s.id, r.data.items.map((i) => i.itemId));
       let fresh = r.data.items.filter((i) => !seen.has(i.itemId));
       if (isHunter) {
-        const e = await enrichVague(fresh, input.market, input.shipTo, enrichBudget, hint);
+        const e = await enrichVague(fresh, input.market, input.shipTo, enrichBudget, hint, get);
         fresh = e.items;
         summary.enriched += e.fetched;
         summary.enrichHelped += e.helped;
@@ -282,8 +351,8 @@ export async function runAllScans(
       const hunterIds = new Set(searches.data.filter((x) => x.kind === "hunter").map((x) => x.id));
       const already = new Set(toEmail.map((h) => h.itemId));
       for (const h of pickRechecks(recent.data, settings, values.map)) {
-        if (Date.now() - started > (hunterOnly ? 52_000 : RECHECK_TIME_BUDGET_MS)) break;
-        const r = await getListing(h.itemId, marketBySearch.get(h.searchId) ?? "EBAY_US", shipToFor(settings));
+        if (Date.now() - started > (hunterOnly ? 52_000 : RECHECK_TIME_BUDGET_MS) || Date.now() > end) break;
+        const r = await get(h.itemId, marketBySearch.get(h.searchId) ?? "EBAY_US", shipToFor(settings));
         if (!r.ok && r.code === 429) break;
         if (!r.ok && r.code !== 404) continue; // temporary problem — try again next scan
         const u = recheckUpdate(r.ok ? r.data : null, settings.usdToAud);
@@ -353,4 +422,78 @@ export async function runAllScans(
     error: summary.errors.length ? summary.errors.join("; ").slice(0, 500) : null,
   });
   return summary;
+}
+
+/** Count a shared call (made once for everyone) as "shared" usage, not this account's. */
+function asShared<T>(fn: () => Promise<T>): Promise<T> {
+  const store = scanContext.getStore();
+  return store ? scanContext.run({ ...store, scope: "shared" }, fn) : fn();
+}
+
+/** The whole scheduled run must finish inside Vercel's 60-second limit. */
+export const RUN_BUDGET_MS = 50_000;
+const MIN_ACCOUNT_SLICE_MS = 12_000;
+
+export interface ScheduledSummary extends ScanSummary {
+  accounts: number;
+  /** Accounts not reached this time (they go first next run). */
+  skipped: number;
+}
+
+/**
+ * Scheduled scans for every account (Phase 6 step 5):
+ *  - Popular sets refresh once; the Profit Hunter's eBay search runs once per sport + market + delivery
+ *    address for everyone, then each account's own budget, rules and exclude words are applied;
+ *  - identical eBay searches and listing look-ups are made once per run;
+ *  - accounts that waited longest go first; each gets a fair slice of the time left;
+ *  - API calls are counted per account (and "shared") for the Admin page.
+ */
+export async function runScheduledScans(trigger: "schedule" | "daily" | "hunter", only?: "hunter" | "hunter-quick"): Promise<ScheduledSummary> {
+  const start = Date.now();
+  const deadline = start + RUN_BUDGET_MS;
+  const owners = await listScanOwners();
+  if (owners.error) return { ...mergeSummaries([]), errors: [`Accounts: ${owners.error}`], accounts: 0, skipped: 0 };
+
+  const shared: ScanSummary[] = [];
+  if (providerConfigured() && owners.data.length > 0) {
+    const g = await runShared(() => refreshGuideSets({ deadline: start + GUIDE_TIME_BUDGET_MS, maxRequests: 3 }));
+    shared.push({ ...mergeSummaries([]), guideSets: g.setsUpdated, errors: g.errors });
+  }
+
+  // Everyone's Hunter rules, grouped so each sport + market + delivery address is searched once.
+  const hunterGroups = new Map<string, HunterGroup>();
+  for (const uid of owners.data) {
+    await runAsUser(uid, async () => {
+      const [{ settings }, h] = await Promise.all([loadSettings(), loadHunterConfig()]);
+      if (!h.config.enabled) return;
+      for (const sport of h.config.sports) {
+        const k = hunterGroupKey(sport, h.config.market, shipToFor(settings));
+        const g = hunterGroups.get(k);
+        hunterGroups.set(k, {
+          maxBudget: Math.max(g?.maxBudget ?? 0, h.config.budget),
+          minPrice: Math.min(g?.minPrice ?? Infinity, h.config.minPrice),
+          auctions: (g?.auctions ?? false) || h.config.includeAuctions,
+        });
+      }
+    });
+  }
+
+  const ebay = rememberingEbay();
+  const runs: ScanSummary[] = [];
+  let skipped = 0;
+  for (let i = 0; i < owners.data.length; i++) {
+    const left = deadline - Date.now();
+    if (left < 5_000) {
+      skipped = owners.data.length - i;
+      break;
+    }
+    const slice = Math.max(MIN_ACCOUNT_SLICE_MS, left / (owners.data.length - i));
+    runs.push(
+      await runAsUser(owners.data[i], () =>
+        runAllScans(trigger, { only, ebay, hunterGroups, deadline: Math.min(deadline, Date.now() + slice), skipGuideRefresh: true }),
+      ),
+    );
+  }
+  await recordUsage(takeUsage());
+  return { ...mergeSummaries([...shared, ...runs]), accounts: owners.data.length, skipped };
 }

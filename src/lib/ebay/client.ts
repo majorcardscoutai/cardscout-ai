@@ -13,6 +13,7 @@
 import { excludedBy } from "../exclude";
 import { contextualLocation, type ShipTo } from "../region";
 import type { Aspect } from "./parse";
+import { countCall } from "../scan-context";
 
 export type Marketplace = "EBAY_US" | "EBAY_AU";
 
@@ -118,6 +119,7 @@ async function call<T>(path: string, market: Marketplace, shipTo: ShipTo = { cou
     const token = await getToken(attempt > 0);
     if (!token.ok) return token;
     let res: Response;
+    countCall("ebay");
     try {
       res = await timedFetch(`${API}${path}`, {
         headers: {

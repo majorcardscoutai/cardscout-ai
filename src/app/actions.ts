@@ -1,6 +1,7 @@
 "use server";
 
 import { currentViewer } from "@/data/session";
+import { MAX_SAVED_SEARCHES } from "@/lib/limits";
 
 /**
  * Server actions — run on the server when you submit a form.
@@ -8,7 +9,9 @@ import { currentViewer } from "@/data/session";
  * Results are passed back in the URL (?saved=… or ?error=…).
  */
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { AT_COOKIE, RT_COOKIE, deleteUser, inviteUser } from "@/lib/supabase-auth";
 import {
   deleteHolding,
   deleteWatchlist,
@@ -19,6 +22,8 @@ import {
   deleteCardValue,
   deleteSavedSearch,
   insertSavedSearch,
+  countOwnSavedSearches,
+  markInvited,
   saveHunterConfig,
   listGuideSets,
   addGuideSets,
@@ -205,6 +210,9 @@ export async function deleteCardValueAction(formData: FormData) {
 export async function addSavedSearchAction(formData: FormData) {
   const parsed = parseSavedSearchForm(formData);
   if (!parsed.ok) back("/scanner", "error", parsed.error);
+  const viewer = await currentViewer();
+  if (!viewer?.admin && (await countOwnSavedSearches()) >= MAX_SAVED_SEARCHES)
+    back("/scanner", "error", `You can have up to ${MAX_SAVED_SEARCHES} saved searches. Delete one to add another.`);
   const error = await insertSavedSearch(parsed.value);
   if (error && /exclude_words/.test(error))
     back("/scanner", "error", "Exclude words need a one-time database update — run the Phase 5 SQL in Supabase (see PROGRESS.md), then save again.");
@@ -304,6 +312,7 @@ export async function huntNowAction() {
 
 /** Settings → Popular sets: add from a pasted "Download Price List" link (the token in it is never kept). */
 export async function addGuideSetAction(formData: FormData) {
+  await requireAdmin("/settings");
   const parsed = parseGuideLink(String(formData.get("link") ?? ""));
   if (!parsed.ok) back("/settings", "error", parsed.error);
   const current = await listGuideSets();
@@ -324,6 +333,7 @@ export async function addGuideSetAction(formData: FormData) {
 }
 
 export async function removeGuideSetAction(formData: FormData) {
+  await requireAdmin("/settings");
   const uid = String(formData.get("uid") ?? "");
   if (!/^[A-Z]{0,3}\d{1,10}$/.test(uid)) back("/settings", "error", "Invalid set.");
   const err = await removeGuideSet(uid);
@@ -333,6 +343,7 @@ export async function removeGuideSetAction(formData: FormData) {
 }
 
 export async function refreshGuideAction() {
+  await requireAdmin("/settings");
   const r = await refreshGuideSets({ deadline: Date.now() + 45_000, maxRequests: 6 });
   revalidatePath("/", "layout");
   if (r.errors.length) back("/settings", "error", r.errors.join("; "));
@@ -349,4 +360,39 @@ export async function testProviderAction() {
   if (r.row.status === "matched")
     back("/settings", "saved", `SportsCardsPro connected ✓ Test card matched "${r.row.matchedName}" — PSA 10 value US$${r.row.valueUsd?.toFixed(2)}.`);
   back("/settings", "error", `Connected, but the test card didn't match (${r.row.status}): ${r.row.detail ?? ""}`);
+}
+
+// ---------- Admin (Phase 6 step 6) ----------
+
+async function requireAdmin(path: string) {
+  const v = await currentViewer();
+  if (!v?.admin) back(path, "error", "Only an admin can do that.");
+  return v!;
+}
+
+/** Admin → invite someone by email (from the waitlist or typed in). */
+export async function inviteAction(formData: FormData) {
+  await requireAdmin("/admin");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) back("/admin", "error", "Enter a valid email address.");
+  const appUrl = (process.env.APP_URL ?? "https://cardscout-ai.vercel.app").replace(/\/+$/, "");
+  const r = await inviteUser(email, `${appUrl}/auth/reset`);
+  if (!r.ok) back("/admin", "error", `${email}: ${r.error}`);
+  const err = await markInvited(email);
+  revalidatePath("/admin");
+  back("/admin", "saved", `Invite sent to ${email}.${err ? ` (Couldn't mark it on the waitlist: ${err})` : ""}`);
+}
+
+/** Settings → delete my account (and everything in it). */
+export async function deleteMyAccountAction(formData: FormData) {
+  const v = await currentViewer();
+  if (!v) redirect("/login");
+  if (String(formData.get("confirm") ?? "").trim().toUpperCase() !== "DELETE") back("/settings", "error", "Type DELETE to confirm.");
+  if (v.admin) back("/settings", "error", "Admin accounts can't be deleted from here — remove your email from ADMIN_EMAILS first.");
+  const err = await deleteUser(v.id);
+  if (err) back("/settings", "error", `Couldn't delete your account: ${err}`);
+  const jar = await cookies();
+  jar.delete(AT_COOKIE);
+  jar.delete(RT_COOKIE);
+  redirect("/login?deleted=1");
 }

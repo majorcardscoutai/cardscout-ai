@@ -955,6 +955,8 @@ export interface WaitlistEntry {
   region: string | null;
   goals: string[];
   createdAt: string;
+  /** When you sent them an invite (Admin page). */
+  invitedAt: string | null;
 }
 
 /** Adds an email to the waitlist. Signing up twice is fine (kept once). */
@@ -993,6 +995,7 @@ export async function listWaitlist(): Promise<DbResult<WaitlistEntry[]>> {
         region: r.region ? String(r.region) : null,
         goals: r.goals ? String(r.goals).split(",").filter(Boolean) : [],
         createdAt: String(r.created_at),
+        invitedAt: r.invited_at ? String(r.invited_at) : null,
       })),
     };
   } catch (e) {
@@ -1156,18 +1159,48 @@ export async function guidePricesByNumber(
 
 // ---------- Scheduled scans: which accounts to scan (system query, not tied to a signed-in person) ----------
 
-/** Accounts with an active saved search or Profit Hunter search. */
+/** Accounts with an active saved search or Profit Hunter search — the one waiting longest first. */
 export async function listScanOwners(): Promise<DbResult<string[]>> {
   if (!dbConfigured()) return { data: [], error: "Database not configured" };
   try {
-    const { data, error } = await db().from("saved_searches").select("user_id").eq("active", true);
+    const { data, error } = await db().from("saved_searches").select("user_id, last_run_at").eq("active", true);
     if (error) throw error;
-    const ids: string[] = [];
-    for (const r of (data ?? []) as { user_id?: unknown }[]) if (typeof r.user_id === "string" && r.user_id && !ids.includes(r.user_id)) ids.push(r.user_id);
-    return { data: ids, error: null };
+    const oldest = new Map<string, number>();
+    for (const r of (data ?? []) as { user_id?: unknown; last_run_at?: unknown }[]) {
+      if (typeof r.user_id !== "string" || !r.user_id) continue;
+      const t = typeof r.last_run_at === "string" ? Date.parse(r.last_run_at) || 0 : 0; // never run = first
+      oldest.set(r.user_id, Math.min(oldest.get(r.user_id) ?? Infinity, t));
+    }
+    return { data: [...oldest.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id), error: null };
   } catch (e) {
     return { data: [], error: message(e) };
   }
+}
+
+/** Add this run's API calls to today's totals (per account, "shared" and "app"). Never fails a scan. */
+export async function recordUsage(counts: Map<string, { ebay: number; guide: number }>): Promise<void> {
+  if (!dbConfigured() || counts.size === 0) return;
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    const { data } = await db().from("api_usage").select("scope, ebay_calls, guide_calls").eq("day", day);
+    const before = new Map(((data ?? []) as { scope: string; ebay_calls: number; guide_calls: number }[]).map((r) => [r.scope, r]));
+    const rows = [...counts.entries()].map(([scope, c]) => ({
+      day,
+      scope,
+      ebay_calls: Number(before.get(scope)?.ebay_calls ?? 0) + c.ebay,
+      guide_calls: Number(before.get(scope)?.guide_calls ?? 0) + c.guide,
+      updated_at: new Date().toISOString(),
+    }));
+    await db().from("api_usage").upsert(rows, { onConflict: "day,scope" });
+  } catch {
+    // usage table not created yet — counts are only for the Admin page
+  }
+}
+
+/** Saved searches you created yourself (the Profit Hunter's hidden searches don't count). */
+export async function countOwnSavedSearches(): Promise<number> {
+  const all = await listSavedSearches();
+  return all.data.filter((x) => x.kind !== "hunter").length;
 }
 
 // ---------- Profiles: each account's email, for alerts and the Admin page (server key only) ----------
@@ -1195,5 +1228,85 @@ export async function profileEmail(userId: string): Promise<string | null> {
     return typeof data.email === "string" ? data.email : null;
   } catch {
     return null;
+  }
+}
+
+// ---------- Admin page (server key; callers check the viewer is an admin) ----------
+
+export interface AccountRow {
+  userId: string;
+  email: string;
+  createdAt: string;
+  lastSeenAt: string | null;
+  savedSearches: number;
+  hunterOn: boolean;
+}
+
+export async function listAccounts(): Promise<DbResult<AccountRow[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const [p, ss, hc] = await Promise.all([
+      db().from("profiles").select("user_id, email, created_at, last_seen_at").order("created_at", { ascending: true }),
+      db().from("saved_searches").select("user_id, kind"),
+      db().from("hunter_config").select("user_id, enabled"),
+    ]);
+    if (p.error) throw p.error;
+    const searches = new Map<string, number>();
+    for (const r of (ss.data ?? []) as { user_id: string; kind: string | null }[]) if (r.kind !== "hunter") searches.set(r.user_id, (searches.get(r.user_id) ?? 0) + 1);
+    const hunter = new Set(((hc.data ?? []) as { user_id: string; enabled: boolean }[]).filter((r) => r.enabled).map((r) => r.user_id));
+    return {
+      error: null,
+      data: ((p.data ?? []) as { user_id: string; email: string; created_at: string; last_seen_at: string | null }[]).map((r) => ({
+        userId: r.user_id,
+        email: r.email,
+        createdAt: r.created_at,
+        lastSeenAt: r.last_seen_at,
+        savedSearches: searches.get(r.user_id) ?? 0,
+        hunterOn: hunter.has(r.user_id),
+      })),
+    };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}
+
+/** Remember that you invited this email (adds it to the waitlist if it wasn't there). */
+export async function markInvited(email: string): Promise<string | null> {
+  try {
+    const now = new Date().toISOString();
+    const { data } = await db().from("waitlist").select("email").eq("email", email).maybeSingle();
+    const { error } = data
+      ? await db().from("waitlist").update({ invited_at: now }).eq("email", email)
+      : await db().from("waitlist").insert({ email, interests: "", source: "admin-invite", invited_at: now });
+    return error ? message(error) : null;
+  } catch (e) {
+    return message(e);
+  }
+}
+
+export interface UsageRow {
+  day: string;
+  scope: string;
+  ebayCalls: number;
+  guideCalls: number;
+}
+
+export async function listUsage(days = 7): Promise<DbResult<UsageRow[]>> {
+  if (!dbConfigured()) return { data: [], error: "Database not configured" };
+  try {
+    const since = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+    const { data, error } = await db().from("api_usage").select("*").gte("day", since).order("day", { ascending: false });
+    if (error) throw error;
+    return {
+      error: null,
+      data: ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+        day: String(r.day),
+        scope: String(r.scope),
+        ebayCalls: Number(r.ebay_calls ?? 0),
+        guideCalls: Number(r.guide_calls ?? 0),
+      })),
+    };
+  } catch (e) {
+    return { data: [], error: message(e) };
   }
 }

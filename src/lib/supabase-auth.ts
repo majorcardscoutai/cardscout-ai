@@ -180,3 +180,52 @@ export function sessionCookieOptions() {
 export function __clearAuthCache() {
   verified.clear();
 }
+
+// ---------- Admin actions (server secret key only): invites and account deletion ----------
+
+function adminApi(): { url: string; headers: Record<string, string> } | null {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) return null;
+  // New-style keys (sb_secret_…) go in "apikey"; an older service_role key is also sent as the bearer token.
+  const headers: Record<string, string> = { apikey: key, "Content-Type": "application/json" };
+  if (!key.startsWith("sb_")) headers.Authorization = `Bearer ${key}`;
+  return { url: url.replace(/\/+$/, ""), headers };
+}
+
+/** Email an invite: the link lets them choose a password (lands on /auth/reset). */
+export async function inviteUser(email: string, redirectTo: string): Promise<AuthResult<AuthUser> | { ok: false; code: "exists"; error: string }> {
+  const a = adminApi();
+  if (!a) return { ok: false, code: "config", error: "Accounts aren't set up (SUPABASE_URL / SUPABASE_SECRET_KEY)." };
+  try {
+    const res = await fetch(`${a.url}/auth/v1/invite?redirect_to=${encodeURIComponent(redirectTo)}`, {
+      method: "POST",
+      headers: a.headers,
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      cache: "no-store",
+    } as RequestInit);
+    const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    const user = res.ok ? userFrom(json) : null;
+    if (user) return { ok: true, data: user };
+    const text = `${json?.error_code ?? ""} ${json?.msg ?? ""} ${json?.error_description ?? ""}`.toLowerCase();
+    if (/already|exists|registered/.test(text)) return { ok: false, code: "exists", error: "That email already has an account." };
+    if (/email.*(send|deliver)|smtp|rate limit/.test(text) || res.status === 429)
+      return { ok: false, code: "rate", error: "Supabase couldn't send the invite email (its built-in email only reaches your own team and a few per hour — set up Resend as its email sender)." };
+    return failure(res.status, json);
+  } catch {
+    return { ok: false, code: "network", error: "Couldn't reach the sign-in service." };
+  }
+}
+
+/** Permanently delete an account. Its rows go too (every per-account table cascades on delete). */
+export async function deleteUser(userId: string): Promise<string | null> {
+  const a = adminApi();
+  if (!a) return "Accounts aren't set up.";
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return "Invalid account.";
+  try {
+    const res = await fetch(`${a.url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: a.headers, cache: "no-store" } as RequestInit);
+    return res.ok ? null : `The sign-in service returned an error (HTTP ${res.status}).`;
+  } catch {
+    return "Couldn't reach the sign-in service.";
+  }
+}

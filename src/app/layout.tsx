@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import Nav from "@/components/Nav";
+import { currentViewer } from "@/data/session";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -21,11 +22,12 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const viewer = await currentViewer().catch(() => null);
   return (
     <html lang="en-AU" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-screen">
-        <Nav />
+        <Nav admin={viewer?.admin === true} />
         <main className="md:pl-60">
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8 lg:px-8">{children}</div>
         </main>

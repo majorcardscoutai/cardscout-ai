@@ -12,8 +12,8 @@
  * token + the publishable key), so the database's own rules block other accounts' rows too.
  * Scheduled scans have no sign-in token and use the server key with the user_id filter.
  */
-import { AsyncLocalStorage } from "node:async_hooks";
 import { cookies } from "next/headers";
+import { scanContext } from "@/lib/scan-context";
 import { currentViewer } from "@/data/session";
 import { AT_COOKIE } from "@/lib/supabase-auth";
 import { db, userDb, userDbConfigured } from "@/lib/supabase";
@@ -31,16 +31,19 @@ export const PER_USER_TABLES = new Set([
   "value_rejections",
 ]);
 
-const als = new AsyncLocalStorage<{ userId: string }>();
-
 /** Tests only: run as a signed-in visitor would (outside any scheduled run). */
 export function __outsideScheduledRun<T>(fn: () => Promise<T>): Promise<T> {
-  return als.exit(fn);
+  return scanContext.exit(fn);
 }
 
 /** Run scheduled work for one account. */
 export function runAsUser<T>(userId: string, fn: () => Promise<T>): Promise<T> {
-  return als.run({ userId }, fn);
+  return scanContext.run({ userId, scope: userId }, fn);
+}
+
+/** Run work done once for everyone (no account's private data can be reached inside). */
+export function runShared<T>(fn: () => Promise<T>): Promise<T> {
+  return scanContext.run({ scope: "shared" }, fn);
 }
 
 export async function ownerId(): Promise<string> {
@@ -48,8 +51,11 @@ export async function ownerId(): Promise<string> {
 }
 
 async function owner(): Promise<{ id: string; token: string | null }> {
-  const store = als.getStore();
-  if (store) return { id: store.userId, token: null };
+  const store = scanContext.getStore();
+  if (store) {
+    if (!store.userId) throw new Error("Shared work can't reach an account's data");
+    return { id: store.userId, token: null };
+  }
   const v = await currentViewer();
   if (!v) throw new Error("Not signed in");
   const token = (await cookies()).get(AT_COOKIE)?.value ?? null;

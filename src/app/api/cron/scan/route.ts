@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { listScanOwners } from "@/data/db";
-import { runAsUser } from "@/data/owner";
-import { mergeSummaries, runAllScans, type ScanSummary } from "@/data/scanner";
+import { runScheduledScans } from "@/data/scanner";
 
 /**
  * Scheduled scan endpoint. Called by:
@@ -22,20 +20,9 @@ export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
   // ?only=hunter → the hourly Profit Hunter run (saved searches keep their 3-hourly schedule).
   const only = params.get("only");
-  // Each account's searches run with that account's settings, rules and alerts.
-  // (Phase 6 step 5 shares eBay searches between accounts and spreads big runs over several calls.)
-  const owners = await listScanOwners();
-  if (owners.error) return NextResponse.json({ ok: false, error: owners.error }, { status: 500 });
-  const runs: ScanSummary[] = [];
-  for (const uid of owners.data) {
-    runs.push(
-      await runAsUser(uid, () =>
-        only === "hunter" || only === "hunter-quick"
-          ? runAllScans("hunter", { only })
-          : runAllScans(params.get("source") === "github" ? "schedule" : "daily"),
-      ),
-    );
-  }
-  const summary = mergeSummaries(runs);
-  return NextResponse.json({ ok: summary.errors.length === 0, accounts: owners.data.length, ...summary });
+  const summary =
+    only === "hunter" || only === "hunter-quick"
+      ? await runScheduledScans("hunter", only)
+      : await runScheduledScans(params.get("source") === "github" ? "schedule" : "daily");
+  return NextResponse.json({ ok: summary.errors.length === 0, ...summary });
 }

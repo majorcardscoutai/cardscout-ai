@@ -4,6 +4,7 @@
  */
 import { parseApiProduct, type ProviderProduct, type ProviderSite } from "./provider";
 import { guideDownloadUrl, type GuideHost } from "./guide-csv";
+import { countCall } from "./scan-context";
 
 const HOSTS: Record<ProviderSite, string> = {
   sportscardspro: "https://www.sportscardspro.com",
@@ -34,6 +35,7 @@ async function get(site: ProviderSite, path: string, params: Record<string, stri
     await waitTurn();
     try {
       const qs = new URLSearchParams({ ...params, t: token });
+      countCall("guide");
       const res = await fetch(`${host}${path}?${qs}`, { signal: AbortSignal.timeout(8000), cache: "no-store" } as RequestInit);
       if (res.status === 429) return { ok: false, code: 429, error: "SportsCardsPro rate limit reached — will continue next scan." };
       if (res.status === 401 || res.status === 403) return { ok: false, code: res.status, error: "SportsCardsPro rejected the token — check SPORTSCARDSPRO_TOKEN in Vercel." };
@@ -82,6 +84,7 @@ export async function downloadGuideCsv(host: GuideHost, uids: string[]): Promise
   if (!token) return { ok: false, error: "SportsCardsPro isn't connected (SPORTSCARDSPRO_TOKEN missing in Vercel)." };
   await waitTurn();
   try {
+    countCall("guide");
     const res = await fetch(guideDownloadUrl(host, uids, token), { signal: AbortSignal.timeout(25_000), cache: "no-store" } as RequestInit);
     if (res.status === 429) return { ok: false, code: 429, error: "SportsCardsPro download limit reached — will retry next run." };
     if (res.status === 401 || res.status === 403) return { ok: false, code: res.status, error: "SportsCardsPro rejected the token for downloads." };

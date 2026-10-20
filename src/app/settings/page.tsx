@@ -3,7 +3,7 @@ import { logout } from "@/app/login/actions";
 import { currentViewer } from "@/data/session";
 import { databaseRulesOn } from "@/data/owner";
 import { alertRecipient } from "@/lib/email";
-import { addGuideSetAction, refreshGuideAction, removeGuideSetAction, testProviderAction } from "@/app/actions";
+import { addGuideSetAction, deleteMyAccountAction, refreshGuideAction, removeGuideSetAction, testProviderAction } from "@/app/actions";
 import { MAX_GUIDE_SETS } from "@/lib/guide-csv";
 import ProviderCredit from "@/components/ProviderCredit";
 import { providerConfigured } from "@/lib/provider-client";
@@ -12,11 +12,10 @@ import { removeDeviceAction, testPushAction } from "@/app/push-actions";
 import PushSetup from "@/components/PushSetup";
 import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { PageHeader, Panel, Tag } from "@/components/ui";
-import { listGuideSets, listPushSubscriptions, listWaitlist } from "@/data/db";
+import { listGuideSets, listPushSubscriptions } from "@/data/db";
 import { loadSettings } from "@/data/source";
 import { vapidPublicKey } from "@/lib/webpush";
 import { OTHER_COUNTRIES, REGION_LABELS, taxHint, taxLabel } from "@/lib/region";
-import { WAITLIST_GOALS } from "@/lib/forms";
 import { DEMAND_TIERS } from "@/lib/config";
 import { CONFIDENCE_CAPS, SCORE_WEIGHTS } from "@/lib/scoring";
 
@@ -30,10 +29,9 @@ export default async function SettingsPage({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { saved, error } = await searchParams;
-  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices, waitlist, guideSets, viewer] = await Promise.all([
+  const [{ settings: s, source, error: dbError, savedUsdToAud, fx }, devices, guideSets, viewer] = await Promise.all([
     loadSettings(),
     listPushSubscriptions(),
-    listWaitlist(),
     listGuideSets(),
     currentViewer(),
   ]);
@@ -215,6 +213,7 @@ export default async function SettingsPage({
         </div>
       </Panel>
 
+      {viewer?.admin && (
       <Panel
         title="Popular sets — daily price download"
         className="mt-6"
@@ -262,6 +261,7 @@ export default async function SettingsPage({
           SportsCardsPro&apos;s downloads are meant for particular sets, so CardHawk downloads only the sets you add, up to 5 per request, once a day.
         </p>
       </Panel>
+      )}
 
       <div id="alerts" className="scroll-mt-24">
         <Panel title="Phone notifications" className="mt-6" right={<Tag>{devices.data.length} device{devices.data.length === 1 ? "" : "s"}</Tag>}>
@@ -302,48 +302,6 @@ export default async function SettingsPage({
         </Panel>
       </div>
 
-      <Panel
-        title="Waitlist"
-        className="mt-6"
-        right={<Tag>{waitlist.data.length} sign-up{waitlist.data.length === 1 ? "" : "s"}</Tag>}
-      >
-        <p className="mb-3 text-sm text-muted">
-          People who joined from the sign-in page. Only you can see this.{" "}
-          {waitlist.data.length > 0 && (
-            <span className="text-faint">
-              Goals:{" "}
-              {WAITLIST_GOALS.map(([k, label]) => `${label} ${waitlist.data.filter((w) => w.goals.includes(k)).length}`).join(" · ")}.{" "}
-            </span>
-          )}
-          {waitlist.data.length > 0 && (
-            <a href="/api/waitlist" className="text-accent hover:underline">
-              Download CSV
-            </a>
-          )}
-        </p>
-        {waitlist.error && /waitlist/.test(waitlist.error) ? (
-          <p className="text-xs text-warn">Run the waitlist SQL in Supabase to switch this on (see PROGRESS.md).</p>
-        ) : waitlist.error ? (
-          <p className="text-xs text-loss">{waitlist.error}</p>
-        ) : waitlist.data.length === 0 ? (
-          <p className="text-sm text-faint">No sign-ups yet. Share your sign-in page link (e.g. in your Instagram bio).</p>
-        ) : (
-          <ul className="divide-y divide-line rounded-lg border border-line text-sm">
-            {waitlist.data.slice(0, 25).map((w) => (
-              <li key={w.email} className="flex items-center justify-between gap-3 px-3 py-2">
-                <span className="min-w-0 truncate">{w.email}</span>
-                <span className="shrink-0 text-xs text-faint">
-                  {w.region ? `${w.region === "OTHER" ? "Rest of world" : w.region} · ` : ""}
-                  {w.goals.length ? `${w.goals.map((g) => WAITLIST_GOALS.find(([k]) => k === g)?.[1] ?? g).join(", ")} · ` : ""}
-                  {w.interests.length ? `${w.interests.map((i) => (i === "Pokemon" ? "Pokémon" : i)).join(", ")} · ` : ""}
-                  {new Date(w.createdAt).toLocaleDateString("en-AU")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-
       <Panel title="Account" className="mt-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {viewer?.kind === "account" ? (
@@ -372,6 +330,20 @@ export default async function SettingsPage({
             <SubmitButton tone="neutral">Log out</SubmitButton>
           </form>
         </div>
+        {viewer && !viewer.admin && (
+          <details className="mt-5 border-t border-line pt-4">
+            <summary className="cursor-pointer text-xs text-faint">Delete my account</summary>
+            <form action={deleteMyAccountAction} className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+              <Field label="Type DELETE to permanently remove your account and everything in it" className="flex-1">
+                <input name="confirm" required autoComplete="off" className={inputCls} />
+              </Field>
+              <button className="rounded-lg border border-loss/50 px-4 py-2 text-sm font-semibold text-loss hover:bg-loss/10">Delete account</button>
+            </form>
+            <p className="mt-2 text-[11px] text-faint">
+              Removes your settings, searches, finds, watchlist, portfolio, Card Values and phone alerts. This can&apos;t be undone.
+            </p>
+          </details>
+        )}
       </Panel>
     </>
   );

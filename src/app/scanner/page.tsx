@@ -26,6 +26,8 @@ import { isEnded, isFresh } from "@/lib/freshness";
 import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit } from "@/lib/scan";
 import { displayFx, shipToFor } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
+import { currentViewer } from "@/data/session";
+import { MAX_SAVED_SEARCHES } from "@/lib/limits";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -89,13 +91,14 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
   const search = parseSearch(params);
   const onlyDeals = params.deals === "1";
 
-  const [result, values, saved, hits, runs, devices] = await Promise.all([
+  const [result, values, saved, hits, runs, devices, viewer] = await Promise.all([
     search && connected ? searchListings({ ...search, shipTo: shipToFor(settings) }) : Promise.resolve(null),
     cardValueMap(),
     listSavedSearches(),
     listRecentHits(400, false, "mine"),
     lastScanRuns(5),
     listPushSubscriptions(),
+    currentViewer(),
   ]);
 
   // Live search: look up market values for the cards shown (cached; ~1 per second, max ~15 s per search).
@@ -320,7 +323,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ---------- Saved searches ---------- */}
         <Panel
-          title="Saved searches"
+          title={viewer?.admin ? "Saved searches" : `Saved searches (${mySearches.length} of ${MAX_SAVED_SEARCHES})`}
           className="lg:col-span-2"
           right={
             <form action={scanNowAction}>

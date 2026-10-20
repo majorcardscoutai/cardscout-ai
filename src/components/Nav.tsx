@@ -43,9 +43,10 @@ function Logo() {
   );
 }
 
-export default function Nav() {
+export default function Nav({ admin = false }: { admin?: boolean }) {
   const pathname = usePathname();
   if (pathname.startsWith("/login") || pathname.startsWith("/auth/")) return null;
+  const items = admin ? [...NAV, { href: "/admin", label: "Admin", short: "Admin", Icon: IconSettings }] : NAV;
 
   return (
     <>
@@ -53,7 +54,7 @@ export default function Nav() {
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-line bg-panel px-4 py-6 md:flex">
         <Logo />
         <nav className="mt-8 flex flex-col gap-1">
-          {NAV.map(({ href, label, Icon }) => {
+          {items.map(({ href, label, Icon }) => {
             const active = isActive(pathname, href);
             return (
               <Link
@@ -87,7 +88,7 @@ export default function Nav() {
           </span>
         </div>
         <nav className="no-scrollbar flex gap-1.5 overflow-x-auto px-4 pb-3">
-          {NAV.map(({ href, label, short, Icon }) => {
+          {items.map(({ href, label, short, Icon }) => {
             const active = isActive(pathname, href);
             return (
               <Link

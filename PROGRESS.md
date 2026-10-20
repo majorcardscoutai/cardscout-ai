@@ -320,3 +320,26 @@ Decisions (20 Oct): invite-only beta · email + password sign-in only · 5 saved
 - Attribution: every "SportsCardsPro value"/"PriceCharting value" label links to the source; push alerts name the guide; email footer already credits both.
 - SQL (bottom of schema.sql, "Phase 6 step 4"): profiles, value_rejections (+ row-level security), and removes step 2's temporary user_id default.
 - e2e scenario 23 (+ updated 11, 16, 17 expectations).
+
+### Step 5 — scans for many accounts (built 20 Oct 2026)
+- runScheduledScans (src/data/scanner.ts), called by the cron endpoint: Popular sets refresh once; Profit Hunter = ONE broad eBay search per sport + market + delivery address for everyone (widest budget, lowest min price, auctions if anyone wants them), then each account's own budget/min price/auctions/exclude words (fitsHunterInput); identical searches and listing look-ups are fetched once per run (rememberingEbay); accounts that waited longest go first and each gets a fair slice of the 50 s budget — anyone not reached goes first next run.
+- 5 saved searches per account (src/lib/limits.ts; admins unlimited; Hunter's hidden searches don't count). Scanner shows "Saved searches (n of 5)".
+- eBay and SportsCardsPro calls are counted per account, "shared" and "app" (lib/scan-context.ts) and added to api_usage per day after each scheduled run (Admin page in step 6). Page use (Analyse, live search) is counted as "app" only when it happens during a scheduled run's lifetime — mostly scheduled usage.
+- SQL (bottom of schema.sql, "Phase 6 step 5"): api_usage.
+- e2e scenario 24.
+
+### Step 6 — Admin page, invites, delete my account (built 20 Oct 2026)
+- /admin (admins only; "Admin" appears in the menu for admins): invite by email, accounts (joined, last seen, saved searches, Hunter on/off), waitlist with Invite / Resend invite / "Has an account", API usage for the last 7 days (per account, shared Hunter search, pages, daily totals), service status.
+- Invites use Supabase's admin invite (server secret key) → email link → /auth/reset "Welcome! Choose a password" → signed in. waitlist.invited_at records it (non-waitlist emails are added with source "admin-invite").
+- Settings → Account → "Delete my account" (type DELETE): deletes the Supabase user; every per-account table cascades. Admin accounts can't delete themselves there.
+- Now admin-only: the waitlist (moved from Settings to Admin) and its CSV download, Popular sets (Settings panel + add/remove/refresh).
+- SQL (bottom of schema.sql, "Phase 6 step 6"): waitlist.invited_at.
+- e2e scenario 25 (+ admin sessions in 14, 15, 19).
+
+### Beta launch checklist (before the first invite)
+- [ ] eBay's written OK (§9.5 / §8.1.2 — Application Growth Check sent 20 Oct).
+- [ ] Domain bought; verified in Resend (DNS records); ALERT_FROM = alerts@<domain> in Vercel.
+- [ ] Supabase → Authentication → Emails → SMTP Settings: Resend (host smtp.resend.com, port 465, user "resend", password = a Resend API key, sender noreply@<domain>) — so invite and password emails reach anyone.
+- [ ] Supabase → Authentication → URL Configuration: Site URL + /auth/reset redirect on the new domain (if the address changes).
+- [ ] Replace the exposed SportsCardsPro token (Brady).
+- [ ] Terms of use + privacy policy page (Phase 7, before charging; good practice before beta).
