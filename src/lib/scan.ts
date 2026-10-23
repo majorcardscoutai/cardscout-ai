@@ -3,7 +3,7 @@
  * No network or database calls — those live in src/data/scanner.ts.
  */
 import { cardKey } from "./cardKey";
-import { cardFromListing } from "./ebay/parse";
+import { cardFromListing, qualifiedGradeInTitle, variationInTitle } from "./ebay/parse";
 import { toUsd, type EbayListing } from "./ebay/client";
 import { calculateProfit, maxPurchasePrice } from "./profit";
 import type { Settings, Sport } from "./types";
@@ -52,7 +52,7 @@ export function evaluateListing(l: EbayListing, settings: Settings, values: Map<
   const priceUsd = toUsd(l.price, settings.usdToAud);
   const shippingUsd = shippingFor(l, settings);
   const key = cardKey(cardFromListing(l.title, l.aspects, hint).card);
-  const v = key ? values.get(key) ?? null : null;
+  const v = usableValue(key ? values.get(key) ?? null : null, l.title, key);
 
   let netProfitUsd: number | null = null;
   let roiPercent: number | null = null;
@@ -64,7 +64,7 @@ export function evaluateListing(l: EbayListing, settings: Settings, values: Map<
     netProfitUsd = p.netProfitUsd;
     roiPercent = p.roiPercent;
     maxPriceUsd = maxPurchasePrice(v.valueUsd, shippingUsd, settings);
-    meetsCriteria = p.roiPercent >= settings.minRoiPercent && p.netProfitUsd >= settings.minProfitUsd;
+    meetsCriteria = p.roiPercent >= settings.minRoiPercent && p.netProfitUsd >= settings.minProfitUsd && dealGradeValue(v, key);
   }
 
   return {
@@ -99,7 +99,7 @@ export function revalueHit<T extends ScanHit>(h: T, settings: Settings, values: 
   const parsed = cardKey(cardFromListing(h.title).card);
   const key = h.cardKey && values.has(h.cardKey) ? h.cardKey : parsed ?? h.cardKey;
   h = { ...h, cardKey: key };
-  const v = key ? values.get(key) ?? null : null;
+  const v = usableValue(key ? values.get(key) ?? null : null, h.title, key);
   const shippingUsd = settings.inboundShippingMode === "fixed" ? settings.inboundShippingFixedUsd : h.shippingUsd;
   const base = { ...h, shippingUsd, valueUsd: null, valueTitle: null, valueSource: null, netProfitUsd: null, roiPercent: null, maxPriceUsd: null, meetsCriteria: false };
   if (!v || h.priceUsd === null) return base;
@@ -112,7 +112,7 @@ export function revalueHit<T extends ScanHit>(h: T, settings: Settings, values: 
     netProfitUsd: p.netProfitUsd,
     roiPercent: p.roiPercent,
     maxPriceUsd: maxPurchasePrice(v.valueUsd, shippingUsd, settings),
-    meetsCriteria: p.roiPercent >= settings.minRoiPercent && p.netProfitUsd >= settings.minProfitUsd,
+    meetsCriteria: p.roiPercent >= settings.minRoiPercent && p.netProfitUsd >= settings.minProfitUsd && dealGradeValue(v, key),
   };
 }
 
@@ -134,4 +134,26 @@ export function auctionTooEarly(h: { isAuction: boolean; endsAt: string | null }
 /** Auction that has already finished — no longer buyable. */
 export function auctionEnded(h: { isAuction: boolean; endsAt: string | null }, now = Date.now()): boolean {
   return h.isAuction && !!h.endsAt && new Date(h.endsAt).getTime() <= now;
+}
+
+/**
+ * Can this value flag a deal? The price guide's 7–9.5 prices are for any grading company and mostly
+ * reflect PSA sales — BGS/SGC/CGC 9s usually sell for less. So for those, the value is shown but never
+ * counts as a deal or alert. Your own Card Values always count.
+ */
+export function dealGradeValue(v: Pick<CardValue, "source" | "graderSpecific">, key: string | null): boolean {
+  if ((v.source ?? "you") === "you" || v.graderSpecific !== false) return true;
+  const grader = (key ?? "").split("|").at(-2) ?? "";
+  return grader === "psa";
+}
+
+/**
+ * Automatic values are dropped when the title shows the listing isn't the plain card that was valued:
+ * a qualified grade ("8 (OC)") or a variation / stamped card the key doesn't include. Your own values always stand.
+ */
+export function usableValue<V extends Pick<CardValue, "source">>(v: V | null, title: string, key: string | null): V | null {
+  if (!v || (v.source ?? "you") === "you") return v;
+  if (qualifiedGradeInTitle(title)) return null;
+  if (variationInTitle(title) && !(key ?? "").split("|").at(7)) return null;
+  return v;
 }

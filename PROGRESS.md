@@ -358,3 +358,11 @@ Not built yet. Idea and decisions so far:
 - Needs ANTHROPIC_API_KEY (console.anthropic.com) in Vercel. Photos read then discarded (not stored). Daily scan limit per plan.
 - Cost estimate (Anthropic published prices, Oct 2026; ~1,560 image tokens + ~500 prompt + ~300 answer per photo): Haiku 5.5 ≈ US$0.0004/photo (≈ US$0.35 per 1,000) — suits slab labels; Sonnet 5.5 ≈ US$0.007/photo (≈ US$7 per 1,000) — suits raw cards; Opus 5.5 ≈ US$0.014/photo. Raw front + back ≈ double. Heavy user (20 scans/day on Sonnet) ≈ US$4/month.
 - Sources: platform.claude.com/docs/en/about-claude/pricing · platform.claude.com/docs/en/build-with-claude/vision
+
+## Fix: wrong Top Deals values (23 Oct 2026)
+Travis's Top Deals screenshot (Kobe 1957-58 Variation Xfractor /50, Shaq Platinum Portraits BGS 9, Charizard CGC 9 Reverse Holo Stamped, Jordan 1986 Star BGS 9, Koufax PSA 6, Mantle PSA 8 (OC)). Causes and fixes:
+- Variations and stamped cards (same card number as the regular card) were matched to the regular card. Now the title's "Variation"/"Var"/"Image variation"/"Stamped" is part of the card's identity, and the guide card must agree both ways (variationAgrees). Stored finds without it lose the automatic value (usableValue).
+- Qualified grades ("PSA 8 (OC)", "9 ST", OC/ST/PD/OF/MC/MK) got the plain grade's price. Now: no automatic value ("qualified grade — no guide price").
+- BGS/SGC/CGC grades 7–9.5 used the guide's any-company grade price (mostly PSA sales). Now shown with that label but never counted as a deal or alert (dealGradeValue); grader-specific 10s, PSA grades and your own values still count.
+- Every saved guide match from before 23 Oct 03:00 UTC is looked up again (REMATCH_ALL_AT), matched ones too, over the next runs.
+- 110 unit tests + e2e.

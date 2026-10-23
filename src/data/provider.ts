@@ -16,6 +16,8 @@ export const REFRESH_MATCHED_MS = 24 * 3_600_000;
 export const RETRY_UNMATCHED_MS = 7 * 86_400_000;
 /** Matching rules last improved — unmatched results saved before this are retried once. */
 export const MATCHER_UPDATED_AT = Date.parse("2026-10-20T00:00:00Z");
+/** Variation / stamped rule (23 Oct 2026): every saved guide match from before it is looked up again, matched ones too. */
+export const REMATCH_ALL_AT = Date.parse("2026-10-23T03:00:00Z");
 /** Parallels must now match exactly ("Refractor" ≠ "Gold Refractor"): parallel values saved before this are redone. */
 export const PARALLEL_RULE_AT = Date.parse("2026-10-16T03:00:00Z");
 
@@ -39,6 +41,7 @@ export function needsLookup(row: Pick<ProviderValueRow, "status" | "fetchedAt"> 
   if (row.status === "pending") return true; // queued last time — look it up now
   const fetched = new Date(row.fetchedAt).getTime();
   if (row.status !== "matched" && fetched < MATCHER_UPDATED_AT) return true;
+  if (fetched < REMATCH_ALL_AT) return true;
   if ("card" in row && staleParallel(row as { card: { parallel?: string | null } | null; fetchedAt: string })) return true;
   const age = now - fetched;
   return row.status === "matched" ? age > REFRESH_MATCHED_MS : age > RETRY_UNMATCHED_MS;

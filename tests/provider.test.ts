@@ -170,3 +170,38 @@ test("naming quirks: Blue Refractor = [Blue], #83-2, unwritten print runs, Satch
   assert.equal(scoreProduct(paige, P("q", "Satchel Page #224", "Baseball Cards 1949 Bowman")).ok, false, "surname must match exactly");
   assert.equal(scoreProduct({ ...paige, player: "Mike Trout" }, P("t", "Mark Trout #224", "Baseball Cards 1949 Bowman")).ok, false, "short first names must match exactly");
 });
+
+test("wrong Top Deals (23 Oct): variations, stamped cards, qualified grades, non-PSA 7–9.5", async () => {
+  const { cardFromListing, qualifiedGradeInTitle, variationInTitle } = await import("../src/lib/ebay/parse.js");
+  const { dealGradeValue, usableValue } = await import("../src/lib/scan.js");
+  // Kobe 1957-58 Variation Xfractor ≠ the regular Xfractor #24
+  const kobe: CardIdentity = { ...ohtani, sport: "NBA", player: "Kobe Bryant", year: 2007, set: "Topps Chrome", cardNumber: "24", parallel: "Xfractor", serialNumbered: null, grader: "PSA", grade: 9, isRookie: false };
+  const reg = P("r", "Kobe Bryant [Xfractor] #24", "Basketball Cards 2007 Topps Chrome");
+  const varP = P("v", "Kobe Bryant [1957-58 Variation Xfractor] #24", "Basketball Cards 2007 Topps Chrome");
+  const c = cardFromListing("2007 Topps Chrome 1957-58 Variation Xfractor #24 Kobe Bryant /50 PSA 9").card;
+  assert.equal(c.variation, "Variation");
+  assert.equal(scoreProduct({ ...kobe, variation: "Variation" }, reg).ok, false, "variation listing ≠ regular card");
+  assert.equal(scoreProduct({ ...kobe, variation: "Variation" }, varP).ok, true);
+  assert.equal(scoreProduct(kobe, varP).ok, false, "regular listing ≠ variation card");
+  assert.equal(scoreProduct(kobe, reg).ok, true);
+  // Pokémon stamped
+  assert.equal(variationInTitle("CGC 9 MINT Charizard 4/100 EX Crystal Guardians Reverse Holo Stamped Pokemon"), "Stamped");
+  assert.equal(variationInTitle("2018 Topps Update Shohei Ohtani RC #US1 PSA 10"), null);
+  // qualified grades
+  assert.equal(qualifiedGradeInTitle("1964 Topps #50 Mickey Mantle PSA NM-MT 8 (OC) 02463270"), true);
+  assert.equal(qualifiedGradeInTitle("1955 Topps Koufax PSA 6 ST"), true);
+  assert.equal(qualifiedGradeInTitle("1955 Topps #123 Sandy Koufax PSA EX-MT 6 11217103"), false);
+  assert.equal(cardFromListing("1964 Topps #50 Mickey Mantle PSA 8 (OC)").card.grade, undefined);
+  assert.match(cardFromListing("1964 Topps #50 Mickey Mantle PSA 8 (OC)").missing.join(), /qualified grade/);
+  const auto = { source: "sportscardspro" as const, graderSpecific: true };
+  assert.equal(usableValue(auto, "1964 Topps Mantle PSA NM-MT 8 (OC)", "mlb|mickey mantle|1964|topps|50||||psa|8"), null);
+  assert.equal(usableValue({ source: "you" as const }, "1964 Topps Mantle PSA NM-MT 8 (OC)", "k")?.source, "you", "your own values stand");
+  assert.equal(usableValue(auto, "Kobe 1957-58 Variation Xfractor", "nba|kobe bryant|2007|topps chrome|24|xfractor|||psa|9"), null, "stored key without the variation");
+  assert.ok(usableValue(auto, "Kobe 1957-58 Variation Xfractor", "nba|kobe bryant|2007|topps chrome|24|xfractor||variation|psa|9"));
+  // BGS / CGC / SGC 9s on the any-company grade price: shown, never a deal
+  const any = { source: "sportscardspro" as const, graderSpecific: false };
+  assert.equal(dealGradeValue(any, "nba|shaquille oneal|1997|metal universe|4|platinum portraits|||bgs|9"), false);
+  assert.equal(dealGradeValue(any, "mlb|sandy koufax|1955|topps|123||||psa|6"), true);
+  assert.equal(dealGradeValue({ source: "sportscardspro", graderSpecific: true }, "x|||||||cgc|10"), true, "grader-specific 10s count");
+  assert.equal(dealGradeValue({ source: "you" }, "x|||||||bgs|9"), true);
+});

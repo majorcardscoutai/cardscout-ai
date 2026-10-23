@@ -113,6 +113,8 @@ export function scoreProduct(card: Partial<CardIdentity>, p: ProviderProduct): M
   }
   if (card.serialNumbered && !(bracket ?? "").includes(String(card.serialNumbered)))
     return { ok: false, extra: 99, reason: "print run not confirmed" };
+  const v = variationAgrees(card, p.productName);
+  if (v) return { ok: false, extra: 99, reason: v };
 
   // Sports: the guide's set must be exactly the card's set ("Bowman" ≠ "Bowman's Best", "Topps Update" ≠ "Topps Chrome Update").
   const wantSet = new Set(want);
@@ -261,6 +263,7 @@ export function matchBySetInTitle(card: Partial<CardIdentity>, title: string, pr
       if (bt.size !== pt.size || ![...pt].every((t) => bt.has(t))) continue;
     }
     if (card.serialNumbered && !(bracket ?? "").includes(String(card.serialNumbered))) continue;
+    if (variationAgrees(card, p.productName)) continue;
     ok.push({ p, score: setTok.length + baseTok.length, set: consoleSet(p.consoleName), player: base.replace(/\s+/g, " ").trim() });
   }
   if (ok.length === 0) return { ok: false, reason: "no_match", detail: "No guide card's player and set both appear in the title." };
@@ -278,7 +281,24 @@ export function sameCardKey(key: string): string {
 /** Parallel name words for comparing: print-run numbers dropped; "Refractor"/"Prizm" optional
  *  (the guide writes a Chrome "Blue Refractor" as "[Blue]", a Prizm "Silver Prizm" as "[Silver]"). */
 function parallelWords(x: string): Set<string> {
-  return new Set(tokens(x).filter((t) => !/^\d+$/.test(t.replace("/", "")) && t !== "refractor" && t !== "refractors" && t !== "prizm"));
+  // "Variation"/"Stamped" are checked separately (variationAgrees), so they don't count here.
+  return new Set(tokens(x).filter((t) => !/^\d+$/.test(t.replace("/", "")) && !VARIATION_WORDS.has(t) && t !== "refractor" && t !== "refractors" && t !== "prizm"));
+}
+
+const VARIATION_WORDS = new Set(["variation", "variations", "var", "stamp", "stamped"]);
+
+/**
+ * Variations and stamped cards are different cards with the same number ("1957-58 Variation", image
+ * variations, prerelease/staff stamps). Listing and guide card must agree: null = they do, else why not.
+ */
+export function variationAgrees(card: Partial<CardIdentity>, productName: string): string | null {
+  const name = productName.toLowerCase();
+  const productVar = /\bvar(iation)?s?\b/.test(name);
+  const productStamp = /\bstamp(ed)?\b/.test(name);
+  const v = (card.variation ?? "").toLowerCase();
+  if (!v) return productVar || productStamp ? "guide card is a variation / stamped version" : null;
+  if (/stamp/.test(v)) return productStamp ? null : "listing is a stamped card; guide card isn't";
+  return productVar ? null : "listing is a variation; guide card isn't";
 }
 
 function editDistance(a: string, b: string): number {

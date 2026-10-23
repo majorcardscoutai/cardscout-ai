@@ -226,6 +226,17 @@ export function guessPlayer(title: string, sport: Sport | undefined, remove: str
   return null;
 }
 
+/** "Variation" / "Stamped" named in a title (a different card from the regular one with that number). */
+export function variationInTitle(title: string): "Variation" | "Stamped" | null {
+  const m = title.match(/\b(image variation|photo variation|variation|var\.?|stamped|stamp)(?=\s|$|[^a-z])/i);
+  return m ? (/stamp/i.test(m[1]) ? "Stamped" : "Variation") : null;
+}
+
+/** A qualified grade ("PSA 8 (OC)", "9 ST") — sells well below the plain grade; the guide has no price for it. */
+export function qualifiedGradeInTitle(title: string): boolean {
+  return /\(\s*(OC|ST|PD|OF|MC|MK)\s*\)/.test(title) || /\b(10|[1-9](?:\.5)?)\s*(OC|ST|PD|OF|MC|MK)\b/.test(title);
+}
+
 export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { sport?: Sport } = {}): CardSuggestion {
   const card: Partial<CardIdentity> = {};
   const sources: CardSuggestion["sources"] = {};
@@ -350,6 +361,14 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
     if (g) set("player", g, "title");
   }
 
+  // Variations and stamped cards are different cards with the same number.
+  const variation = variationInTitle(title);
+  if (variation) set("variation", variation, "title");
+
+  // Qualified grades (PSA "8 (OC)", "9 ST"…) sell well below the plain grade, and the guide has no price for them.
+  const qualified = qualifiedGradeInTitle(title) || /\b(OC|ST|PD|OF|MC|MK)\b|\bqualifier\b|off[- ]?cent(er|re)d?\b/i.test(gradeAspect ?? "");
+  if (qualified && card.grader && card.grader !== "RAW") delete card.grade;
+
   const required: [keyof CardIdentity, string][] = [
     ["sport", "category"],
     ["player", "player"],
@@ -359,7 +378,7 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
     ["grader", "grading company"],
   ];
   const missing = required.filter(([k]) => card[k] === undefined && !(k === "year" && card.sport === "Pokemon")).map(([, label]) => label);
-  if (card.grader && card.grader !== "RAW" && card.grade === undefined) missing.push("grade");
+  if (card.grader && card.grader !== "RAW" && card.grade === undefined) missing.push(qualified ? "qualified grade (OC, ST…) — no guide price" : "grade");
 
   return { card, missing, sources };
 }
