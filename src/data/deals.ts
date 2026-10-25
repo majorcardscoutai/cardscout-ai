@@ -157,7 +157,7 @@ export async function hunterView(): Promise<HunterView> {
   cov.setsToAdd = [...setCounts.values()]
     .filter((x) => !have.some((h) => h.includes(x.q.toLowerCase())))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 8)
+    .slice(0, 15)
     .map((x) => ({
       label: x.label,
       count: x.count,

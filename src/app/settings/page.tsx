@@ -227,10 +227,20 @@ export default async function SettingsPage({
           <p className="mb-3 text-xs text-warn">Run the Popular sets SQL in Supabase first (bottom of supabase/schema.sql).</p>
         ) : null}
         <form action={addGuideSetAction} className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <Field label="Set's “Download Price List” link" className="flex-1" hint="On the set's page: right-click “Download Price List” → Copy Link Address. Only the set code is kept — never your token.">
-            <input name="link" required placeholder="https://www.sportscardspro.com/price-guide/download-custom?t=…&console-uids=G23347" className={inputCls} />
+          <Field
+            label="Sets' “Download Price List” links — one per line"
+            className="flex-1"
+            hint="On each set's page (SportsCardsPro for sports, PriceCharting for Pokémon): right-click “Download Price List” → Copy Link Address, paste, new line, next. Only the set codes are kept — never your token."
+          >
+            <textarea
+              name="link"
+              required
+              rows={4}
+              placeholder={"https://www.pricecharting.com/price-guide/download-custom?t=…&console-uids=G…\nhttps://www.pricecharting.com/price-guide/download-custom?t=…&console-uids=G…"}
+              className={inputCls}
+            />
           </Field>
-          <SubmitButton>Add set</SubmitButton>
+          <SubmitButton>Add sets</SubmitButton>
         </form>
         {guideSets.data.length > 0 && (
           <ul className="mt-4 divide-y divide-line text-sm">

@@ -41,3 +41,15 @@ test("CSV reading: quotes, commas, dollars, same shape as the API", () => {
   assert.ok(pick.ok); if (pick.ok) assert.equal(pick.product.id, "1558869", "base, not Gold");
   assert.match(csvToProducts("<!doctype html><html>login</html>").error ?? "", /web page/);
 });
+
+test("several Download Price List links at once", async () => {
+  const { parseGuideLinks } = await import("../src/lib/guide-csv.js");
+  const r = parseGuideLinks(`https://www.pricecharting.com/price-guide/download-custom?t=SECRET&console-uids=G100
+https://www.pricecharting.com/price-guide/download-custom?t=SECRET&console-uids=G101   https://www.sportscardspro.com/price-guide/download-custom?t=SECRET&console-uids=G23347
+https://www.pricecharting.com/price-guide/download-custom?t=SECRET&console-uids=G100
+not-a-link https://example.com/x?console-uids=G9`);
+  assert.deepEqual(r.sets.get("pricecharting"), ["G100", "G101"]);
+  assert.deepEqual(r.sets.get("sportscardspro"), ["G23347"]);
+  assert.equal(r.errors.length, 2);
+  assert.doesNotMatch(r.errors.join(" "), /SECRET/, "tokens never echoed");
+});

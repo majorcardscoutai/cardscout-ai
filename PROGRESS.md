@@ -373,3 +373,9 @@ Travis's Top Deals screenshot (Kobe 1957-58 Variation Xfractor /50, Shaq Platinu
 - Invite → choose-password page: "I'm 18 or older and agree to the Terms of Use and Privacy Policy" (required); recorded in profiles.terms_accepted_at. Links on the sign-in page and Settings → Account.
 - Overview "Get set up" guide (new accounts; welcome version straight after an invite): 1) Settings (where you buy from, costs, rules) 2) turn on the Profit Hunter 3) save a first search 4) optional phone alerts. Ticks itself off; Hide remembers per device; disappears when the three main steps are done.
 - SQL: profiles.terms_accepted_at. e2e scenario 27.
+
+## Popular sets: add many at once (26 Oct 2026)
+- JJ Hendricks (21 Oct): no API limit above 1 call/second (pay-as-you-go maybe later); best practice = download prices to our server and serve users from there. Replied asking how many daily set downloads are OK (we'd like ~200), whether console-uids can be listed, and about a full-category download.
+- Settings → Popular sets now takes many "Download Price List" links at once (one per line): new sets added, existing skipped, unreadable lines reported (tokens never shown or kept). Downloads start straight away while time allows; the rest over the next scheduled runs. "Sets worth adding" on the Hunter page shows the top 15.
+- Pokémon first: links come from each set's page on pricecharting.com (Download Price List). Cap still 60 sets until JJ confirms more.
+- 111 unit tests + e2e (19).

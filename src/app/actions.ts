@@ -54,7 +54,7 @@ import {
   toUsd,
 } from "@/lib/forms";
 import { parseHunterForm } from "@/lib/hunter";
-import { MAX_GUIDE_SETS, parseGuideLink } from "@/lib/guide-csv";
+import { MAX_GUIDE_SETS, parseGuideLink, parseGuideLinks, type GuideHost } from "@/lib/guide-csv";
 import { refreshGuideSets } from "@/data/guide";
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -312,26 +312,47 @@ export async function huntNowAction() {
   );
 }
 
-/** Settings → Popular sets: add from a pasted "Download Price List" link (the token in it is never kept). */
+/**
+ * Settings → Popular sets: add one or many sets from pasted "Download Price List" links (one per line).
+ * The token in a link is never kept. New sets download straight away while time allows; the rest on the next runs.
+ */
 export async function addGuideSetAction(formData: FormData) {
   await requireAdmin("/settings");
-  const parsed = parseGuideLink(String(formData.get("link") ?? ""));
-  if (!parsed.ok) back("/settings", "error", parsed.error);
+  const raw = String(formData.get("link") ?? "");
+  const { sets: byHost, errors } = parseGuideLinks(raw);
+  if (byHost.size === 0) {
+    const one = parseGuideLink(raw.trim());
+    back("/settings", "error", !one.ok ? one.error : errors[0] ?? "Paste a set's “Download Price List” link.");
+  }
   const current = await listGuideSets();
   if (current.error && /guide_sets/.test(current.error))
     back("/settings", "error", "Popular sets need a one-time database update — run the Popular sets SQL in Supabase (see PROGRESS.md), then add again.");
-  const fresh = parsed.uids.filter((u) => !current.data.some((x) => x.uid === u));
-  if (fresh.length === 0) back("/settings", "saved", "That set is already in your Popular sets.");
+  const fresh: { host: GuideHost; uid: string }[] = [];
+  for (const [host, uids] of byHost) for (const uid of uids) if (!current.data.some((x) => x.uid === uid)) fresh.push({ host, uid });
+  if (fresh.length === 0) back("/settings", "saved", byHost.size === 1 && [...byHost.values()][0].length === 1 ? "That set is already in your Popular sets." : "Those sets are already in your Popular sets.");
   if (current.data.length + fresh.length > MAX_GUIDE_SETS)
-    back("/settings", "error", `You can keep up to ${MAX_GUIDE_SETS} Popular sets (SportsCardsPro's downloads are meant for particular sets). Remove one first.`);
-  const err = await addGuideSets(parsed.host, fresh);
-  if (err) back("/settings", "error", `Couldn't add: ${err}`);
-  // Download it straight away so its cards are valued from the next hunt.
-  const r = await refreshGuideSets({ deadline: Date.now() + 40_000, maxRequests: fresh.length, only: fresh });
+    back("/settings", "error", `That would make ${current.data.length + fresh.length} Popular sets — the limit is ${MAX_GUIDE_SETS} (SportsCardsPro's downloads are meant for particular sets). Remove some, or add fewer.`);
+  for (const host of new Set(fresh.map((f) => f.host))) {
+    const err = await addGuideSets(host, fresh.filter((f) => f.host === host).map((f) => f.uid));
+    if (err) back("/settings", "error", `Couldn't add: ${err}`);
+  }
+  // Download straight away while time allows, so their cards are valued from the next hunt.
+  const uids = fresh.map((f) => f.uid);
+  const r = await refreshGuideSets({ deadline: Date.now() + 40_000, maxRequests: uids.length, only: uids });
   revalidatePath("/", "layout");
-  if (r.errors.length) back("/settings", "error", `Added, but the first download failed: ${r.errors.join("; ")} — it will retry on the next scan.`);
-  const sets = (await listGuideSets()).data.filter((x) => fresh.includes(x.uid));
-  back("/settings", "saved", `Added ${sets.map((x) => `${x.name ?? x.uid} (${(x.rows ?? 0).toLocaleString("en-US")} cards)`).join(", ")}. Downloaded daily from now on.`);
+  const sets = (await listGuideSets()).data.filter((x) => uids.includes(x.uid));
+  const done = sets.filter((x) => x.downloadedAt && !x.error);
+  const later = uids.length - done.length;
+  const skipped = errors.length ? ` Skipped ${errors.length} line${errors.length === 1 ? "" : "s"}: ${errors.slice(0, 3).join("; ")}.` : "";
+  if (uids.length === 1 && r.errors.length) back("/settings", "error", `Added, but the first download failed: ${r.errors.join("; ")} — it will retry on the next scan.`);
+  back(
+    "/settings",
+    "saved",
+    `Added ${uids.length === 1 && done.length === 1 ? `${done[0].name ?? done[0].uid} (${(done[0].rows ?? 0).toLocaleString("en-US")} cards)` : `${uids.length} sets`}.` +
+      (uids.length > 1 ? ` ${done.length} downloaded now${later ? `; ${later} more over the next scheduled runs` : ""}.` : "") +
+      " Downloaded daily from now on." +
+      skipped,
+  );
 }
 
 export async function removeGuideSetAction(formData: FormData) {

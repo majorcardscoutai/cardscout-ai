@@ -47,6 +47,28 @@ export function parseGuideLink(raw: string): { ok: true; host: GuideHost; uids: 
   return { ok: true, host, uids: [...new Set(uids)] };
 }
 
+/**
+ * Several pasted links at once (one per line, or separated by spaces). Returns the set codes per site
+ * and a note for each line that couldn't be read. A bare set code ("G23347") counts as SportsCardsPro.
+ */
+export function parseGuideLinks(raw: string): { sets: Map<GuideHost, string[]>; errors: string[] } {
+  const sets = new Map<GuideHost, string[]>();
+  const errors: string[] = [];
+  const parts = raw.split(/\s+/).map((x) => x.trim()).filter(Boolean).slice(0, 100);
+  for (const part of parts) {
+    const r = parseGuideLink(part);
+    if (!r.ok) {
+      const shown = part.replace(/([?&])t=[^&]*/gi, "$1t=…");
+      errors.push(`${shown.length > 70 ? shown.slice(0, 67) + "…" : shown}: ${r.error}`);
+      continue;
+    }
+    const list = sets.get(r.host) ?? [];
+    for (const u of r.uids) if (!list.includes(u)) list.push(u);
+    sets.set(r.host, list);
+  }
+  return { sets, errors };
+}
+
 /** The download URL for up to 5 sets (token added at request time, never stored). */
 export function guideDownloadUrl(host: GuideHost, uids: string[], token: string): string {
   const qs = new URLSearchParams({ t: token, "console-uids": uids.slice(0, MAX_UIDS_PER_REQUEST).join(",") });
