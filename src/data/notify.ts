@@ -2,7 +2,7 @@
  * Phone notifications for new deals (Web Push). Sent alongside the email alert.
  * Dead subscriptions (phone removed the app, permission revoked) are deleted automatically.
  */
-import { formatMoney } from "@/lib/currency";
+import { moneyPair } from "@/lib/currency";
 import type { ScanHit } from "@/lib/scan";
 import { pushConfigured, sendPush, type PushMessage } from "@/lib/webpush";
 import { deletePushSubscription, listPushSubscriptions, markPushResult } from "./db";
@@ -14,12 +14,13 @@ export interface PushSummary {
   errors: string[];
 }
 
-export function dealsMessage(hits: ScanHit[]): PushMessage {
+/** fx > 0 = buyer in Australia: amounts in A$. */
+export function dealsMessage(hits: ScanHit[], fx = 0): PushMessage {
   const best = [...hits].sort((a, b) => (b.netProfitUsd ?? 0) - (a.netProfitUsd ?? 0))[0];
   const n = hits.length;
-  const profit = best.netProfitUsd !== null ? ` · +${formatMoney(best.netProfitUsd, "USD")}` : "";
+  const profit = best.netProfitUsd !== null ? ` · +${moneyPair(best.netProfitUsd, fx).main}` : "";
   const roi = best.roiPercent !== null ? ` (${Math.round(best.roiPercent)}% ROI)` : "";
-  const price = best.priceUsd !== null ? `${formatMoney(best.priceUsd, "USD")}` : "";
+  const price = best.priceUsd !== null ? moneyPair(best.priceUsd, fx).main : "";
   return {
     title: n === 1 ? "CardHawk: new deal" : `CardHawk: ${n} new deals`,
     // Price-guide values carry their source (SportsCardsPro / PriceCharting attribution).

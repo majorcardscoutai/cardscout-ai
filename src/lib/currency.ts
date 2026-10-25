@@ -37,3 +37,17 @@ export function formatMoney(value: number, currency: "USD" | "AUD"): string {
 export function formatPercent(value: number, decimals = 1): string {
   return `${value.toFixed(decimals)}%`;
 }
+
+/**
+ * A US$ amount for display: buyers in Australia (fx > 0) see A$ first with US$ underneath;
+ * everyone else sees US$ only. Amounts are stored in US$ either way.
+ */
+export function moneyPair(usd: number, fx: number): { main: string; sub: string | null } {
+  return fx > 0 ? { main: formatMoney(usd * fx, "AUD"), sub: formatMoney(usd, "USD") } : { main: formatMoney(usd, "USD"), sub: null };
+}
+
+/** "A$1,200 · US$800" (Australia) or "US$800". */
+export function moneyText(usd: number, fx: number): string {
+  const p = moneyPair(usd, fx);
+  return p.sub ? `${p.main} · ${p.sub}` : p.main;
+}

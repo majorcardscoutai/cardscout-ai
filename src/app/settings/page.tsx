@@ -60,7 +60,7 @@ export default async function SettingsPage({
                   <span>
                     <span className="block text-sm">{REGION_LABELS[r]}</span>
                     <span className="block text-xs text-faint">
-                      {r === "AU" ? "US$ + A$ · import GST" : r === "US" ? "US$ · sales tax" : "US$ · import tax / VAT"}
+                      {r === "AU" ? "A$ (US$ underneath) · import GST" : r === "US" ? "US$ · sales tax" : "US$ · import tax / VAT"}
                     </span>
                   </span>
                 </label>

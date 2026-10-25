@@ -1,6 +1,6 @@
 // Small presentational building blocks shared across pages.
 import type { ReactNode } from "react";
-import { formatMoney, formatPercent } from "@/lib/currency";
+import { formatMoney, moneyPair, formatPercent } from "@/lib/currency";
 import type { Confidence } from "@/lib/types";
 import { scoreLabel } from "@/lib/scoring";
 import { IconAlert } from "./Icons";
@@ -71,7 +71,7 @@ export function Money({
   align = "left",
 }: {
   usd: number | null | undefined;
-  /** USD→AUD rate for the A$ line; 0 = show US$ only (buyers outside Australia). */
+  /** USD→AUD rate: > 0 = buyer in Australia (A$ first, US$ underneath); 0 = US$ only. */
   fx: number;
   tone?: "neutral" | "auto";
   size?: "sm" | "md" | "lg";
@@ -83,13 +83,14 @@ export function Money({
   const color =
     tone === "auto" ? (usd > 0 ? "text-gain" : usd < 0 ? "text-loss" : "text-ink") : "text-ink";
   const main = { sm: "text-sm", md: "text-[15px]", lg: "text-2xl" }[size];
+  const p = moneyPair(usd, fx);
   return (
     <span className={`inline-flex flex-col ${align === "right" ? "items-end" : "items-start"}`}>
       <span className={`num font-medium ${main} ${color}`}>
         {usd > 0 && tone === "auto" ? "+" : ""}
-        {formatMoney(usd, "USD")}
+        {p.main}
       </span>
-      {fx > 0 && <span className="num text-[11px] text-faint">{formatMoney(usd * fx, "AUD")}</span>}
+      {p.sub && <span className="num text-[11px] text-faint">{p.sub}</span>}
     </span>
   );
 }

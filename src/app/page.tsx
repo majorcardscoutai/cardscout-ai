@@ -1,6 +1,6 @@
 import Link from "next/link";
 import CardThumb from "@/components/CardThumb";
-import { formatMoney } from "@/lib/currency";
+import { formatMoney, moneyPair, moneyText } from "@/lib/currency";
 import { Money, PageHeader, Panel, Pct, StatCard, StatusRow, Tag } from "@/components/ui";
 import { cardValueMap, lastScanRuns } from "@/data/db";
 import { currentDeals, sortDeals } from "@/data/deals";
@@ -44,8 +44,8 @@ export default async function OverviewPage({ searchParams }: { searchParams?: Pr
         <StatCard label="Watchlist" value={watch.data.length} sub="cards you're tracking" />
         <StatCard
           label="Portfolio cost basis"
-          value={formatMoney(portfolioCost, "USD")}
-          sub={`${holdings.length} cards held${fx > 0 ? ` · ${formatMoney(portfolioCost * fx, "AUD")}` : ""}`}
+          value={moneyPair(portfolioCost, fx).main}
+          sub={`${holdings.length} cards held${fx > 0 ? ` · ${moneyPair(portfolioCost, fx).sub}` : ""}`}
         />
         <StatCard
           label="Live deals right now"

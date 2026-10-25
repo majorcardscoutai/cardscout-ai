@@ -4,7 +4,7 @@ import CardThumb from "@/components/CardThumb";
 import { CardFields, CurrencyPicker, DbError, Field, Flash, inputCls, SubmitButton } from "@/components/FormBits";
 import { Money, PageHeader, Panel, Pct, StatCard, Tag } from "@/components/ui";
 import { listHoldings, loadSettings } from "@/data/source";
-import { formatMoney } from "@/lib/currency";
+import { formatMoney, moneyPair, moneyText } from "@/lib/currency";
 import { displayFx } from "@/lib/region";
 
 export const dynamic = "force-dynamic";
@@ -37,15 +37,15 @@ export default async function PortfolioPage({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Cards held" value={holdings.length} />
-        <StatCard label="Total cost basis" value={formatMoney(totalCost, "USD")} sub={fx > 0 ? formatMoney(totalCost * fx, "AUD") : "US$"} />
+        <StatCard label="Total cost basis" value={moneyPair(totalCost, fx).main} sub={moneyPair(totalCost, fx).sub ?? "US$"} />
         <StatCard
           label="Est. value (valued cards)"
-          value={formatMoney(valuedValue, "USD")}
-          sub={`${fx > 0 ? `${formatMoney(valuedValue * fx, "AUD")} · ` : ""}${valued.length} of ${holdings.length} cards`}
+          value={moneyPair(valuedValue, fx).main}
+          sub={`${fx > 0 ? `${moneyPair(valuedValue, fx).sub} · ` : ""}${valued.length} of ${holdings.length} cards`}
         />
         <StatCard
           label="Unrealised gain / loss"
-          value={`${unrealised >= 0 ? "+" : ""}${formatMoney(unrealised, "USD")}`}
+          value={`${unrealised >= 0 ? "+" : ""}${moneyPair(unrealised, fx).main}`}
           sub={unvalued > 0 ? `Excludes ${unvalued} card(s) without a value` : "Before selling fees"}
           tone={unrealised >= 0 ? "gain" : "loss"}
         />

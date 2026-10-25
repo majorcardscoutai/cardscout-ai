@@ -5,7 +5,7 @@
  * Note: until a domain is verified in Resend (ALERT_FROM on that domain), Resend only delivers to the
  * Resend account owner's own address.
  */
-import { formatMoney } from "./currency";
+import { moneyPair } from "./currency";
 import type { ScanHit } from "./scan";
 
 export function emailConfigured(): boolean {
@@ -27,13 +27,13 @@ export function alertEmailHtml(hits: (ScanHit & { searchName: string })[], usdTo
       (h) => `<tr>
   <td style="padding:12px;border-bottom:1px solid #1f2733">
     <a href="${esc(h.url)}" style="color:#e6ebf2;font-weight:600;text-decoration:none">${esc(h.title)}</a>
-    <div style="color:#8492a6;font-size:12px;margin-top:4px">${esc(h.searchName)}${h.isAuction ? " · Auction ending soon" : ""} · compared with your value ${h.valueUsd !== null ? formatMoney(h.valueUsd, "USD") : ""}</div>
+    <div style="color:#8492a6;font-size:12px;margin-top:4px">${esc(h.searchName)}${h.isAuction ? " · Auction ending soon" : ""} · compared with your value ${h.valueUsd !== null ? moneyPair(h.valueUsd, usdToAud).main : ""}</div>
   </td>
   <td style="padding:12px;border-bottom:1px solid #1f2733;text-align:right;white-space:nowrap;color:#e6ebf2">
-    ${h.priceUsd !== null ? formatMoney(h.priceUsd, "USD") : "—"}<div style="color:#5a6678;font-size:12px">${h.priceUsd !== null && usdToAud > 0 ? formatMoney(h.priceUsd * usdToAud, "AUD") : ""}</div>
+    ${h.priceUsd !== null ? moneyPair(h.priceUsd, usdToAud).main : "—"}<div style="color:#5a6678;font-size:12px">${h.priceUsd !== null ? moneyPair(h.priceUsd, usdToAud).sub ?? "" : ""}</div>
   </td>
   <td style="padding:12px;border-bottom:1px solid #1f2733;text-align:right;white-space:nowrap;color:#22c55e;font-weight:600">
-    ${h.netProfitUsd !== null ? "+" + formatMoney(h.netProfitUsd, "USD") : "—"}<div style="font-size:12px">${h.roiPercent !== null ? h.roiPercent.toFixed(1) + "% ROI" : ""}</div>
+    ${h.netProfitUsd !== null ? "+" + moneyPair(h.netProfitUsd, usdToAud).main : "—"}<div style="font-size:12px">${h.roiPercent !== null ? h.roiPercent.toFixed(1) + "% ROI" : ""}</div>
   </td>
 </tr>`,
     )

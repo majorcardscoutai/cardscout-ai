@@ -408,7 +408,7 @@ export async function runAllScans(
 
   // Phone notifications for the same alert-worthy deals as the email.
   if (toEmail.length > 0) {
-    const p = await pushToAllDevices(dealsMessage(toEmail));
+    const p = await pushToAllDevices(dealsMessage(toEmail, displayFx(settings)));
     summary.pushed = p.sent;
     summary.errors.push(...p.errors);
   }

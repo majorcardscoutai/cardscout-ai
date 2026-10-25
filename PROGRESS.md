@@ -379,3 +379,8 @@ Travis's Top Deals screenshot (Kobe 1957-58 Variation Xfractor /50, Shaq Platinu
 - Settings → Popular sets now takes many "Download Price List" links at once (one per line): new sets added, existing skipped, unreadable lines reported (tokens never shown or kept). Downloads start straight away while time allows; the rest over the next scheduled runs. "Sets worth adding" on the Hunter page shows the top 15.
 - Pokémon first: links come from each set's page on pricecharting.com (Download Price List). Cap still 60 sets until JJ confirms more.
 - 111 unit tests + e2e (19).
+
+## A$ first for Australian buyers (26 Oct 2026)
+- Settings → Where you buy from = Australia: every amount shows A$ as the main figure with US$ underneath (Money component, Overview/Portfolio stat cards, "Your max", alert emails, phone alerts). Other regions: US$ only. Amounts are still stored in US$.
+- Not changed yet: Settings inputs that are entered in US$ (fixed fee, minimum profit) and the Hunter's budget in the eBay site's currency.
+- 112 unit tests + e2e.
