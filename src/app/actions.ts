@@ -398,3 +398,10 @@ export async function deleteMyAccountAction(formData: FormData) {
   jar.delete(RT_COOKIE);
   redirect("/login?deleted=1");
 }
+
+/** Overview → hide the "Get set up" guide (remembered on this device for a year). */
+export async function hideSetupGuideAction() {
+  const jar = await cookies();
+  jar.set("ch_setup_hidden", "1", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+  redirect("/");
+}

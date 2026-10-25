@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { addToWaitlist } from "@/data/db";
+import { addToWaitlist, recordTermsAccepted } from "@/data/db";
 import { AUTH_COOKIE, safeNextPath } from "@/lib/auth";
 import { parseWaitlistForm } from "@/lib/forms";
 import {
@@ -61,9 +61,15 @@ export async function completePasswordReset(_prev: { error: string } | null, for
   const problem = passwordProblem(password, String(formData.get("confirm") ?? ""));
   if (problem) return { error: problem };
   if (!at || !rt) return { error: "That link is incomplete. Ask for a new one." };
+  const invite = formData.get("invite") === "1";
+  if (invite && formData.get("agree") !== "on") return { error: "Please confirm you're 18 or older and agree to the Terms of Use and Privacy Policy." };
   const r = await updatePassword(at, password);
   if (!r.ok) return { error: r.error };
   await saveSession(at, rt);
+  if (invite) {
+    await recordTermsAccepted(r.data.id, r.data.email);
+    redirect("/?welcome=1");
+  }
   redirect("/");
 }
 

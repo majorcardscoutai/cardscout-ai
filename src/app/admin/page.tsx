@@ -11,6 +11,7 @@ import { MAX_SAVED_SEARCHES } from "@/lib/limits";
 import { providerConfigured } from "@/lib/provider-client";
 import { psaConfigured } from "@/lib/psa";
 import { userDbConfigured } from "@/lib/supabase";
+import { legalDetails } from "@/lib/legal";
 
 export const metadata = { title: "CardHawk AI · Admin" };
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     ["PSA slab checks", psaConfigured(), "PSA_API_TOKEN (waiting on PSA approval)"],
     ["Alert emails (Resend)", emailConfigured(), "RESEND_API_KEY"],
     ["Database protection", userDbConfigured(), "SUPABASE_PUBLISHABLE_KEY"],
+    ["Terms & Privacy details", legalDetails().missing.length === 0, legalDetails().missing.join(" + ")],
   ];
 
   return (

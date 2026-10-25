@@ -139,6 +139,10 @@ export default async function LoginPage({
             </form>
           )}
         </section>
+        <p className="text-center text-[11px] text-faint">
+          <a href="/terms" className="hover:text-accent hover:underline">Terms of Use</a> ·{" "}
+          <a href="/privacy" className="hover:text-accent hover:underline">Privacy Policy</a>
+        </p>
       </div>
     </div>
   );

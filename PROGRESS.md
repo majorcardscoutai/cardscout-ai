@@ -366,3 +366,10 @@ Travis's Top Deals screenshot (Kobe 1957-58 Variation Xfractor /50, Shaq Platinu
 - BGS/SGC/CGC grades 7–9.5 used the guide's any-company grade price (mostly PSA sales). Now shown with that label but never counted as a deal or alert (dealGradeValue); grader-specific 10s, PSA grades and your own values still count.
 - Every saved guide match from before 23 Oct 03:00 UTC is looked up again (REMATCH_ALL_AT), matched ones too, over the next runs.
 - 110 unit tests + e2e.
+
+## Terms of Use, Privacy Policy, first-run setup guide (26 Oct 2026)
+- /terms and /privacy (public, no sign-in): plain-English DRAFT for a lawyer to review before charging. Covers: research tool not a marketplace, estimates not financial advice, no profit promise, cert checks don't prove authenticity, 18+, invite-only, fair use (no copying/reselling guide data, no scraping), third-party data, free beta/notice before charging, Australian Consumer Law, governing law, deletion; privacy per the Australian Privacy Principles: what's collected, uses, service providers (Supabase, Vercel, Resend, push services; possibly overseas incl. US), no ad/analytics trackers, deletion in Settings, access/correction, OAIC complaints, breach notification.
+- Names come from Vercel env: LEGAL_ENTITY (e.g. "Travis Major trading as CardHawk AI" or the company name), LEGAL_EMAIL, optional LEGAL_ABN, optional LEGAL_STATE (default New South Wales). Until set, the pages show [placeholders]; Admin → Services flags it.
+- Invite → choose-password page: "I'm 18 or older and agree to the Terms of Use and Privacy Policy" (required); recorded in profiles.terms_accepted_at. Links on the sign-in page and Settings → Account.
+- Overview "Get set up" guide (new accounts; welcome version straight after an invite): 1) Settings (where you buy from, costs, rules) 2) turn on the Profit Hunter 3) save a first search 4) optional phone alerts. Ticks itself off; Hide remembers per device; disappears when the three main steps are done.
+- SQL: profiles.terms_accepted_at. e2e scenario 27.

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AT_COOKIE, RT_COOKIE, refreshSession, sessionCookieOptions, userForToken } from "@/lib/supabase-auth";
 
 /** Pages anyone can open without signing in. */
-const PUBLIC_PATHS = new Set(["/login", "/login/forgot", "/auth/reset"]);
+const PUBLIC_PATHS = new Set(["/login", "/login/forgot", "/auth/reset", "/terms", "/privacy"]);
 
 /**
  * Runs before every page. Signed in = a valid account session (Supabase). Everyone else is sent to

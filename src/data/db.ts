@@ -1314,3 +1314,14 @@ export async function listUsage(days = 7): Promise<DbResult<UsageRow[]>> {
     return { data: [], error: message(e) };
   }
 }
+
+/** A new account agreed to the Terms of Use and Privacy Policy (when it chose its password). */
+export async function recordTermsAccepted(userId: string, email: string): Promise<void> {
+  if (!dbConfigured()) return;
+  try {
+    const now = new Date().toISOString();
+    await db().from("profiles").upsert({ user_id: userId, email, terms_accepted_at: now, last_seen_at: now }, { onConflict: "user_id" });
+  } catch {
+    // profiles table / column not added yet — the account still works
+  }
+}

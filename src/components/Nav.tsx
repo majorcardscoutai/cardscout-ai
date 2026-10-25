@@ -45,7 +45,7 @@ function Logo() {
 
 export default function Nav({ admin = false }: { admin?: boolean }) {
   const pathname = usePathname();
-  if (pathname.startsWith("/login") || pathname.startsWith("/auth/")) return null;
+  if (pathname.startsWith("/login") || pathname.startsWith("/auth/") || pathname === "/terms" || pathname === "/privacy") return null;
   const items = admin ? [...NAV, { href: "/admin", label: "Admin", short: "Admin", Icon: IconSettings }] : NAV;
 
   return (

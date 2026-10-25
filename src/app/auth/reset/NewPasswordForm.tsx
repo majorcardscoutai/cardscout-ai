@@ -50,6 +50,7 @@ export default function NewPasswordForm() {
       <p className="mb-4 text-sm text-muted">{link.invite ? "Welcome! Choose a password for your CardHawk account." : "Choose a new password."}</p>
       <input type="hidden" name="at" value={link.at} />
       <input type="hidden" name="rt" value={link.rt} />
+      <input type="hidden" name="invite" value={link.invite ? "1" : ""} />
       <label className="block">
         <span className="text-xs text-muted">New password (at least {MIN_PASSWORD_LENGTH} characters)</span>
         <input type="password" name="password" required minLength={MIN_PASSWORD_LENGTH} maxLength={72} autoComplete="new-password" className={inputCls} />
@@ -58,6 +59,16 @@ export default function NewPasswordForm() {
         <span className="text-xs text-muted">Type it again</span>
         <input type="password" name="confirm" required minLength={MIN_PASSWORD_LENGTH} maxLength={72} autoComplete="new-password" className={inputCls} />
       </label>
+      {link.invite && (
+        <label className="mt-4 flex items-start gap-2.5 text-xs text-muted">
+          <input type="checkbox" name="agree" required className="mt-0.5 h-4 w-4 shrink-0 accent-gain" />
+          <span>
+            I&apos;m 18 or older and agree to the{" "}
+            <a href="/terms" target="_blank" className="text-accent underline">Terms of Use</a> and{" "}
+            <a href="/privacy" target="_blank" className="text-accent underline">Privacy Policy</a>.
+          </span>
+        </label>
+      )}
       {state?.error && <p className="mt-3 text-sm text-loss">{state.error}</p>}
       <button disabled={pending} className="mt-5 w-full rounded-lg bg-gain px-4 py-2.5 text-sm font-semibold text-bg hover:bg-gain/90 disabled:opacity-60">
         {pending ? "Saving…" : "Save password and sign in"}

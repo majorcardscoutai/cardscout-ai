@@ -9,10 +9,13 @@ import { providerConfigured } from "@/lib/provider-client";
 import { listHoldings, listWatchlist, loadSettings } from "@/data/source";
 import { displayFx, REGION_LABELS } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
+import SetupGuide, { setupGuideData } from "@/components/SetupGuide";
 
 export const dynamic = "force-dynamic";
 
-export default async function OverviewPage() {
+export default async function OverviewPage({ searchParams }: { searchParams?: Promise<{ welcome?: string }> }) {
+  const welcome = (await searchParams)?.welcome === "1";
+  const setup = await setupGuideData(welcome);
   const [{ source, error: settingsError, fx: liveFx }, watch, hold, live, runs, values] = await Promise.all([
     loadSettings(),
     listWatchlist(),
@@ -35,6 +38,7 @@ export default async function OverviewPage() {
         title="Overview"
         subtitle="Live listings are flagged when the price clears your ROI and profit rules against your Card Values."
       />
+      <SetupGuide data={setup} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Watchlist" value={watch.data.length} sub="cards you're tracking" />

@@ -330,6 +330,10 @@ export default async function SettingsPage({
             <SubmitButton tone="neutral">Log out</SubmitButton>
           </form>
         </div>
+        <p className="mt-4 text-xs text-faint">
+          <a href="/terms" className="hover:text-accent hover:underline">Terms of Use</a> ·{" "}
+          <a href="/privacy" className="hover:text-accent hover:underline">Privacy Policy</a>
+        </p>
         {viewer && !viewer.admin && (
           <details className="mt-5 border-t border-line pt-4">
             <summary className="cursor-pointer text-xs text-faint">Delete my account</summary>
