@@ -116,6 +116,20 @@ function networkMessage(e: unknown): string {
   return "Couldn't reach eBay. Check your connection and try again.";
 }
 
+/**
+ * eBay Partner Network campaign ID (Vercel: EBAY_CAMPAIGN_ID, 10 digits). Not a secret — it appears in every
+ * affiliate link. When set, eBay returns tracked "View on eBay" links so purchases earn commission.
+ */
+export function affiliateCampaignId(): string | null {
+  const id = (process.env.EBAY_CAMPAIGN_ID ?? "").trim();
+  return /^\d{10}$/.test(id) ? id : null;
+}
+
+export function endUserContext(shipTo: ShipTo): string {
+  const id = affiliateCampaignId();
+  return [id ? `affiliateCampaignId=${id}` : null, contextualLocation(shipTo)].filter(Boolean).join(",");
+}
+
 async function call<T>(path: string, market: Marketplace, shipTo: ShipTo = { country: "AU" }): Promise<EbayResult<T>> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await getToken(attempt > 0);
@@ -128,7 +142,8 @@ async function call<T>(path: string, market: Marketplace, shipTo: ShipTo = { cou
           Authorization: `Bearer ${token.data}`,
           "X-EBAY-C-MARKETPLACE-ID": market,
           // Ask eBay for shipping costs to where the buyer is (Settings → Where you buy from).
-          "X-EBAY-C-ENDUSERCTX": contextualLocation(shipTo),
+          // + eBay Partner Network: with a campaign ID, eBay returns tracked links (itemAffiliateWebUrl).
+          "X-EBAY-C-ENDUSERCTX": endUserContext(shipTo),
           Accept: "application/json",
         },
       });
@@ -164,6 +179,8 @@ interface RawItem {
   shippingOptions?: { shippingCost?: RawMoney; shippingCostType?: string }[];
   image?: { imageUrl?: string };
   itemWebUrl?: string;
+  /** Only returned when the request carries an affiliate campaign ID. */
+  itemAffiliateWebUrl?: string;
   seller?: { username?: string; feedbackScore?: number; feedbackPercentage?: string };
   returnTerms?: { returnsAccepted?: boolean };
   itemLocation?: { country?: string };
@@ -202,7 +219,7 @@ export function mapItem(raw: RawItem): EbayListing {
     acceptsOffers: options.includes("BEST_OFFER"),
     shipping: money(raw.shippingOptions?.[0]?.shippingCost),
     imageUrl: raw.image?.imageUrl ?? null,
-    url: raw.itemWebUrl ?? `https://www.ebay.com/itm/${legacyId(raw)}`,
+    url: raw.itemAffiliateWebUrl ?? raw.itemWebUrl ?? `https://www.ebay.com/itm/${legacyId(raw)}`,
     sellerName: typeof raw.seller?.username === "string" && raw.seller.username.trim() ? raw.seller.username.trim() : null,
     sellerFeedbackScore: typeof raw.seller?.feedbackScore === "number" ? raw.seller.feedbackScore : null,
     sellerFeedbackPercent: Number.isFinite(pct) ? pct : null,

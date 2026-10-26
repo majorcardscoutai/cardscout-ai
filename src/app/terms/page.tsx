@@ -21,6 +21,10 @@ export default function TermsPage() {
         not sell, list, hold or ship cards and does not take payment for cards. Every purchase is made on eBay, between you and the
         seller, under eBay&apos;s terms.
       </p>
+      <p>
+        CardHawk is a member of the eBay Partner Network. If you buy through a &ldquo;View on eBay&rdquo; link, eBay may pay us a
+        commission. It doesn&apos;t change the price you pay, and it doesn&apos;t affect which listings CardHawk shows or how it values them.
+      </p>
 
       <h2>2. Estimates, not advice</h2>
       <ul>

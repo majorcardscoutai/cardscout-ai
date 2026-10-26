@@ -405,6 +405,7 @@ Changes made:
 ## Domain — 27 Oct 2026
 - [x] cardhawkai.com bought; www.cardhawkai.com connected in Vercel (Valid). cardscout-ai.vercel.app still works.
 - [x] APP_URL fallbacks use https://www.cardhawkai.com. GitHub workflows deliberately stay on https://cardscout-ai.vercel.app (always works, independent of custom-domain DNS).
-- [ ] Vercel APP_URL = https://www.cardhawkai.com; Supabase Site URL + redirect https://www.cardhawkai.com/auth/reset (keep old one).
-- [ ] Resend domain verified; ALERT_FROM = CardHawk AI <alerts@cardhawkai.com>; Supabase custom SMTP via Resend.
+- [x] Vercel APP_URL = https://www.cardhawkai.com; Supabase Site URL + redirect https://www.cardhawkai.com/auth/reset (old one kept). GoDaddy DNS: www CNAME → Vercel, A @ 216.198.79.1 (apex 308 → www).
+- [x] Resend domain (Tokyo) set up via auto-configure; ALERT_FROM = CardHawk AI <alerts@cardhawkai.com>; Supabase custom SMTP via Resend (no-reply@cardhawkai.com) — password-reset email tested OK 27 Oct.
 - [ ] Inbox/forwarding for hello@cardhawkai.com → LEGAL_EMAIL. EPN website property updated.
+- [x] EPN code: EBAY_CAMPAIGN_ID (10 digits, Vercel Config var) → Browse API X-EBAY-C-ENDUSERCTX affiliateCampaignId → links use itemAffiliateWebUrl (fallback itemWebUrl). Admin → Services shows status. Deals found before it's set keep plain links.

@@ -4,7 +4,7 @@ import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/Form
 import { PageHeader, Panel, Tag } from "@/components/ui";
 import { listAccounts, listUsage, listWaitlist } from "@/data/db";
 import { currentViewer } from "@/data/session";
-import { ebayConfigured, fixedPriceOnly } from "@/lib/ebay/client";
+import { affiliateCampaignId, ebayConfigured, fixedPriceOnly } from "@/lib/ebay/client";
 import { emailConfigured } from "@/lib/email";
 import { WAITLIST_GOALS } from "@/lib/forms";
 import { MAX_SAVED_SEARCHES } from "@/lib/limits";
@@ -36,6 +36,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     ["Alert emails (Resend)", emailConfigured(), "RESEND_API_KEY"],
     ["Database protection", userDbConfigured(), "SUPABASE_PUBLISHABLE_KEY"],
     ["Terms & Privacy details", legalDetails().missing.length === 0, legalDetails().missing.join(" + ")],
+    ["eBay Partner Network (commission on eBay links)", affiliateCampaignId() !== null, "EBAY_CAMPAIGN_ID (10-digit Campaign ID)"],
     ["eBay: fixed-price listings only (Buy API requirement)", fixedPriceOnly(), "EBAY_FIXED_PRICE_ONLY=1 when you're ready"],
   ];
 

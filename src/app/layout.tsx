@@ -42,7 +42,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <a href="https://www.ebay.com/help/policies/member-behaviour-policies/user-agreement?id=4259" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">
                   eBay User Agreement
                 </a>
-                . CardHawk is not owned or endorsed by eBay. Market values from SportsCardsPro / PriceCharting.{" "}
+                . CardHawk is not owned or endorsed by eBay. As an eBay Partner, CardHawk may earn a commission when you buy through its
+                eBay links — this never changes the price you pay or which listings we show. Market values from SportsCardsPro / PriceCharting.{" "}
                 <a href="/terms" className="underline hover:text-accent">Terms of Use</a> ·{" "}
                 <a href="/privacy" className="underline hover:text-accent">Privacy Policy</a>
               </footer>
