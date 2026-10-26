@@ -99,7 +99,8 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
                 </Link>
               ))}
             </div>
-            <form action={huntNowAction}>
+            {/* The hunt has its own progress screen. */}
+            <form action={huntNowAction} data-no-progress>
               <HuntButton />
             </form>
           </div>

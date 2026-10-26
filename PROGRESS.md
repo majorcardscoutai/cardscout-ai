@@ -384,3 +384,8 @@ Travis's Top Deals screenshot (Kobe 1957-58 Variation Xfractor /50, Shaq Platinu
 - Settings → Where you buy from = Australia: every amount shows A$ as the main figure with US$ underneath (Money component, Overview/Portfolio stat cards, "Your max", alert emails, phone alerts). Other regions: US$ only. Amounts are still stored in US$.
 - Not changed yet: Settings inputs that are entered in US$ (fixed fee, minimum profit) and the Hunter's budget in the eBay site's currency.
 - 112 unit tests + e2e.
+
+## Page loader (26 Oct 2026)
+- Clicking a CardHawk link or submitting a form shows a full-screen flapping hawk with "Loading… NN%" if the page takes longer than 0.25 s (quick pages never flash it). The percentage is an estimate (pages don't report progress): climbs fast, waits at 95%, jumps to 100% when the new page arrives (address changes, or the page updates for same-page forms). Gives up after 60 s.
+- Not shown for: eBay and other outside links, links opening in a new tab, downloads (/api/…), "#section" links, and the Profit Hunter's "Hunt now" (it has its own screen) — any element with data-no-progress.
+- components/NavProgress.tsx (mounted in the layout) + lib/nav-progress.ts. 113 unit tests.

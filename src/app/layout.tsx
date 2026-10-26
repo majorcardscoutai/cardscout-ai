@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import Nav from "@/components/Nav";
+import NavProgress from "@/components/NavProgress";
 import { currentViewer } from "@/data/session";
 import "./globals.css";
 
@@ -28,6 +30,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en-AU" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-screen">
         <Nav admin={viewer?.admin === true} />
+        <Suspense fallback={null}>
+          <NavProgress />
+        </Suspense>
         <main className="md:pl-60">
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8 lg:px-8">{children}</div>
         </main>

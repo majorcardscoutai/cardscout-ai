@@ -83,3 +83,20 @@ test("title reading: any player, codes without #, Pokémon sets, sport from the 
   assert.equal(guessPlayer("PSA 10 GEM MINT 2023 Topps Chrome Refractor", "MLB"), null, "no name → no guess");
   assert.equal(cardKey({ sport: "MLB", player: "X Y", set: "Topps", cardNumber: "1", grader: "PSA", grade: 10 }), null, "sports cards still need a year");
 });
+
+test("page loader: estimated percentage and which links start it", async () => {
+  const { navProgress, linkStartsLoad } = await import("../src/lib/nav-progress.js");
+  assert.equal(navProgress(0), 0);
+  assert.ok(navProgress(1000) > 40 && navProgress(1000) < 60);
+  assert.equal(navProgress(60_000), 95, "waits at 95% until the page arrives");
+  const here = { origin: "https://cardscout-ai.vercel.app", pathname: "/deals", search: "" };
+  const a = (href: string, x: Partial<{ target: string; hasDownload: boolean; noProgress: boolean }> = {}) => ({ href, target: "", hasDownload: false, noProgress: false, ...x });
+  assert.equal(linkStartsLoad(a("/hunter"), here), true);
+  assert.equal(linkStartsLoad(a("/deals?sort=roi"), here), true);
+  assert.equal(linkStartsLoad(a("/deals"), here), false, "same page");
+  assert.equal(linkStartsLoad(a("#top"), here), false);
+  assert.equal(linkStartsLoad(a("https://www.ebay.com/itm/1", { target: "_blank" }), here), false);
+  assert.equal(linkStartsLoad(a("https://www.ebay.com/itm/1"), here), false, "other sites");
+  assert.equal(linkStartsLoad(a("/api/waitlist"), here), false, "downloads");
+  assert.equal(linkStartsLoad(a("/hunter", { noProgress: true }), here), false);
+});
