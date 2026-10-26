@@ -390,7 +390,7 @@ export async function runAllScans(
 
   if (toEmail.length > 0 && emailConfigured()) {
     const best = toEmail.sort((a, b) => (b.roiPercent ?? 0) - (a.roiPercent ?? 0)).slice(0, MAX_EMAIL_ROWS);
-    const appUrl = process.env.APP_URL ?? "https://cardscout-ai.vercel.app";
+    const appUrl = process.env.APP_URL ?? "https://www.cardhawkai.com";
     // This account's own email (admins: ALERT_EMAIL if set).
     const email = await profileEmail(await ownerId());
     const to = alertRecipient(email, isAdminEmail(email));

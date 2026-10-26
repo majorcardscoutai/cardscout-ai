@@ -398,7 +398,7 @@ export async function inviteAction(formData: FormData) {
   await requireAdmin("/admin");
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) back("/admin", "error", "Enter a valid email address.");
-  const appUrl = (process.env.APP_URL ?? "https://cardscout-ai.vercel.app").replace(/\/+$/, "");
+  const appUrl = (process.env.APP_URL ?? "https://www.cardhawkai.com").replace(/\/+$/, "");
   const r = await inviteUser(email, `${appUrl}/auth/reset`);
   if (!r.ok) back("/admin", "error", `${email}: ${r.error}`);
   const err = await markInvited(email);

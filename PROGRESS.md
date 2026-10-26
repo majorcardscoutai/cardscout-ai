@@ -401,3 +401,10 @@ Changes made:
 - EBAY_FIXED_PRICE_ONLY=1 (Vercel) forces Buy It Now-only searches everywhere (Admin → Services shows the status). Off by default.
 - Still open (for the lawyer / eBay review): Top Deals and the Hunter sort and rank listings by profit (Buy API "no sorting"); the eBay logo (needs eBay's official logo file from the Buy API requirements page — Travis to download); the watchlist's max-price for items you add yourself.
 - 114 unit tests + e2e.
+
+## Domain — 27 Oct 2026
+- [x] cardhawkai.com bought; www.cardhawkai.com connected in Vercel (Valid). cardscout-ai.vercel.app still works.
+- [x] GitHub workflows (scan, hunt, hunt-quick) and APP_URL fallbacks now use https://www.cardhawkai.com.
+- [ ] Vercel APP_URL = https://www.cardhawkai.com; Supabase Site URL + redirect https://www.cardhawkai.com/auth/reset (keep old one).
+- [ ] Resend domain verified; ALERT_FROM = CardHawk AI <alerts@cardhawkai.com>; Supabase custom SMTP via Resend.
+- [ ] Inbox/forwarding for hello@cardhawkai.com → LEGAL_EMAIL. EPN website property updated.

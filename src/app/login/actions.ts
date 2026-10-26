@@ -47,7 +47,7 @@ export async function forgotPassword(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)
     redirect(`/login/forgot?error=${encodeURIComponent("Enter the email address you sign in with.")}`);
-  const appUrl = (process.env.APP_URL ?? "https://cardscout-ai.vercel.app").replace(/\/+$/, "");
+  const appUrl = (process.env.APP_URL ?? "https://www.cardhawkai.com").replace(/\/+$/, "");
   const r = await sendPasswordReset(email, `${appUrl}/auth/reset`);
   if (!r.ok && (r.code === "rate" || r.code === "config")) redirect(`/login/forgot?error=${encodeURIComponent(r.error)}`);
   redirect("/login/forgot?sent=1");
