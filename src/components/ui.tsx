@@ -182,11 +182,11 @@ export function StatusRow({
   detail,
 }: {
   label: string;
-  status: "ok" | "off" | "demo";
+  status: "ok" | "off" | "demo" | "waiting";
   detail: string;
 }) {
-  const dot = { ok: "bg-gain", off: "bg-loss", demo: "bg-warn" }[status];
-  const text = { ok: "Connected", off: "Not connected", demo: "Demo data" }[status];
+  const dot = { ok: "bg-gain", off: "bg-loss", demo: "bg-warn", waiting: "bg-warn" }[status];
+  const text = { ok: "Connected", off: "Not connected", demo: "Demo data", waiting: "Waiting" }[status];
   return (
     <div className="flex items-start justify-between gap-4 py-2.5">
       <div>

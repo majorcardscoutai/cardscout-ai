@@ -10,6 +10,7 @@ import { listHoldings, listWatchlist, loadSettings } from "@/data/source";
 import { displayFx, REGION_LABELS } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
 import SetupGuide, { setupGuideData } from "@/components/SetupGuide";
+import { psaConfigured } from "@/lib/psa";
 
 export const dynamic = "force-dynamic";
 
@@ -123,7 +124,15 @@ export default async function OverviewPage({ searchParams }: { searchParams?: Pr
                   : `${values.map.size} saved by you · connect SportsCardsPro for automatic values`
               }
             />
-            <StatusRow label="Population data" status="off" detail="Shown as missing — never estimated" />
+            <StatusRow
+              label="Population data"
+              status={psaConfigured() ? "waiting" : "off"}
+              detail={
+                psaConfigured()
+                  ? "From PSA's slab check on Analyse, once PSA approves API access · never estimated"
+                  : "Add PSA_API_TOKEN · shown as missing, never estimated"
+              }
+            />
             <StatusRow
               label="Automatic scanning"
               status={lastRun && Date.now() - new Date(lastRun.createdAt).getTime() < 4 * 3_600_000 ? "ok" : "off"}
