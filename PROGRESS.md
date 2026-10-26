@@ -404,7 +404,7 @@ Changes made:
 
 ## Domain — 27 Oct 2026
 - [x] cardhawkai.com bought; www.cardhawkai.com connected in Vercel (Valid). cardscout-ai.vercel.app still works.
-- [x] GitHub workflows (scan, hunt, hunt-quick) and APP_URL fallbacks now use https://www.cardhawkai.com.
+- [x] APP_URL fallbacks use https://www.cardhawkai.com. GitHub workflows deliberately stay on https://cardscout-ai.vercel.app (always works, independent of custom-domain DNS).
 - [ ] Vercel APP_URL = https://www.cardhawkai.com; Supabase Site URL + redirect https://www.cardhawkai.com/auth/reset (keep old one).
 - [ ] Resend domain verified; ALERT_FROM = CardHawk AI <alerts@cardhawkai.com>; Supabase custom SMTP via Resend.
 - [ ] Inbox/forwarding for hello@cardhawkai.com → LEGAL_EMAIL. EPN website property updated.

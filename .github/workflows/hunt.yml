@@ -19,7 +19,7 @@ jobs:
         run: |
           status=$(curl -s -o response.json -w "%{http_code}" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "https://www.cardhawkai.com/api/cron/scan?source=github&only=hunter")
+            "https://cardscout-ai.vercel.app/api/cron/scan?source=github&only=hunter")
           cat response.json
           echo
           test "$status" = "200"
