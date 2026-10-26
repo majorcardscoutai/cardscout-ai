@@ -32,6 +32,8 @@ export interface EbayListing {
   shipping: EbayMoney | null; // to Australia when eBay provides it
   imageUrl: string | null;
   url: string;
+  /** The seller's eBay user name (eBay's Buy API display requirement). */
+  sellerName?: string | null;
   sellerFeedbackScore: number | null;
   sellerFeedbackPercent: number | null;
   returnsAccepted: boolean | null;
@@ -162,7 +164,7 @@ interface RawItem {
   shippingOptions?: { shippingCost?: RawMoney; shippingCostType?: string }[];
   image?: { imageUrl?: string };
   itemWebUrl?: string;
-  seller?: { feedbackScore?: number; feedbackPercentage?: string };
+  seller?: { username?: string; feedbackScore?: number; feedbackPercentage?: string };
   returnTerms?: { returnsAccepted?: boolean };
   itemLocation?: { country?: string };
   itemCreationDate?: string;
@@ -201,6 +203,7 @@ export function mapItem(raw: RawItem): EbayListing {
     shipping: money(raw.shippingOptions?.[0]?.shippingCost),
     imageUrl: raw.image?.imageUrl ?? null,
     url: raw.itemWebUrl ?? `https://www.ebay.com/itm/${legacyId(raw)}`,
+    sellerName: typeof raw.seller?.username === "string" && raw.seller.username.trim() ? raw.seller.username.trim() : null,
     sellerFeedbackScore: typeof raw.seller?.feedbackScore === "number" ? raw.seller.feedbackScore : null,
     sellerFeedbackPercent: Number.isFinite(pct) ? pct : null,
     returnsAccepted: typeof raw.returnTerms?.returnsAccepted === "boolean" ? raw.returnTerms.returnsAccepted : null,
@@ -269,6 +272,11 @@ export interface SearchInput {
 }
 
 export type Grading = "any" | "graded" | "raw";
+
+/** EBAY_FIXED_PRICE_ONLY=1 (Vercel): only Buy It Now listings are searched, as eBay's Buy API requirements ask. */
+export function fixedPriceOnly(): boolean {
+  return /^(1|true|yes|on)$/i.test((process.env.EBAY_FIXED_PRICE_ONLY ?? "").trim());
+}
 /** eBay's trading-card condition ids: Graded / Ungraded. */
 const CONDITION_IDS = { graded: "2750", raw: "4000" } as const;
 const GRADER_WORDS = /\b(PSA|BGS|SGC|CGC|BECKETT|HGA|TAG|ISA|KSA|GMA|CSG)\b/i;
@@ -287,7 +295,9 @@ export function buildSearchPath(s: SearchInput): string {
   const currency = s.market === "EBAY_AU" ? "AUD" : "USD";
   const min = s.minPrice !== undefined && s.minPrice !== null && s.minPrice > 0 ? s.minPrice : null;
   if (s.maxPrice !== null || min !== null) filters.push(`price:[${min ?? ""}..${s.maxPrice ?? ""}]`, `priceCurrency:${currency}`);
-  filters.push(s.format === "ALL" ? "buyingOptions:{FIXED_PRICE|AUCTION}" : `buyingOptions:{${s.format}}`);
+  // eBay's Buy API requirements: results limited to fixed-price items (switch on with EBAY_FIXED_PRICE_ONLY=1).
+  const format = fixedPriceOnly() && (s.format === "ALL" || s.format === "AUCTION") ? "FIXED_PRICE" : s.format;
+  filters.push(format === "ALL" ? "buyingOptions:{FIXED_PRICE|AUCTION}" : `buyingOptions:{${format}}`);
   if (s.grading === "graded" || s.grading === "raw") filters.push(`conditionIds:{${CONDITION_IDS[s.grading]}}`);
   const params = new URLSearchParams({
     q: s.q,

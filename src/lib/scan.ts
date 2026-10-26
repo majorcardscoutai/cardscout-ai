@@ -35,6 +35,8 @@ export interface ScanHit {
   cardKey: string | null;
   valueUsd: number | null; // from YOUR value book — not verified market data
   valueTitle: string | null;
+  /** The seller's eBay user name. */
+  sellerName?: string | null;
   /** Where the value came from ("you", "sportscardspro", "pricecharting"). */
   valueSource?: string | null;
   netProfitUsd: number | null;
@@ -72,6 +74,7 @@ export function evaluateListing(l: EbayListing, settings: Settings, values: Map<
     title: l.title,
     url: l.url,
     imageUrl: l.imageUrl,
+    sellerName: l.sellerName ?? null,
     isAuction: l.isAuction,
     endsAt: l.endsAt,
     priceUsd,

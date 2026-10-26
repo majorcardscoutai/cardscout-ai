@@ -354,3 +354,6 @@ alter table public.saved_searches add column if not exists grading text not null
 
 -- ---------- 26 Oct 2026: Terms of Use / Privacy Policy acceptance ----------
 alter table public.profiles add column if not exists terms_accepted_at timestamptz;
+
+-- ---------- 26 Oct 2026: eBay display requirements — seller user name on finds ----------
+alter table public.scan_hits add column if not exists seller_name text;

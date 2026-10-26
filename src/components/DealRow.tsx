@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { rejectAutoValueAction } from "@/app/actions";
 import { ValueSource } from "@/components/ProviderCredit";
-import { formatMoney, moneyPair, moneyText } from "@/lib/currency";
+
 import { Money, Pct, Tag } from "@/components/ui";
 import type { DealHit } from "@/lib/deals";
 import { EbayLink } from "@/components/EbayLink";
@@ -43,11 +43,9 @@ export function DealRow({ d, fx, rank, returnTo = "/deals" }: { d: DealHit; fx: 
             <span>{d.searchName}</span>
             {d.salesVolume !== null && d.salesVolume !== undefined && <span>· sells ~{d.salesVolume}/yr</span>}
             <span>· found {ago(d.createdAt)}</span>
-            {!d.meetsCriteria && d.maxPriceUsd !== null && d.maxPriceUsd > 0 && (
-              <span className="rounded-md bg-panel-2 px-1.5 py-0.5 text-ink">
-                Your max: {moneyText(d.maxPriceUsd, fx)}
-              </span>
-            )}
+            {d.sellerName && <span>· seller {d.sellerName}</span>}
+            {/* eBay API licence §8.1.3: say how old the listing details are. */}
+            <span>· eBay details checked {ago(d.checkedAt ?? d.createdAt)}</span>
           </div>
         </div>
       </div>

@@ -34,7 +34,20 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <NavProgress />
         </Suspense>
         <main className="md:pl-60">
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8 lg:px-8">{children}</div>
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8 lg:px-8">
+            {children}
+            {viewer && (
+              <footer className="mt-12 border-t border-line pt-4 pb-2 text-[11px] leading-relaxed text-faint">
+                Listings, images and seller details come from eBay; purchases are made on eBay under the{" "}
+                <a href="https://www.ebay.com/help/policies/member-behaviour-policies/user-agreement?id=4259" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">
+                  eBay User Agreement
+                </a>
+                . CardHawk is not owned or endorsed by eBay. Market values from SportsCardsPro / PriceCharting.{" "}
+                <a href="/terms" className="underline hover:text-accent">Terms of Use</a> ·{" "}
+                <a href="/privacy" className="underline hover:text-accent">Privacy Policy</a>
+              </footer>
+            )}
+          </div>
         </main>
       </body>
     </html>

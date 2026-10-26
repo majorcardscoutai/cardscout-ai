@@ -731,10 +731,10 @@ export async function existingItemIds(searchId: string, itemIds: string[]): Prom
 
 export async function insertHits(searchId: string, hits: (ScanHit & { alerted: boolean })[]): Promise<void> {
   if (hits.length === 0) return;
-  const { error } = await (await tbl("scan_hits"))
-    .upsert(
-      hits.map((h) => ({
-        search_id: searchId,
+  const rows = (withSeller: boolean) =>
+    hits.map((h) => ({
+      ...(withSeller ? { seller_name: h.sellerName ?? null } : {}),
+      search_id: searchId,
         item_id: h.itemId,
         title: h.title,
         url: h.url,
@@ -748,11 +748,14 @@ export async function insertHits(searchId: string, hits: (ScanHit & { alerted: b
         net_profit_usd: h.netProfitUsd,
         roi_percent: h.roiPercent,
         max_price_usd: h.maxPriceUsd,
-        meets_criteria: h.meetsCriteria,
-        alerted: h.alerted,
-      })),
-      { onConflict: "search_id,item_id", ignoreDuplicates: true },
-    );
+      meets_criteria: h.meetsCriteria,
+      alerted: h.alerted,
+    }));
+  const save = async (withSeller: boolean) =>
+    (await tbl("scan_hits")).upsert(rows(withSeller), { onConflict: "search_id,item_id", ignoreDuplicates: true });
+  let { error } = await save(true);
+  // seller_name column not added yet (one-time SQL) — still save the finds.
+  if (error && /seller_name/.test(message(error))) ({ error } = await save(false));
   if (error) throw error;
 }
 
@@ -787,6 +790,7 @@ export async function listRecentHits(limit = 60, onlyDeals = false, scope?: "min
         title: String(r.title),
         url: String(r.url),
         imageUrl: r.image_url ? String(r.image_url) : null,
+        sellerName: r.seller_name ? String(r.seller_name) : null,
         isAuction: Boolean(r.is_auction),
         endsAt: r.ends_at ? String(r.ends_at) : null,
         priceUsd: numOrNull(r.price_usd),

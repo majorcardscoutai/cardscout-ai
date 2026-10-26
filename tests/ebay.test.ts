@@ -254,3 +254,16 @@ test("graded / raw filter: eBay condition ids, then condition, item specifics, t
   assert.equal(isGradedListing(l("Ohtani rookie gem", null, [{ name: "Professional Grader", value: "Beckett (BGS)" }])), true);
   assert.equal(isGradedListing(l("Ohtani rookie", null, [{ name: "Grade", value: "Ungraded" }])), false);
 });
+
+test("eBay display requirements: seller user name; fixed-price-only switch", () => {
+  const l = mapItem({ itemId: "v1|123456789012|0", title: "Card", seller: { username: "card_shop_au", feedbackScore: 900 } } as never);
+  assert.equal(l.sellerName, "card_shop_au");
+  assert.equal(mapItem({ itemId: "v1|123456789012|0", title: "Card" } as never).sellerName, null);
+  const base = { q: "ohtani psa 10", market: "EBAY_US" as const, category: "sportsCards" as const, maxPrice: null };
+  assert.match(decodeURIComponent(buildSearchPath({ ...base, format: "ALL" })), /buyingOptions:\{FIXED_PRICE\|AUCTION\}/);
+  process.env.EBAY_FIXED_PRICE_ONLY = "1";
+  assert.match(decodeURIComponent(buildSearchPath({ ...base, format: "ALL" })), /buyingOptions:\{FIXED_PRICE\}/);
+  assert.match(decodeURIComponent(buildSearchPath({ ...base, format: "AUCTION" })), /buyingOptions:\{FIXED_PRICE\}/);
+  assert.match(decodeURIComponent(buildSearchPath({ ...base, format: "BEST_OFFER" })), /buyingOptions:\{BEST_OFFER\}/);
+  delete process.env.EBAY_FIXED_PRICE_ONLY;
+});

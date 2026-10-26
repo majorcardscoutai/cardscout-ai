@@ -168,7 +168,10 @@ export default async function ManualScannerPage({
               </a>
               <div className="flex flex-wrap items-center gap-2">
                 <EbayLink url={listing.url} size="md" />
-                <span className="text-xs text-faint">Purchases are made on eBay — CardHawk doesn&apos;t sell cards.</span>
+                <span className="text-xs text-faint">
+                  {listing.sellerName ? `Seller: ${listing.sellerName} · ` : ""}Live from eBay just now · purchases are made on eBay — CardHawk doesn&apos;t sell
+                  cards.
+                </span>
               </div>
               <div className="flex flex-wrap gap-6">
                 <div>

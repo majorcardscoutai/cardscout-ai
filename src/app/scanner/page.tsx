@@ -288,6 +288,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                           <Tag>{l.isAuction ? `Auction${l.bidCount !== null ? ` · ${l.bidCount} bids` : ""}` : l.acceptsOffers ? "Buy It Now · Offers" : "Buy It Now"}</Tag>
                           {l.isAuction && endsIn(l.endsAt) && <Tag tone="warn">{endsIn(l.endsAt)}</Tag>}
                           {l.country && <Tag>{l.country}</Tag>}
+                          {l.sellerName && <span>seller {l.sellerName}</span>}
                           <EbayLink url={l.url} />
                           <ValueSource source={h.valueSource} />
                           {h.valueUsd !== null ? (
@@ -485,6 +486,8 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
                     <span>{searchNames.get(h.searchId) ?? "Search"}</span>
                     <span>· found {ago(h.createdAt)}</span>
+                    {h.sellerName && <span>· seller {h.sellerName}</span>}
+                    <span>· eBay details checked {ago(h.checkedAt ?? h.createdAt)}</span>
                     <EbayLink url={h.url} />
                     {h.isAuction && <Tag tone="warn">Auction{endsIn(h.endsAt) ? ` · ${endsIn(h.endsAt)}` : ""}</Tag>}
                     <ValueSource source={h.valueSource} />

@@ -389,3 +389,15 @@ Travis's Top Deals screenshot (Kobe 1957-58 Variation Xfractor /50, Shaq Platinu
 - Clicking a CardHawk link or submitting a form shows a full-screen flapping hawk with "Loading… NN%" if the page takes longer than 0.25 s (quick pages never flash it). The percentage is an estimate (pages don't report progress): climbs fast, waits at 95%, jumps to 100% when the new page arrives (address changes, or the page updates for same-page forms). Gives up after 60 s.
 - Not shown for: eBay and other outside links, links opening in a new tab, downloads (/api/…), "#section" links, and the Profit Hunter's "Hunt now" (it has its own screen) — any element with data-no-progress.
 - components/NavProgress.tsx (mounted in the layout) + lib/nav-progress.ts. 113 unit tests.
+
+## eBay licence review + compliance changes (26 Oct 2026)
+eBay Developer Support (26 Oct): they can't interpret the API License Agreement, confirm a use case or give written approval — compliance is our responsibility. Clauses that matter (developer.ebay.com/join/api-license-agreement): §9.5 no using eBay content (alone or with third-party data) to suggest or model prices for eBay items; §9.7 no commercialising eBay content; §8.1.2 public display not combined with non-eBay content; §8.1.3 ≤ 6 h old AND disclose how old; §8.1.4 no derived average selling prices. Buy API requirements (developer.ebay.com/api-docs/buy/static/buy-requirements.html): production use for eBay partners via the eBay Partner Network with affiliate tracking; show eBay logo, title, eBay image, price, shipping separately, seller user name; fixed-price items only; no re-sorting; footer link to eBay User Agreement + our privacy policy.
+Decision: hold paid launch until (1) eBay Partner Network / Buy API production review and (2) a lawyer's view on §9.5/§9.7.
+Changes made:
+- Every listing shows "eBay details checked X ago" (and "Live from eBay just now" on Analyse) — §8.1.3 disclosure.
+- Seller user name shown (Top Deals, Hunter, Scanner, Analyse); stored in scan_hits.seller_name (SQL).
+- No price suggestions for eBay listings: "Your max" removed from deal rows; "Max profitable price" / "Opening offer" hidden on Analyse when it's an eBay listing (still shown for cards you type in yourself).
+- Footer on every signed-in page: eBay content + purchases under the eBay User Agreement (link), not owned/endorsed by eBay, Terms, Privacy.
+- EBAY_FIXED_PRICE_ONLY=1 (Vercel) forces Buy It Now-only searches everywhere (Admin → Services shows the status). Off by default.
+- Still open (for the lawyer / eBay review): Top Deals and the Hunter sort and rank listings by profit (Buy API "no sorting"); the eBay logo (needs eBay's official logo file from the Buy API requirements page — Travis to download); the watchlist's max-price for items you add yourself.
+- 114 unit tests + e2e.

@@ -136,14 +136,19 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
                 <div className="text-xs text-muted">Marketplace fees</div>
                 <Money usd={result.marketplaceFeesUsd} fx={showFx} />
               </div>
-              <div>
-                <div className="text-xs text-muted">Max profitable price</div>
-                <Money usd={maxPrice} fx={showFx} />
-              </div>
-              <div>
-                <div className="text-xs text-muted">Opening offer (rule of thumb)</div>
-                <Money usd={offer} fx={showFx} />
-              </div>
+              {/* Not shown for eBay listings: eBay's API licence (§9.5) doesn't allow suggesting prices for eBay items. */}
+              {!fromListing && (
+                <>
+                  <div>
+                    <div className="text-xs text-muted">Max profitable price</div>
+                    <Money usd={maxPrice} fx={showFx} />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted">Opening offer (rule of thumb)</div>
+                    <Money usd={offer} fx={showFx} />
+                  </div>
+                </>
+              )}
             </div>
             <p className="mt-4 text-xs text-faint">
               Includes {taxLabel(settings.buyerRegion).toLowerCase()} {Math.round(settings.importTaxRate * 1000) / 10}%, fees {(settings.marketplaceFeeRate * 100).toFixed(2)}% + US$
