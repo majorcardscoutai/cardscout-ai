@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { matchSealed, sealedFromTitle, sealedKey } from "../src/lib/sealed";
 import { listingKey } from "../src/lib/scan";
+import { parseCategory } from "../src/lib/categories";
 
 const read = (t: string, sport?: "Pokemon") => sealedFromTitle(t, sport ? { sport } : {});
 
@@ -58,13 +59,23 @@ test("matches the guide's sealed product exactly", () => {
   assert.equal(matchSealed(hb.item, [prod("8", "Baseball Cards 2023 Topps Chrome Update", "Hobby Box", 15000)]).ok, false);
 });
 
+test("sealed is switched off unless SEALED_SEARCH=1", () => {
+  delete process.env.SEALED_SEARCH;
+  assert.equal(listingKey("Pokemon Evolving Skies Booster Box x3").key, null);
+  assert.equal(parseCategory("pokemonSealed"), "pokemon");
+  assert.equal(parseCategory("sportsSealed"), "sportsCards");
+});
+
 test("listing key: cards first, sealed products otherwise, with box count", () => {
+  process.env.SEALED_SEARCH = "1";
+  assert.equal(parseCategory("pokemonSealed"), "pokemonSealed");
   assert.match(listingKey("2018 Topps Update Shohei Ohtani #US1 PSA 10").key ?? "", /^mlb\|shohei ohtani/);
   const s = listingKey("Pokemon Evolving Skies Booster Box x3");
   assert.equal(s.units, 3);
   const r = read("Pokemon Evolving Skies Booster Box");
   assert.ok(r.ok);
   if (r.ok) assert.equal(s.key, sealedKey(r.item));
+  delete process.env.SEALED_SEARCH;
 });
 
 test("a protective case isn't a case of boxes", () => {

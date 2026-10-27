@@ -8,10 +8,20 @@ export const CATEGORY_IDS = {
 
 export type SearchCategory = keyof typeof CATEGORY_IDS;
 
+/**
+ * Sealed products (booster boxes, ETBs, hobby boxes) — built but switched OFF until single-card search is
+ * perfected. Turn on later with SEALED_SEARCH=1 in Vercel (no code change needed).
+ */
+export function sealedEnabled(): boolean {
+  return /^(1|true|yes|on)$/i.test((typeof process !== "undefined" ? process.env.SEALED_SEARCH : "") ?? "");
+}
+
 export function isSealedCategory(c: SearchCategory | undefined): boolean {
   return c === "sportsSealed" || c === "pokemonSealed";
 }
 
 export function parseCategory(v: unknown): SearchCategory {
-  return v === "pokemon" || v === "sportsSealed" || v === "pokemonSealed" ? v : "sportsCards";
+  if (v === "pokemonSealed") return sealedEnabled() ? v : "pokemon";
+  if (v === "sportsSealed") return sealedEnabled() ? v : "sportsCards";
+  return v === "pokemon" ? v : "sportsCards";
 }

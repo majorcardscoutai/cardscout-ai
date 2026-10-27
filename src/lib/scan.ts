@@ -7,6 +7,7 @@ import { cardFromListing, qualifiedGradeInTitle, variationInTitle } from "./ebay
 import { toUsd, type EbayListing } from "./ebay/client";
 import { calculateProfit, maxPurchasePrice } from "./profit";
 import { sealedFromTitle, sealedKey } from "./sealed";
+import { sealedEnabled } from "./categories";
 import type { Settings, Sport } from "./types";
 
 export interface CardValue {
@@ -57,7 +58,7 @@ export function shippingFor(l: EbayListing, settings: Settings): number {
  */
 export function listingKey(title: string, aspects: EbayListing["aspects"] = [], hint: { sport?: Sport } = {}): { key: string | null; units: number } {
   const key = cardKey(cardFromListing(title, aspects, hint).card);
-  if (key) return { key, units: 1 };
+  if (key || !sealedEnabled()) return { key, units: 1 };
   const sealed = sealedFromTitle(title, hint);
   return sealed.ok ? { key: sealedKey(sealed.item), units: sealed.item.quantity } : { key: null, units: 1 };
 }

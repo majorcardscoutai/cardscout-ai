@@ -428,3 +428,5 @@ Changes made:
 - scan.ts listingKey: card key first, else sealed key; value × box count (case of 12, x2). Tests: tests/sealed.test.ts (4) + e2e scenario 29.
 - Next (step 3): sealed Profit Hunter; booster bundles/blisters review; Japanese boxes as their own products; shipping default for boxes.
 - [x] Sealed fixes (27 Oct, after first live test): "+ acrylic case" / "w/ case" / "magnetic case" no longer read as a case of boxes; no-match "why?" now lists the sealed items the guide has for that set (to spot naming differences, e.g. Evolving Skies ETB). MATCHER_UPDATED_AT bumped so unmatched lookups retry.
+- [x] Sealed switched OFF for now (27 Oct, Travis): perfect single-card search first. All sealed code stays; turn on later with SEALED_SEARCH=1 in Vercel (Config) — adds the two Category options and sealed valuing. While off: the options are hidden, any saved sealed search runs as a normal card search (Pokémon / Sports cards), and sealed titles are never valued.
+- [ ] LATER: sealed step 3 — Evolving Skies ETB designs (check the guide's names via "why?"), tins, sealed Profit Hunter.

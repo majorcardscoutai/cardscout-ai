@@ -23,6 +23,7 @@ import type { CardIdentity } from "@/lib/types";
 import { providerConfigured } from "@/lib/provider-client";
 import { getSettings } from "@/data/source";
 import { ebayConfigured, parseCategory, searchListings, type SearchInput } from "@/lib/ebay/client";
+import { sealedEnabled } from "@/lib/categories";
 import { emailConfigured } from "@/lib/email";
 import { excludedBy, excludeWordsText, parseExcludeWords } from "@/lib/exclude";
 import { isEnded, isFresh } from "@/lib/freshness";
@@ -222,8 +223,8 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
             <select name="category" defaultValue={search?.category ?? "sportsCards"} className={inputCls}>
               <option value="sportsCards">Sports cards</option>
               <option value="pokemon">Pokémon</option>
-              <option value="pokemonSealed">Pokémon sealed (boxes, ETBs, packs)</option>
-              <option value="sportsSealed">Sports sealed (hobby, blaster, mega boxes)</option>
+              {sealedEnabled() && <option value="pokemonSealed">Pokémon sealed (boxes, ETBs, packs)</option>}
+              {sealedEnabled() && <option value="sportsSealed">Sports sealed (hobby, blaster, mega boxes)</option>}
             </select>
           </Field>
           <Field label="Max price" hint="In that site's currency">

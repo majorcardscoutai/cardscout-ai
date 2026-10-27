@@ -1,3 +1,4 @@
+import { sealedEnabled } from "@/lib/categories";
 import type { ProviderProduct } from "@/lib/provider";
 import { getProduct, providerConfigured, searchProducts } from "@/lib/provider-client";
 import type { CardValue } from "@/lib/scan";
@@ -22,7 +23,7 @@ export interface SealedFill {
  */
 export async function fillSealedValues(titles: string[], mineKeys: Set<string>, deadline: number, hint: { sport?: Sport } = {}): Promise<SealedFill> {
   const out: SealedFill = { looked: 0, matched: 0, local: 0, pending: 0, newValues: new Map(), error: null };
-  if (!providerConfigured()) return out;
+  if (!providerConfigured() || !sealedEnabled()) return out;
   const items = new Map<string, SealedItem>();
   for (const t of titles) {
     const r = sealedFromTitle(t, hint);
