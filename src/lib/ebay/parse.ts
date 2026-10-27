@@ -374,6 +374,17 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
   } else if (/ungraded|\braw\b/i.test(`${title} ${aspect(aspects, "Graded") ?? ""}`) || ci(aspect(aspects, "Graded") ?? "") === "no") {
     set("grader", "RAW", aspect(aspects, "Graded") ? "item specifics" : "title");
   }
+  // The title and eBay's item specifics name different grades ("PSA 6" vs Grade 8): don't guess which is right.
+  let gradeConflict: string | null = null;
+  if (titleGrade && sources.grade === "item specifics") {
+    const tg = Number(titleGrade[2]);
+    const tGrader = titleGrade[1].toUpperCase();
+    if (tg !== card.grade || tGrader !== card.grader) {
+      gradeConflict = `${tGrader} ${tg} in the title, ${card.grader} ${card.grade} in eBay's details`;
+      delete card.grade;
+      delete sources.grade;
+    }
+  }
 
   // Still no sport: Bowman / Topps flagship-style sets are baseball (the guide must still list it as baseball).
   if (!card.sport && card.set && !/football|nfl|soccer|hockey|nhl|wrestling|ufc|f1|racing/i.test(title)) {
@@ -407,7 +418,8 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
     ["grader", "grading company"],
   ];
   const missing = required.filter(([k]) => card[k] === undefined && !(k === "year" && card.sport === "Pokemon")).map(([, label]) => label);
-  if (card.grader && card.grader !== "RAW" && card.grade === undefined) missing.push(qualified ? "qualified grade (OC, ST…) — no guide price" : "grade");
+  if (card.grader && card.grader !== "RAW" && card.grade === undefined)
+    missing.push(gradeConflict ? `grade (${gradeConflict})` : qualified ? "qualified grade (OC, ST…) — no guide price" : "grade");
 
   return { card, missing, sources };
 }

@@ -116,7 +116,10 @@ export function revalueHit<T extends ScanHit>(h: T, settings: Settings, values: 
   // so parser improvements also apply to listings found earlier.
   // A key you confirmed for this listing ("Add value") wins when you have a value for it.
   const read = listingKey(h.title);
-  const key = h.cardKey && values.has(h.cardKey) ? h.cardKey : read.key ?? h.cardKey;
+  // The saved key wins when it's one you valued yourself, or when the title alone can't identify the card
+  // (it was read from eBay's item specifics). Otherwise today's reading of the title is used.
+  const saved = h.cardKey ? values.get(h.cardKey) : undefined;
+  const key = h.cardKey && saved && ((saved.source ?? "you") === "you" || read.key === null) ? h.cardKey : read.key ?? h.cardKey;
   h = { ...h, cardKey: key };
   const found = usableValue(key ? values.get(key) ?? null : null, h.title, key);
   const v = found ? forUnits(found, key === read.key ? read.units : 1) : null;

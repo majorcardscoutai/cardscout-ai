@@ -430,3 +430,10 @@ Changes made:
 - [x] Sealed fixes (27 Oct, after first live test): "+ acrylic case" / "w/ case" / "magnetic case" no longer read as a case of boxes; no-match "why?" now lists the sealed items the guide has for that set (to spot naming differences, e.g. Evolving Skies ETB). MATCHER_UPDATED_AT bumped so unmatched lookups retry.
 - [x] Sealed switched OFF for now (27 Oct, Travis): perfect single-card search first. All sealed code stays; turn on later with SEALED_SEARCH=1 in Vercel (Config) — adds the two Category options and sealed valuing. While off: the options are hidden, any saved sealed search runs as a normal card search (Pokémon / Sports cards), and sealed titles are never valued.
 - [ ] LATER: sealed step 3 — Evolving Skies ETB designs (check the guide's names via "why?"), tins, sealed Profit Hunter.
+
+## Fix: Legendary Collection Gengar PSA 6 valued at US$10,881 (28 Oct 2026)
+- Supabase check: matched the right card ("Gengar [Reverse Holo] #11 · Pokemon Legendary Collection", direct API lookups) but the guide's own prices for it are inconsistent: PSA 6 $5,758, PSA 7 $7,274–8,006, PSA 8 $10,880 vs PSA 9 $1,674 and PSA 10 $7,357 (its website showed Grade 6 $185). The row shown used the PSA 8 key (saved scan key) on a "PSA 6" title.
+- inconsistentGradePrice (lib/provider.ts): a grade priced more than 1.5× a HIGHER grade of the same card is never used ("guide's data for this card looks wrong"). REMATCH_ALL_AT = 27 Oct 22:30 UTC so every saved match is re-checked under the rule.
+- Grade conflict: title "PSA 6" vs eBay item specifics "Grade 8" → no grade (missing "grade (PSA 6 in the title, PSA 8 in eBay's details)").
+- revalueHit: a saved scan key only wins when it's your own value or the title can't be read; otherwise today's title reading is used.
+- 132 unit tests + e2e.

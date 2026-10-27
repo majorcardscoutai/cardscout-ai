@@ -3,7 +3,7 @@
  * refresh daily. Used by scans (new + recent listings), the Analyse page and the Settings test.
  */
 import { cardKey } from "@/lib/cardKey";
-import { PROVIDER_LABEL, buildQuery, matchBySetInTitle, normNumber, pickProduct, priceFor, priceFieldFor, sameCardKey, siteFor, type ProviderProduct } from "@/lib/provider";
+import { PROVIDER_LABEL, buildQuery, inconsistentGradePrice, matchBySetInTitle, normNumber, pickProduct, priceFor, priceFieldFor, sameCardKey, siteFor, type ProviderProduct } from "@/lib/provider";
 export { sameCardKey };
 import { cardFromListing, type Aspect } from "@/lib/ebay/parse";
 import { getProduct, providerConfigured, searchProducts } from "@/lib/provider-client";
@@ -18,7 +18,8 @@ export const RETRY_UNMATCHED_MS = 7 * 86_400_000;
 /** 27 Oct 2026: gallery numbers (GG54/GG70) and leading zeros (015 = 15) — unmatched lookups are retried. */
 export const MATCHER_UPDATED_AT = Date.parse("2026-10-27T04:40:00Z");
 /** Variation / stamped rule (23 Oct 2026): every saved guide match from before it is looked up again, matched ones too. */
-export const REMATCH_ALL_AT = Date.parse("2026-10-23T03:00:00Z");
+/** 28 Oct 2026: inconsistent guide prices (a grade priced 1.5×+ above a better grade) are no longer used — all saved matches re-checked. */
+export const REMATCH_ALL_AT = Date.parse("2026-10-27T22:30:00Z");
 /** Parallels must now match exactly ("Refractor" ≠ "Gold Refractor"): parallel values saved before this are redone. */
 export const PARALLEL_RULE_AT = Date.parse("2026-10-16T03:00:00Z");
 
@@ -96,7 +97,20 @@ export function rowFromProduct(card: CardIdentity, key: string, product: Provide
         salesVolume: product.salesVolume,
         detail: null,
       }
-    : { ...blank, status: "no_price", productId: product.id, matchedName, salesVolume: product.salesVolume, detail: `Matched ${matchedName}, but the guide has no ${gradeLabel(card)} price for it yet.` };
+    : {
+        ...blank,
+        status: "no_price",
+        productId: product.id,
+        matchedName,
+        salesVolume: product.salesVolume,
+        detail: (() => {
+          const f = priceFieldFor(card);
+          const bad = f ? inconsistentGradePrice(product.prices, f.field) : null;
+          return bad
+            ? `Matched ${matchedName}, but the guide's ${gradeLabel(card)} price is higher than its price for a better grade — its data for this card looks wrong, so it isn't used.`
+            : `Matched ${matchedName}, but the guide has no ${gradeLabel(card)} price for it yet.`;
+        })(),
+      };
 }
 
 

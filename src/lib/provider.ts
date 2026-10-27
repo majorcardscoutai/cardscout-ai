@@ -186,11 +186,31 @@ export function priceFieldFor(card: Partial<CardIdentity>): { field: string; gra
   return f ? { field: f, graderSpecific: false } : null;
 }
 
+/** Grade price fields from lowest to highest grade (PSA 10 last). */
+const GRADE_ORDER = ["condition-9-price", "condition-10-price", "condition-13-price", "condition-14-price", "condition-15-price", "condition-16-price", "cib-price", "new-price", "graded-price", "box-only-price", "manual-only-price"];
+
+/**
+ * The guide's prices for this card don't make sense: a grade costs much more (1.5×+) than a HIGHER grade of the
+ * same card. That happens when other cards' sales are filed under this one; such a price is never used.
+ */
+export function inconsistentGradePrice(prices: Record<string, number>, field: string): string | null {
+  const i = GRADE_ORDER.indexOf(field);
+  if (i < 0) return null;
+  const mine = prices[field];
+  if (!mine) return null;
+  for (const higher of GRADE_ORDER.slice(i + 1)) {
+    const hp = prices[higher];
+    if (hp && hp > 0 && mine > hp * 1.5) return higher;
+  }
+  return null;
+}
+
 export function priceFor(card: Partial<CardIdentity>, p: ProviderProduct): { usd: number; field: string; graderSpecific: boolean } | null {
   const f = priceFieldFor(card);
   if (!f) return null;
   const pennies = p.prices[f.field];
   if (!pennies || pennies <= 0) return null;
+  if (inconsistentGradePrice(p.prices, f.field)) return null;
   return { usd: Math.round(pennies) / 100, ...f };
 }
 

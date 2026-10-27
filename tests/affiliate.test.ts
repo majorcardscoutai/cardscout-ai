@@ -107,3 +107,25 @@ test("Graded or raw: PSA only, BGS only, all graded, ungraded", () => {
   assert.match(path, /conditionIds:\{2750\}/);
   assert.match(path, /q=ohtani \(BGS, Beckett\)/);
 });
+
+import { inconsistentGradePrice, priceFor } from "../src/lib/provider";
+test("guide prices that don't make sense are never used (Legendary Collection Gengar)", () => {
+  const prices = { "condition-14-price": 300000, "condition-15-price": 366285, "condition-16-price": 575839, "cib-price": 727414, "new-price": 1088064, "graded-price": 167473, "manual-only-price": 735700 };
+  assert.equal(inconsistentGradePrice(prices, "condition-16-price"), "graded-price");
+  assert.equal(inconsistentGradePrice(prices, "new-price"), "graded-price");
+  const p = { id: "1", productName: "Gengar [Reverse Holo] #11", consoleName: "Pokemon Legendary Collection", prices, salesVolume: 10 };
+  assert.equal(priceFor({ sport: "Pokemon", grader: "PSA", grade: 6 }, p), null);
+  assert.equal(priceFor({ sport: "Pokemon", grader: "PSA", grade: 10 }, p)?.usd, 7357);
+  // Normal ladders are fine, and a small dip (under 1.5×) is allowed
+  const ok = { "condition-16-price": 18520, "cib-price": 23331, "new-price": 37125, "graded-price": 134676, "manual-only-price": 735700 };
+  assert.equal(inconsistentGradePrice(ok, "condition-16-price"), null);
+  assert.equal(inconsistentGradePrice({ "cib-price": 12000, "new-price": 10000 }, "cib-price"), null);
+});
+
+test("title and eBay item specifics disagree on the grade → no grade", () => {
+  const r = cardFromListing("2002 POKEMON LEGENDARY COLLECTION #11 GENGAR-REVERSE FOIL PSA 6", [{ name: "Professional Grader", value: "Professional Sports Authenticator (PSA)" }, { name: "Grade", value: "8" }]);
+  assert.equal(r.card.grade, undefined);
+  assert.ok(r.missing.some((m) => /PSA 6 in the title/.test(m)));
+  const ok = cardFromListing("2002 POKEMON LEGENDARY COLLECTION #11 GENGAR-REVERSE FOIL PSA 6", [{ name: "Professional Grader", value: "PSA" }, { name: "Grade", value: "6" }]);
+  assert.equal(ok.card.grade, 6);
+});
