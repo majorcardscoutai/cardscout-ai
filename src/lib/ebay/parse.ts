@@ -79,10 +79,14 @@ const POKEMON_SETS = [
   "Paldean Fates", "Temporal Forces", "Twilight Masquerade", "Shrouded Fable", "Stellar Crown", "Surging Sparks",
   "Prismatic Evolutions", "Journey Together", "Destined Rivals", "Black Bolt", "White Flare", "Mega Evolution",
   "Phantasmal Flames",
+  // Other spellings, read as the set the guide uses (POKEMON_SET_ALIASES).
+  "Base Set II", "Base II", "Base 2",
   // Series names — only used when no more specific set is in the title (see POKEMON_SERIES).
   "Scarlet & Violet", "Scarlet and Violet", "Sword & Shield", "Sword and Shield", "Sun & Moon", "Sun and Moon",
   "Black & White", "Black and White", "Diamond & Pearl", "Diamond and Pearl", "XY", "Platinum",
 ];
+/** Other ways sellers (and PSA labels) write a set → the name the price guide uses. */
+const POKEMON_SET_ALIASES: Record<string, string> = { "Base Set II": "Base Set 2", "Base II": "Base Set 2", "Base 2": "Base Set 2" };
 /** Series names: "Scarlet & Violet 151" is the 151 set; "XY Evolutions" is Evolutions. */
 const POKEMON_SERIES = new Set([
   "Scarlet & Violet", "Scarlet and Violet", "Sword & Shield", "Sword and Shield", "Sun & Moon", "Sun and Moon",
@@ -258,7 +262,7 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
   // Sport / game
   const sportAspect = aspect(aspects, "Sport", "Game", "League");
   // A sport-specific search (e.g. the Profit Hunter's Baseball search) settles the sport.
-  const sport = (sportAspect && sportFrom(sportAspect)) || sportFrom(title) || hint.sport || null;
+  let sport = (sportAspect && sportFrom(sportAspect)) || sportFrom(title) || hint.sport || null;
   if (sport) set("sport", sport, sportAspect && sportFrom(sportAspect) ? "item specifics" : "title");
 
   // Player / character
@@ -270,7 +274,10 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
   }
   if (!card.sport) {
     const s = sportFromPlayerOrTeam(card.player, title);
-    if (s) set("sport", s, "title");
+    if (s) {
+      set("sport", s, "title");
+      sport = s; // e.g. "Charizard" with no "Pokemon" in the title: read the set and "4/130" the Pokémon way
+    }
   }
 
   // Year (season "2018-19" → 2018)
@@ -286,7 +293,7 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
     const found = list.filter((s) => setRegex(s).test(title));
     // Prefer a specific set over a Pokémon series name when both appear.
     const known = found.find((s) => !POKEMON_SERIES.has(s)) ?? found[0];
-    if (known) set("set", known, "title");
+    if (known) set("set", POKEMON_SET_ALIASES[known] ?? known, "title");
   }
 
   // Card number: "#US1", "No. 49", or a code like "US1" / "BDC-50" / "TC-3" (sports; capitals + digits)

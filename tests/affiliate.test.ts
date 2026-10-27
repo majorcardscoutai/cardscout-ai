@@ -76,3 +76,14 @@ test("Chrome parallels in non-Chrome sets (Topps Heritage)", () => {
   assert.equal(cardFromListing("2018 Topps Chrome Update #HMT1 Shohei Ohtani PSA 10").card.parallel, undefined);
   assert.equal(cardFromListing("2018 Topps Chrome #150 Shohei Ohtani Gold Refractor PSA 10").card.parallel, "Gold Refractor");
 });
+
+test("Base Set 2 spellings and Pokémon titles that don't say Pokémon", () => {
+  const a = cardFromListing("2000 POKEMON GAME BASE II #4 CHARIZARD-HOLO PSA 8").card;
+  assert.equal(a.set, "Base Set 2");
+  assert.equal(a.cardNumber, "4");
+  const b = cardFromListing("Base set 2 Charizard Holofoil 4/130 PSA 7 *MOUTH SWIRL*").card;
+  assert.equal(b.sport, "Pokemon");
+  assert.equal(b.cardNumber, "4/130");
+  assert.equal(b.serialNumbered, undefined);
+  assert.equal(cardFromListing("Pokemon Charizard 4/102 Base Set 1999 Holo PSA 5").card.set, "Base Set");
+});
