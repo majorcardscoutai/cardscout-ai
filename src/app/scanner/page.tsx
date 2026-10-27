@@ -22,11 +22,12 @@ import { cardFromListing, type Aspect } from "@/lib/ebay/parse";
 import type { CardIdentity } from "@/lib/types";
 import { providerConfigured } from "@/lib/provider-client";
 import { getSettings } from "@/data/source";
-import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/client";
+import { ebayConfigured, parseCategory, searchListings, type SearchInput } from "@/lib/ebay/client";
 import { emailConfigured } from "@/lib/email";
 import { excludedBy, excludeWordsText, parseExcludeWords } from "@/lib/exclude";
 import { isEnded, isFresh } from "@/lib/freshness";
-import { auctionEnded, auctionTooEarly, evaluateListing, mixedGradeLabel, revalueHit } from "@/lib/scan";
+import { auctionEnded, auctionTooEarly, evaluateListing, listingKey, mixedGradeLabel, revalueHit } from "@/lib/scan";
+import { fillSealedValues } from "@/data/sealed";
 import { displayFx, shipToFor } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
 import { currentViewer } from "@/data/session";
@@ -37,6 +38,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 const LIVE_LOOKUP_BUDGET_MS = 6_000;
 const SETLESS_BUDGET_MS = 3_000;
+const SEALED_BUDGET_MS = 4_000;
 
 type Params = {
   q?: string;
@@ -62,7 +64,7 @@ function parseSearch(p: Params): SearchInput | null {
   return {
     q: p.q.slice(0, 120),
     market: p.market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
-    category: p.category === "pokemon" ? "pokemon" : "sportsCards",
+    category: parseCategory(p.category),
     maxPrice: p.max && Number.isFinite(max) && max > 0 ? max : null,
     format: p.format === "FIXED_PRICE" || p.format === "AUCTION" || p.format === "BEST_OFFER" ? p.format : "ALL",
     exclude: parseExcludeWords(p.x),
@@ -112,6 +114,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
   // then LiveValueFiller keeps going in the background and refreshes the results as values arrive.
   let autoNote: string | null = null;
   let liveItems = result?.ok ? result.data.items : [];
+  const liveHint: { sport?: "Pokemon" } = search?.category === "pokemon" || search?.category === "pokemonSealed" ? { sport: "Pokemon" } : {};
   let filler: { cards: { key: string; card: CardIdentity }[]; setless: { title: string; aspects: Aspect[] }[]; pending: number } | null = null;
   if (result?.ok && providerConfigured() && liveItems.length > 0) {
     const mine = new Set([...values.map.values()].filter((v) => (v.source ?? "you") === "you").map((v) => v.key));
@@ -136,8 +139,12 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           ? `Looked up ${f.looked} card${f.looked === 1 ? "" : "s"} in the price guide (${f.matched} matched).`
           : null;
     }
+    // Sealed products (booster boxes, hobby boxes…): your Popular sets first, then a quick guide search.
+    const sf = await fillSealedValues(liveItems.map((l) => l.title), mine, Date.now() + SEALED_BUDGET_MS, liveHint);
+    for (const [k, v] of sf.newValues) values.map.set(k, v);
+    pending += sf.pending;
     const stillUnvalued = cards.filter((c) => !values.map.has(c.key));
-    const unread = liveItems.filter((l) => identify(l) === null).map((l) => ({ title: l.title, aspects: l.aspects }));
+    const unread = liveItems.filter((l) => identify(l) === null && !values.map.has(listingKey(l.title, l.aspects, liveHint).key ?? "")).map((l) => ({ title: l.title, aspects: l.aspects }));
     if (!autoNote?.startsWith("Market values:") && (pending > 0 || unread.length > 0)) filler = { cards: stillUnvalued, setless: unread, pending };
   }
 
@@ -215,6 +222,8 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
             <select name="category" defaultValue={search?.category ?? "sportsCards"} className={inputCls}>
               <option value="sportsCards">Sports cards</option>
               <option value="pokemon">Pokémon</option>
+              <option value="pokemonSealed">Pokémon sealed (boxes, ETBs, packs)</option>
+              <option value="sportsSealed">Sports sealed (hobby, blaster, mega boxes)</option>
             </select>
           </Field>
           <Field label="Max price" hint="In that site's currency">
@@ -282,13 +291,13 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               title — check the card before buying.
             </p>
             {autoNote && <p className="mb-3 text-xs text-muted">{autoNote}</p>}
-            {filler && <LiveValueFiller key={`${search.q}|${liveItems.map((l) => l.itemId).join(",").slice(0, 400)}`} cards={filler.cards} setless={filler.setless} initialPending={filler.pending} />}
+            {filler && <LiveValueFiller sport={liveHint.sport} key={`${search.q}|${liveItems.map((l) => l.itemId).join(",").slice(0, 400)}`} cards={filler.cards} setless={filler.setless} initialPending={filler.pending} />}
             {liveItems.length === 0 ? (
               <p className="text-sm text-muted">No listings found. Try fewer words or a higher max price.</p>
             ) : (
               <ul className="divide-y divide-line">
                 {liveItems.map((l) => {
-                  const h = evaluateListing(l, settings, values.map);
+                  const h = evaluateListing(l, settings, values.map, liveHint);
                   return (
                     <li key={l.itemId} className="flex items-center gap-3 py-3">
                       {l.imageUrl ? (
@@ -376,7 +385,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                       {s.name}
                     </div>
                     <div className="text-xs text-faint">
-                      “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"} · {FORMAT_LABEL[s.format]}{s.grading && s.grading !== "any" ? ` · ${GRADING_LABEL[s.grading]}` : ""}
+                      “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"}{s.category === "pokemonSealed" ? " · Pokémon sealed" : s.category === "sportsSealed" ? " · Sports sealed" : ""} · {FORMAT_LABEL[s.format]}{s.grading && s.grading !== "any" && !s.category.endsWith("Sealed") ? ` · ${GRADING_LABEL[s.grading]}` : ""}
                       {s.maxPrice ? ` · ≤ ${s.market === "EBAY_AU" ? "A$" : "US$"}${s.maxPrice}` : ""}
                     </div>
                     <form action={updateSavedSearchExcludeAction} className="mt-1.5 flex items-center gap-2">

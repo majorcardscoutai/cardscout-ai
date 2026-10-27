@@ -11,6 +11,7 @@ import { cardKey } from "@/lib/cardKey";
 import { cardFromListing } from "@/lib/ebay/parse";
 import { providerConfigured } from "@/lib/provider-client";
 import type { CardIdentity, Sport } from "@/lib/types";
+import { fillSealedValues } from "./sealed";
 import { fillProviderValues, identityFromTitle, isBrandOnlySet, pendingLookups, resolveSetless } from "./provider";
 import { refreshGuideSets } from "./guide";
 import { alertEmailHtml, alertRecipient, emailConfigured, sendAlertEmail } from "@/lib/email";
@@ -250,7 +251,11 @@ export async function runAllScans(
     summary.searches++;
     const isHunter = s.kind === "hunter";
     // The Hunter searches one sport at a time, so every listing it finds is that sport.
-    const hint: { sport?: Sport } = isHunter ? { sport: parseHunterSport(s.query) ?? undefined } : {};
+    const hint: { sport?: Sport } = isHunter
+      ? { sport: parseHunterSport(s.query) ?? undefined }
+      : s.category === "pokemon" || s.category === "pokemonSealed"
+        ? { sport: "Pokemon" }
+        : {};
     const input = isHunter
       ? { ...hunterSearchInput(parseHunterSport(s.query)!, hunterCfg), ...(quick ? { limit: QUICK_HUNTER_PAGE_SIZE } : {}), shipTo: shipToFor(settings) }
       : { q: s.query, market: s.market, category: s.category, maxPrice: s.maxPrice, format: s.format, limit: 50, exclude: parseExcludeWords(s.excludeWords), grading: s.grading, shipTo: shipToFor(settings) };
@@ -293,6 +298,15 @@ export async function runAllScans(
           })
           .filter((x): x is { key: string; card: CardIdentity } => x !== null),
       );
+      // Sealed products (booster boxes, hobby boxes…): your Popular sets first, then the price guide.
+      if (!isHunter && providerConfigured() && !autoError && Date.now() < autoDeadline) {
+        const sf = await fillSealedValues(fresh.map((l) => l.title), mineKeys, autoDeadline, hint);
+        summary.autoLooked += sf.looked;
+        summary.autoValued += sf.matched;
+        summary.autoLocal += sf.local;
+        for (const [k, v] of sf.newValues) values.map.set(k, v);
+        if (sf.error) autoError = sf.error;
+      }
       const rules = isHunter ? hunterRules(settings, hunterCfg) : settings;
       const hits = fresh.map((l) => {
         const h = evaluateListing(l, rules, values.map, hint);

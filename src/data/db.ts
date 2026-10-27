@@ -1,3 +1,4 @@
+import { parseCategory } from "@/lib/categories";
 /**
  * Database access (Supabase). Server-only.
  * Every function returns an error message instead of throwing, so pages can
@@ -523,7 +524,7 @@ export interface SavedSearch {
   name: string;
   query: string;
   market: "EBAY_US" | "EBAY_AU";
-  category: "sportsCards" | "pokemon";
+  category: "sportsCards" | "pokemon" | "sportsSealed" | "pokemonSealed";
   format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
   maxPrice: number | null;
   excludeWords: string;
@@ -543,7 +544,7 @@ function mapSearch(r: Record<string, unknown>): SavedSearch {
     name: String(r.name),
     query: String(r.query),
     market: r.market === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
-    category: r.category === "pokemon" ? "pokemon" : "sportsCards",
+    category: parseCategory(r.category),
     format: fmt === "ALL" || fmt === "AUCTION" || fmt === "BEST_OFFER" ? fmt : "FIXED_PRICE",
     maxPrice: numOrNull(r.max_price),
     excludeWords: typeof r.exclude_words === "string" ? r.exclude_words : "",
@@ -1160,6 +1161,29 @@ export async function guidePricesByNumber(
         });
     }
     return { data: out, error: null };
+  } catch (e) {
+    return { data: [], error: message(e) };
+  }
+}
+
+/** Sealed products (booster boxes, hobby boxes…) in your downloaded Popular sets, by guide product name. */
+export async function guideSealedProducts(names: string[]): Promise<DbResult<{ productId: string; consoleName: string; productName: string; prices: Record<string, number>; salesVolume: number | null }[]>> {
+  if (!dbConfigured() || names.length === 0) return { data: [], error: null };
+  try {
+    const { data, error } = await (await tbl("guide_prices")).select("*").in("product_name", [...new Set(names)]).limit(5000);
+    if (error) throw error;
+    return {
+      data: ((data ?? []) as Record<string, unknown>[])
+        .filter((r) => !r.number_norm)
+        .map((r) => ({
+          productId: String(r.product_id),
+          consoleName: String(r.console_name),
+          productName: String(r.product_name),
+          prices: (r.prices as Record<string, number>) ?? {},
+          salesVolume: numOrNull(r.sales_volume),
+        })),
+      error: null,
+    };
   } catch (e) {
     return { data: [], error: message(e) };
   }

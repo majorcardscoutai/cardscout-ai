@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cardValueMap } from "@/data/db";
 import { fillProviderValues, resolveSetless } from "@/data/provider";
+import { fillSealedValues } from "@/data/sealed";
 import { currentViewer } from "@/data/session";
 import { cardKey } from "@/lib/cardKey";
 import type { Aspect } from "@/lib/ebay/parse";
@@ -22,6 +23,8 @@ const SPORTS = new Set(["NBA", "MLB", "Pokemon"]);
 interface Body {
   cards?: { key?: unknown; card?: unknown }[];
   setless?: { title?: unknown; aspects?: unknown }[];
+  sport?: unknown;
+  round?: unknown;
 }
 
 function asCard(raw: unknown, key: unknown): { key: string; card: CardIdentity } | null {
@@ -60,11 +63,23 @@ export async function POST(req: Request) {
   const mine = new Set([...values.map.values()].filter((v) => (v.source ?? "you") === "you").map((v) => v.key));
   let matched = 0;
   // Titles with a set CardHawk doesn't know: let the guide confirm player + set (cached for the page).
+  const hint = body.sport === "Pokemon" ? { sport: "Pokemon" as const } : {};
+  let looked = 0;
+  let pending = 0;
   if (setless.length > 0) {
-    const sr = await resolveSetless(setless, {}, mine, Math.min(deadline, Date.now() + STEP_MS / 2));
-    matched += sr.newValues.size;
+    // Sealed products (booster boxes, hobby boxes…) in these titles.
+    const sf = await fillSealedValues(setless.map((s) => s.title), mine, Math.min(deadline, Date.now() + STEP_MS / 2), hint);
+    matched += sf.matched;
+    looked += sf.looked;
+    pending += sf.pending;
+    // Card titles with a set CardHawk doesn't know: once is enough (the guide's set list is cached).
+    if (body.round === 0) {
+      const sr = await resolveSetless(setless, hint, mine, Math.min(deadline, Date.now() + STEP_MS / 2));
+      matched += sr.newValues.size;
+      looked += sr.searched;
+    }
   }
   const f = await fillProviderValues(cards, mine, deadline);
   matched += f.matched;
-  return NextResponse.json({ pending: f.pending, looked: f.looked, matched, error: f.error });
+  return NextResponse.json({ pending: f.pending + pending, looked: f.looked + looked, matched, error: f.error });
 }

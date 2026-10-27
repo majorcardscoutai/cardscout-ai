@@ -11,6 +11,7 @@
  * missing key, an eBay outage or a rate limit shows a clear message.
  */
 import { excludedBy } from "../exclude";
+import { CATEGORY_IDS, isSealedCategory } from "../categories";
 import { contextualLocation, type ShipTo } from "../region";
 import type { Aspect } from "./parse";
 import { countCall } from "../scan-context";
@@ -48,10 +49,7 @@ export interface EbayListing {
 
 export type EbayResult<T> = { ok: true; data: T } | { ok: false; error: string; code?: number };
 
-export const CATEGORY_IDS = {
-  sportsCards: "261328", // Sports Trading Card Singles
-  pokemon: "183454", // CCG Individual Cards
-} as const;
+export { CATEGORY_IDS, isSealedCategory, parseCategory, type SearchCategory } from "../categories";
 
 const API = "https://api.ebay.com";
 const TIMEOUT_MS = 12_000;
@@ -330,7 +328,9 @@ export function fitsGrading(l: Pick<EbayListing, "title" | "condition" | "aspect
 }
 
 /** Search words: "PSA only" / "BGS only" add the company to the eBay search so the results are full of them. */
-export function searchWords(q: string, grading: Grading | undefined): string {
+export function searchWords(q: string, grading: Grading | undefined, category?: keyof typeof CATEGORY_IDS): string {
+  if (category === "pokemonSealed" && !/pok[eé]mon/i.test(q)) q = `pokemon ${q}`;
+  if (category === "pokemonSealed" || category === "sportsSealed") return q; // sealed boxes have no grade
   if (grading === "psa" && !/\bpsa\b/i.test(q)) return `${q} PSA`;
   if (grading === "bgs" && !/\b(bgs|beckett)\b/i.test(q)) return `${q} (BGS, Beckett)`;
   return q;
@@ -344,9 +344,9 @@ export function buildSearchPath(s: SearchInput): string {
   // eBay's Buy API requirements: results limited to fixed-price items (switch on with EBAY_FIXED_PRICE_ONLY=1).
   const format = fixedPriceOnly() && (s.format === "ALL" || s.format === "AUCTION") ? "FIXED_PRICE" : s.format;
   filters.push(format === "ALL" ? "buyingOptions:{FIXED_PRICE|AUCTION}" : `buyingOptions:{${format}}`);
-  if (s.grading && s.grading !== "any") filters.push(`conditionIds:{${CONDITION_IDS[s.grading === "raw" ? "raw" : "graded"]}}`);
+  if (s.grading && s.grading !== "any" && !isSealedCategory(s.category)) filters.push(`conditionIds:{${CONDITION_IDS[s.grading === "raw" ? "raw" : "graded"]}}`);
   const params = new URLSearchParams({
-    q: searchWords(s.q, s.grading),
+    q: searchWords(s.q, s.grading, s.category),
     category_ids: CATEGORY_IDS[s.category],
     filter: filters.join(","),
     sort: "newlyListed",
@@ -368,7 +368,7 @@ export async function searchListings(
   const unique = items.filter((i) => (seen.has(i.itemId) ? false : (seen.add(i.itemId), true)));
   const words = s.exclude ?? [];
   // Graded / raw / PSA / BGS: eBay filters by condition; listings that slip through are dropped here too.
-  const graded = unique.filter((i) => fitsGrading(i, s.grading));
+  const graded = isSealedCategory(s.category) ? unique : unique.filter((i) => fitsGrading(i, s.grading));
   const kept = words.length ? graded.filter((i) => !excludedBy(i.title, words)) : graded;
   return { ok: true, data: { total: r.data.total ?? unique.length, items: kept, excluded: unique.length - kept.length } };
 }

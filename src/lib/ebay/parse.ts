@@ -99,6 +99,13 @@ const SETS_FOR: Record<"sports" | "pokemon" | "any", string[]> = {
   pokemon: [...POKEMON_SETS].sort(byLength),
   any: [...SPORTS_SETS, ...POKEMON_SETS].sort(byLength),
 };
+/** The set named in a title (most specific first), as the price guide spells it. Used for sealed products too. */
+export function setInTitle(title: string, sport: Sport | null | undefined): string | null {
+  const list = sport === "Pokemon" ? SETS_FOR.pokemon : sport === "MLB" || sport === "NBA" ? SETS_FOR.sports : SETS_FOR.any;
+  const found = list.filter((s) => setRegex(s).test(title));
+  const known = found.find((s) => !POKEMON_SERIES.has(s)) ?? found[0];
+  return known ? (POKEMON_SET_ALIASES[known] ?? known) : null;
+}
 const setRegex = (s: string) => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]?")}(?![\\w'’])`, "i");
 
 const COLOUR_PARALLEL =

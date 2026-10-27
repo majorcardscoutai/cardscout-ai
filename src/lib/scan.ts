@@ -6,6 +6,7 @@ import { cardKey } from "./cardKey";
 import { cardFromListing, qualifiedGradeInTitle, variationInTitle } from "./ebay/parse";
 import { toUsd, type EbayListing } from "./ebay/client";
 import { calculateProfit, maxPurchasePrice } from "./profit";
+import { sealedFromTitle, sealedKey } from "./sealed";
 import type { Settings, Sport } from "./types";
 
 export interface CardValue {
@@ -50,11 +51,25 @@ export function shippingFor(l: EbayListing, settings: Settings): number {
   return toUsd(l.shipping, settings.usdToAud) ?? 0;
 }
 
+/**
+ * Which value-book key a listing uses: the card's key, or — for a sealed product (booster box, hobby box…)
+ * — its sealed key. `units` = boxes in the listing (a case of 6), so the value covers all of them.
+ */
+export function listingKey(title: string, aspects: EbayListing["aspects"] = [], hint: { sport?: Sport } = {}): { key: string | null; units: number } {
+  const key = cardKey(cardFromListing(title, aspects, hint).card);
+  if (key) return { key, units: 1 };
+  const sealed = sealedFromTitle(title, hint);
+  return sealed.ok ? { key: sealedKey(sealed.item), units: sealed.item.quantity } : { key: null, units: 1 };
+}
+
+const forUnits = (v: CardValue, units: number): CardValue => (units === 1 ? v : { ...v, valueUsd: Math.round(v.valueUsd * units * 100) / 100, title: `${v.title} × ${units}` });
+
 export function evaluateListing(l: EbayListing, settings: Settings, values: Map<string, CardValue>, hint: { sport?: Sport } = {}): ScanHit {
   const priceUsd = toUsd(l.price, settings.usdToAud);
   const shippingUsd = shippingFor(l, settings);
-  const key = cardKey(cardFromListing(l.title, l.aspects, hint).card);
-  const v = usableValue(key ? values.get(key) ?? null : null, l.title, key);
+  const { key, units } = listingKey(l.title, l.aspects, hint);
+  const found = usableValue(key ? values.get(key) ?? null : null, l.title, key);
+  const v = found ? forUnits(found, units) : null;
 
   let netProfitUsd: number | null = null;
   let roiPercent: number | null = null;
@@ -99,10 +114,11 @@ export function revalueHit<T extends ScanHit>(h: T, settings: Settings, values: 
   // Re-read the title with today's parser (search results never carry item specifics),
   // so parser improvements also apply to listings found earlier.
   // A key you confirmed for this listing ("Add value") wins when you have a value for it.
-  const parsed = cardKey(cardFromListing(h.title).card);
-  const key = h.cardKey && values.has(h.cardKey) ? h.cardKey : parsed ?? h.cardKey;
+  const read = listingKey(h.title);
+  const key = h.cardKey && values.has(h.cardKey) ? h.cardKey : read.key ?? h.cardKey;
   h = { ...h, cardKey: key };
-  const v = usableValue(key ? values.get(key) ?? null : null, h.title, key);
+  const found = usableValue(key ? values.get(key) ?? null : null, h.title, key);
+  const v = found ? forUnits(found, key === read.key ? read.units : 1) : null;
   const shippingUsd = settings.inboundShippingMode === "fixed" ? settings.inboundShippingFixedUsd : h.shippingUsd;
   const base = { ...h, shippingUsd, valueUsd: null, valueTitle: null, valueSource: null, netProfitUsd: null, roiPercent: null, maxPriceUsd: null, meetsCriteria: false };
   if (!v || h.priceUsd === null) return base;

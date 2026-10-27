@@ -16,7 +16,9 @@ export function LiveValueFiller({
   cards,
   setless,
   initialPending,
+  sport,
 }: {
+  sport?: "Pokemon";
   cards: { key: string; card: CardIdentity }[];
   setless: { title: string; aspects: Aspect[] }[];
   initialPending: number;
@@ -44,7 +46,8 @@ export function LiveValueFiller({
           const res = await fetch("/api/live-values", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cards, setless: round === 0 ? setless : [] }),
+            // Titles without a usable card reading go every round: sealed products are looked up from them too.
+            body: JSON.stringify({ cards, setless, sport, round }),
           });
           r = await res.json();
           if (!res.ok) throw new Error(r.error ?? `HTTP ${res.status}`);

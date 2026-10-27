@@ -1,3 +1,4 @@
+import { parseCategory } from "./categories";
 /**
  * Form validation. Turns raw form input into clean, typed data — or a clear
  * error message. Pure functions (no database, no UI) so they can be tested.
@@ -278,7 +279,7 @@ export interface SavedSearchInput {
   name: string;
   query: string;
   market: "EBAY_US" | "EBAY_AU";
-  category: "sportsCards" | "pokemon";
+  category: "sportsCards" | "pokemon" | "sportsSealed" | "pokemonSealed";
   format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
   maxPrice: number | null;
   excludeWords: string;
@@ -305,7 +306,7 @@ export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {
       name: (str(fd, "name") || query).slice(0, 80),
       query,
       market: str(fd, "market") === "EBAY_AU" ? "EBAY_AU" : "EBAY_US",
-      category: str(fd, "category") === "pokemon" ? "pokemon" : "sportsCards",
+      category: parseCategory(str(fd, "category")),
       format: fmt === "ALL" || fmt === "AUCTION" || fmt === "BEST_OFFER" ? fmt : "FIXED_PRICE",
       maxPrice: max.value,
       excludeWords: excludeWordsText(parseExcludeWords(str(fd, "x"))),
