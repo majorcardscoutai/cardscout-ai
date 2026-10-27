@@ -43,7 +43,7 @@ export function NoValueReason({ row, hasKey, configured, pending = false }: {
   if (!hasKey)
     return <span title="The listing doesn't state every detail needed to match exactly (year, set, number, parallel, grade)">Card details unclear — use Analyse</span>;
   if (!configured) return <span>No value saved for this card</span>;
-  if (!row) return <span>{pending ? "Not looked up yet — search again" : "No value yet"}</span>;
+  if (!row) return <span>{pending ? "Looking up value…" : "No value yet"}</span>;
   const label =
     row.status === "no_price" ? "Price guide has no price for this grade"
     : row.status === "ambiguous" ? "Several possible matches in the guide"

@@ -15,9 +15,10 @@ import ProviderCredit, { NoValueReason, ValueSource } from "@/components/Provide
 import { Money, PageHeader, Panel, Pct, StatusRow, Tag } from "@/components/ui";
 import { cardValueMap, lastScanRuns, listProviderValues, listPushSubscriptions, listRecentHits, listSavedSearches, type ProviderValueRow } from "@/data/db";
 import { pushConfigured } from "@/lib/webpush";
-import { fillProviderValues } from "@/data/provider";
+import { fillProviderValues, resolveSetless } from "@/data/provider";
+import { LiveValueFiller } from "@/components/LiveValueFiller";
 import { cardKey } from "@/lib/cardKey";
-import { cardFromListing } from "@/lib/ebay/parse";
+import { cardFromListing, type Aspect } from "@/lib/ebay/parse";
 import type { CardIdentity } from "@/lib/types";
 import { providerConfigured } from "@/lib/provider-client";
 import { getSettings } from "@/data/source";
@@ -34,7 +35,8 @@ import { parseGrading } from "@/lib/forms";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-const LIVE_LOOKUP_BUDGET_MS = 15_000;
+const LIVE_LOOKUP_BUDGET_MS = 6_000;
+const SETLESS_BUDGET_MS = 3_000;
 
 type Params = {
   q?: string;
@@ -106,27 +108,37 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
     currentViewer(),
   ]);
 
-  // Live search: look up market values for the cards shown (cached; ~1 per second, max ~15 s per search).
+  // Live search: look up market values for the cards shown (cached; ~1 per second). A few seconds here,
+  // then LiveValueFiller keeps going in the background and refreshes the results as values arrive.
   let autoNote: string | null = null;
-  if (result?.ok && providerConfigured() && result.data.items.length > 0) {
+  let liveItems = result?.ok ? result.data.items : [];
+  let filler: { cards: { key: string; card: CardIdentity }[]; setless: { title: string; aspects: Aspect[] }[]; pending: number } | null = null;
+  if (result?.ok && providerConfigured() && liveItems.length > 0) {
     const mine = new Set([...values.map.values()].filter((v) => (v.source ?? "you") === "you").map((v) => v.key));
-    const cards = result.data.items
-      .map((l) => {
-        const key = cardKey(cardFromListing(l.title, l.aspects).card);
-        return key ? { key, card: cardFromListing(l.title, l.aspects).card as CardIdentity } : null;
-      })
-      .filter((x): x is { key: string; card: CardIdentity } => x !== null && !values.map.has(x.key));
+    // Titles with a set CardHawk doesn't know: the guide confirms player + set (as the Profit Hunter does).
+    const sr = await resolveSetless(liveItems, {}, mine, Date.now() + SETLESS_BUDGET_MS);
+    liveItems = sr.items;
+    for (const [k, v] of sr.newValues) values.map.set(k, v);
+    const identify = (l: (typeof liveItems)[number]) => {
+      const card = cardFromListing(l.title, l.aspects).card;
+      const key = cardKey(card);
+      return key ? { key, card: card as CardIdentity } : null;
+    };
+    const cards = liveItems.map(identify).filter((x): x is { key: string; card: CardIdentity } => x !== null && !values.map.has(x.key));
+    let pending = 0;
     if (cards.length > 0) {
       const f = await fillProviderValues(cards, mine, Date.now() + LIVE_LOOKUP_BUDGET_MS);
       for (const [k, v] of f.newValues) values.map.set(k, v);
+      pending = f.pending;
       autoNote = f.error
         ? `Market values: ${f.error}`
-        : f.pending > 0
-          ? `Looked up ${f.looked} card${f.looked === 1 ? "" : "s"} in the price guide (${f.matched} matched). ${f.pending} more will be looked up when you search again.`
-          : f.looked > 0
-            ? `Looked up ${f.looked} card${f.looked === 1 ? "" : "s"} in the price guide (${f.matched} matched).`
-            : null;
+        : f.looked > 0
+          ? `Looked up ${f.looked} card${f.looked === 1 ? "" : "s"} in the price guide (${f.matched} matched).`
+          : null;
     }
+    const stillUnvalued = cards.filter((c) => !values.map.has(c.key));
+    const unread = liveItems.filter((l) => identify(l) === null).map((l) => ({ title: l.title, aspects: l.aspects }));
+    if (!autoNote?.startsWith("Market values:") && (pending > 0 || unread.length > 0)) filler = { cards: stillUnvalued, setless: unread, pending };
   }
 
   // Why cards have no automatic value (status + detail per card), for the "why?" notes.
@@ -268,11 +280,12 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
               title — check the card before buying.
             </p>
             {autoNote && <p className="mb-3 text-xs text-muted">{autoNote}</p>}
-            {result.data.items.length === 0 ? (
+            {filler && <LiveValueFiller key={`${search.q}|${liveItems.map((l) => l.itemId).join(",").slice(0, 400)}`} cards={filler.cards} setless={filler.setless} initialPending={filler.pending} />}
+            {liveItems.length === 0 ? (
               <p className="text-sm text-muted">No listings found. Try fewer words or a higher max price.</p>
             ) : (
               <ul className="divide-y divide-line">
-                {result.data.items.map((l) => {
+                {liveItems.map((l) => {
                   const h = evaluateListing(l, settings, values.map);
                   return (
                     <li key={l.itemId} className="flex items-center gap-3 py-3">
