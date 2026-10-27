@@ -143,8 +143,17 @@ export interface HunterGroup {
   auctions: boolean;
 }
 
+/**
+ * One shared Hunter search per sport + eBay site + delivery COUNTRY. Postcodes are left out, so members in
+ * different towns share one search; a deal's exact shipping to their postcode is checked separately.
+ */
 export function hunterGroupKey(sport: string, market: string, shipTo: ShipTo | undefined): string {
-  return [sport, market, shipTo?.country ?? "", shipTo?.postcode ?? ""].join("|");
+  return [sport, market, shipTo?.country ?? ""].join("|");
+}
+
+/** The delivery address used for the shared Hunter search: country only. */
+export function sharedShipTo(shipTo: ShipTo | undefined): ShipTo | undefined {
+  return shipTo ? { country: shipTo.country } : undefined;
 }
 
 /** Remember eBay calls for the length of one scheduled run (shared across accounts). */
@@ -262,7 +271,7 @@ export async function runAllScans(
     // Profit Hunter: one broad search shared by every account, then this account's own rules.
     const group = isHunter ? opts.hunterGroups?.get(hunterGroupKey(parseHunterSport(s.query)!, hunterCfg.market, input.shipTo)) : undefined;
     const broad = group
-      ? { ...input, maxPrice: group.maxBudget, minPrice: group.minPrice > 0 ? group.minPrice : null, format: group.auctions ? ("ALL" as const) : ("FIXED_PRICE" as const), exclude: [] }
+      ? { ...input, maxPrice: group.maxBudget, minPrice: group.minPrice > 0 ? group.minPrice : null, format: group.auctions ? ("ALL" as const) : ("FIXED_PRICE" as const), exclude: [], shipTo: sharedShipTo(input.shipTo) }
       : null;
     const fetched = broad ? await asShared(() => search(broad)) : await search(input);
     const r = fetched.ok && broad ? { ...fetched, data: { ...fetched.data, items: fetched.data.items.filter((l) => fitsHunterInput(l, input)) } } : fetched;
@@ -276,7 +285,8 @@ export async function runAllScans(
       const seen = await existingItemIds(s.id, r.data.items.map((i) => i.itemId));
       let fresh = r.data.items.filter((i) => !seen.has(i.itemId));
       if (isHunter) {
-        const e = await enrichVague(fresh, input.market, input.shipTo, enrichBudget, hint, get);
+        // Item specifics don't depend on the address: use the shared (country-only) one so accounts share the calls.
+        const e = await enrichVague(fresh, input.market, broad ? sharedShipTo(input.shipTo) : input.shipTo, enrichBudget, hint, get);
         fresh = e.items;
         summary.enriched += e.fetched;
         summary.enrichHelped += e.helped;
@@ -314,6 +324,19 @@ export async function runAllScans(
         const liquid = !isHunter || liquidEnough(h.cardKey ? values.map.get(h.cardKey) : null, hunterCfg.minSales);
         return { ...h, alerted: shouldAlert(h) && liquid };
       });
+      // Shared search (country only): a deal's shipping is checked again to this account's own postcode
+      // before it's saved or alerted — one eBay call per deal, not per listing.
+      if (broad && input.shipTo?.postcode) {
+        for (let i = 0; i < hits.length; i++) {
+          if (!hits[i].meetsCriteria || Date.now() > end) continue;
+          const exact = await get(fresh[i].itemId, input.market, input.shipTo);
+          if (!exact.ok) continue;
+          const l = { ...fresh[i], price: exact.data.price ?? fresh[i].price, shipping: exact.data.shipping };
+          const h = evaluateListing(l, rules, values.map, hint);
+          const liquid = liquidEnough(h.cardKey ? values.map.get(h.cardKey) : null, hunterCfg.minSales);
+          hits[i] = { ...h, alerted: shouldAlert(h) && liquid };
+        }
+      }
       await insertHits(s.id, hits);
       const deals = hits.filter((h) => h.meetsCriteria);
       summary.newListings += hits.length;
@@ -474,7 +497,7 @@ export async function runScheduledScans(trigger: "schedule" | "daily" | "hunter"
     shared.push({ ...mergeSummaries([]), guideSets: g.setsUpdated, errors: g.errors });
   }
 
-  // Everyone's Hunter rules, grouped so each sport + market + delivery address is searched once.
+  // Everyone's Hunter rules, grouped so each sport + market + delivery country is searched once.
   const hunterGroups = new Map<string, HunterGroup>();
   for (const uid of owners.data) {
     await runAsUser(uid, async () => {

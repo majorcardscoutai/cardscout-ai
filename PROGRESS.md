@@ -437,3 +437,7 @@ Changes made:
 - Grade conflict: title "PSA 6" vs eBay item specifics "Grade 8" → no grade (missing "grade (PSA 6 in the title, PSA 8 in eBay's details)").
 - revalueHit: a saved scan key only wins when it's your own value or the title can't be read; otherwise today's title reading is used.
 - 132 unit tests + e2e.
+
+## Shared Hunter search by country (28 Oct 2026)
+- Hunter groups were sport + eBay site + country + postcode; postcode only applies to US buyers (5-digit ZIP), but every different ZIP meant another shared search (~2,500–3,500 eBay calls/day each). Now: sport + site + COUNTRY (hunterGroupKey), shared search and item-specifics lookups use the country-only address (sharedShipTo), and only a DEAL is re-checked with the member's own ZIP for exact shipping before it's saved/alerted (one call per deal). e2e 24 checks two ZIPs → one search.
+- Capacity notes (Travis, 28 Oct): at eBay's default ~5,000 calls/day, Hunter ≈ 2,500–3,500 (fixed, per country group) + ~50–75/day per member with 5 three-hourly saved searches ≈ 25–40 members. Next scaling step (after Growth Check): shared broad "newest listings" feeds matched against everyone's saved searches inside CardHawk.
