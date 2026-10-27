@@ -37,7 +37,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8 lg:px-8">
             {children}
             {viewer && (
-              <footer className="mt-12 border-t border-line pt-4 pb-2 text-[11px] leading-relaxed text-faint">
+              <footer className="mt-12 flex items-start gap-3 border-t border-line pt-4 pb-2 text-[11px] leading-relaxed text-faint">
+                {/* eBay's official logo (eBay Partner Network creative), shown as supplied — Buy API attribution. */}
+                <a href="https://www.ebay.com" target="_blank" rel="noopener noreferrer" className="shrink-0" aria-label="eBay">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/media/ebay-logo.png" alt="eBay" width={32} height={32} className="h-8 w-8 rounded-sm" />
+                </a>
+                <span>
                 Listings, images and seller details come from eBay; purchases are made on eBay under the{" "}
                 <a href="https://www.ebay.com/help/policies/member-behaviour-policies/user-agreement?id=4259" target="_blank" rel="noopener noreferrer" className="underline hover:text-accent">
                   eBay User Agreement
@@ -46,6 +52,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 eBay links — this never changes the price you pay or which listings we show. Market values from SportsCardsPro / PriceCharting.{" "}
                 <a href="/terms" className="underline hover:text-accent">Terms of Use</a> ·{" "}
                 <a href="/privacy" className="underline hover:text-accent">Privacy Policy</a>
+                </span>
               </footer>
             )}
           </div>
