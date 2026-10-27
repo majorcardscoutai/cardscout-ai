@@ -234,7 +234,9 @@ export function variationInTitle(title: string): "Variation" | "Stamped" | null 
 
 /** A qualified grade ("PSA 8 (OC)", "9 ST") — sells well below the plain grade; the guide has no price for it. */
 export function qualifiedGradeInTitle(title: string): boolean {
-  return /\(\s*(OC|ST|PD|OF|MC|MK)\s*\)/.test(title) || /\b(10|[1-9](?:\.5)?)\s*(OC|ST|PD|OF|MC|MK)\b/.test(title);
+  // OC in any case ("PSA 6 Oc"); the other codes only in capitals, so "9 St Louis" isn't read as a qualifier.
+  return /\(\s*(OC|ST|PD|OF|MC|MK)\s*\)/.test(title) || /\b(10|[1-9](?:\.5)?)\s*(OC|ST|PD|OF|MC|MK)\b/.test(title) ||
+    /\(\s*oc\s*\)/i.test(title) || /\b(10|[1-9](?:\.5)?)\s*oc\b/i.test(title);
 }
 
 /**
@@ -242,7 +244,7 @@ export function qualifiedGradeInTitle(title: string): boolean {
  * guide price for their grade, so the value is shown with a warning.
  */
 export function offCentreInTitle(title: string): boolean {
-  return /(?<![A-Za-z0-9])\(?OC\)?(?![A-Za-z0-9])/.test(title) || /\boff[- ]?cent(?:er|re)(?:e?d)?\b/i.test(title);
+  return /(?<![A-Za-z0-9])\(?oc\)?(?![A-Za-z0-9])/i.test(title) || /\boff[- ]?cent(?:er|re)(?:e?d)?\b/i.test(title);
 }
 
 export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { sport?: Sport } = {}): CardSuggestion {

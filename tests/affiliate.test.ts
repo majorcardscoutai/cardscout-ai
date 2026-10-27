@@ -39,7 +39,7 @@ test("Pokémon gallery numbers and leading zeros", () => {
 import { offCentreInTitle } from "../src/lib/ebay/parse";
 
 test("off-centre (OC) listings are spotted", () => {
-  for (const t of ["1952 Topps Mickey Mantle PSA 8 (OC)", "Mantle PSA 8 OC", "Jordan Fleer RC off center PSA 7", "Charizard off-centre raw", "PSA 9 OC Kobe"])
+  for (const t of ["1952 Topps Mickey Mantle PSA 8 (OC)", "Mantle PSA 8 OC", "Jordan Fleer RC off center PSA 7", "Charizard off-centre raw", "PSA 9 OC Kobe", "1955 Topps Roberto Clemente #164 PSA 6 Oc", "Mantle psa 7 oc"])
     assert.equal(offCentreInTitle(t), true, t);
   for (const t of ["Kobe Bryant Topps Chrome PSA 10", "OCTAGON Charizard", "Rocket Mosaic PSA 10", "Doc Rivers auto", "2023 Panini PSA 10 #OC1x"])
     assert.equal(offCentreInTitle(t), false, t);
@@ -54,4 +54,12 @@ test("BGS/CGC 9 on the any-company grade price is flagged; PSA, 10s and own valu
   assert.equal(mixedGradeLabel({ source: "pricecharting" as const, graderSpecific: true }, "pokemon|x||s|1||||cgc|10"), null);
   assert.equal(mixedGradeLabel({ source: "you" as const, graderSpecific: false }, "pokemon|x||s|1||||bgs|9"), null);
   assert.equal(mixedGradeLabel(null, "pokemon|x||s|1||||bgs|9"), null);
+});
+
+import { qualifiedGradeInTitle } from "../src/lib/ebay/parse";
+test("qualified grades in any case for OC, capitals only for the rest", () => {
+  assert.equal(qualifiedGradeInTitle("1955 Topps Roberto Clemente #164 PSA 6 Oc"), true);
+  assert.equal(qualifiedGradeInTitle("Mantle PSA 8 (oc)"), true);
+  assert.equal(qualifiedGradeInTitle("Ozzie Smith PSA 9 St Louis Cardinals"), false);
+  assert.equal(qualifiedGradeInTitle("Jordan PSA 9 MC"), true);
 });
