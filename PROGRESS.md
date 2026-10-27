@@ -412,3 +412,4 @@ Changes made:
 - [x] EPN code: EBAY_CAMPAIGN_ID (10 digits, Vercel Config var) → Browse API X-EBAY-C-ENDUSERCTX affiliateCampaignId → links use itemAffiliateWebUrl (fallback itemWebUrl). Admin → Services shows status. Deals found before it's set keep plain links.
 - [x] Pokémon matching (27 Oct): gallery/subset numbers read from titles (GG54/GG70, TG17/TG30, SV107/SV122); leading zeros ignored (015/172 = #15). MATCHER_UPDATED_AT bumped so unmatched lookups retry.
 - [ ] Idea: Japanese set names (e.g. S12a VSTAR Universe → "Pokemon Japanese VSTAR Universe"); Black Star promos. Chinese sets: guide coverage thin — leave unvalued.
+- [x] OC warning (27 Oct): any title with "OC" / "off center/centre" shows "⚠ OC (off-centre) — value may not be accurate" on Top Deals, Hunter, Overview, live search, saved-search results and Analyse. (Qualified grades like "PSA 8 (OC)" still get no guide value at all.)

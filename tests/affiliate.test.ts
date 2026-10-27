@@ -35,3 +35,12 @@ test("Pokémon gallery numbers and leading zeros", () => {
   assert.notEqual(normNumber("150"), normNumber("15"));
   assert.notEqual(normNumber("105"), normNumber("15"));
 });
+
+import { offCentreInTitle } from "../src/lib/ebay/parse";
+
+test("off-centre (OC) listings are spotted", () => {
+  for (const t of ["1952 Topps Mickey Mantle PSA 8 (OC)", "Mantle PSA 8 OC", "Jordan Fleer RC off center PSA 7", "Charizard off-centre raw", "PSA 9 OC Kobe"])
+    assert.equal(offCentreInTitle(t), true, t);
+  for (const t of ["Kobe Bryant Topps Chrome PSA 10", "OCTAGON Charizard", "Rocket Mosaic PSA 10", "Doc Rivers auto", "2023 Panini PSA 10 #OC1x"])
+    assert.equal(offCentreInTitle(t), false, t);
+});

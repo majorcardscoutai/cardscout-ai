@@ -1,3 +1,4 @@
+import { OffCentreWarning } from "@/components/OffCentreWarning";
 import Link from "next/link";
 import { rejectAutoValueAction } from "@/app/actions";
 import { ValueSource } from "@/components/ProviderCredit";
@@ -39,6 +40,7 @@ export function DealRow({ d, fx, rank, returnTo = "/deals" }: { d: DealHit; fx: 
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-faint">
             {d.isAuction ? <Tag tone="warn">Auction · {endsIn(d.endsAt) ?? "end time unknown"}</Tag> : <Tag>Buy It Now</Tag>}
             <EbayLink url={d.url} />
+            <OffCentreWarning title={d.title} />
             <ValueSource source={d.valueSource} />
             <span>{d.searchName}</span>
             {d.salesVolume !== null && d.salesVolume !== undefined && <span>· sells ~{d.salesVolume}/yr</span>}

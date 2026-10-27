@@ -237,6 +237,14 @@ export function qualifiedGradeInTitle(title: string): boolean {
   return /\(\s*(OC|ST|PD|OF|MC|MK)\s*\)/.test(title) || /\b(10|[1-9](?:\.5)?)\s*(OC|ST|PD|OF|MC|MK)\b/.test(title);
 }
 
+/**
+ * "OC" (off-centre) anywhere in the title, or "off center/centre". Off-centre cards usually sell below the
+ * guide price for their grade, so the value is shown with a warning.
+ */
+export function offCentreInTitle(title: string): boolean {
+  return /(?<![A-Za-z0-9])\(?OC\)?(?![A-Za-z0-9])/.test(title) || /\boff[- ]?cent(?:er|re)(?:e?d)?\b/i.test(title);
+}
+
 export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { sport?: Sport } = {}): CardSuggestion {
   const card: Partial<CardIdentity> = {};
   const sources: CardSuggestion["sources"] = {};

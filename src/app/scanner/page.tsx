@@ -1,3 +1,4 @@
+import { OffCentreWarning } from "@/components/OffCentreWarning";
 import Link from "next/link";
 import {
   addSavedSearchAction,
@@ -290,6 +291,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                           {l.country && <Tag>{l.country}</Tag>}
                           {l.sellerName && <span>seller {l.sellerName}</span>}
                           <EbayLink url={l.url} />
+                          <OffCentreWarning title={l.title} />
                           <ValueSource source={h.valueSource} />
                           {h.valueUsd !== null ? (
                             h.meetsCriteria ? (
@@ -489,6 +491,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                     {h.sellerName && <span>· seller {h.sellerName}</span>}
                     <span>· eBay details checked {ago(h.checkedAt ?? h.createdAt)}</span>
                     <EbayLink url={h.url} />
+                    <OffCentreWarning title={h.title} />
                     {h.isAuction && <Tag tone="warn">Auction{endsIn(h.endsAt) ? ` · ${endsIn(h.endsAt)}` : ""}</Tag>}
                     <ValueSource source={h.valueSource} />
                     {h.meetsCriteria && <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Deal</span>}

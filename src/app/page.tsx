@@ -1,3 +1,4 @@
+import { OffCentreWarning } from "@/components/OffCentreWarning";
 import Link from "next/link";
 import CardThumb from "@/components/CardThumb";
 import { formatMoney, moneyPair, moneyText } from "@/lib/currency";
@@ -91,6 +92,7 @@ export default async function OverviewPage({ searchParams }: { searchParams?: Pr
                       <Pct value={d.roiPercent} />
                       <span className="text-faint">ROI</span>
                       <EbayLink url={d.url} />
+                      <OffCentreWarning title={d.title} />
                     </div>
                   </div>
                   <div className="text-right">
