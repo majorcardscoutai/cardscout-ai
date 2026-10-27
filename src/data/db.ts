@@ -528,7 +528,7 @@ export interface SavedSearch {
   maxPrice: number | null;
   excludeWords: string;
   /** Graded slabs only, ungraded (raw) only, or both. */
-  grading: "any" | "graded" | "raw";
+  grading: "any" | "graded" | "raw" | "psa" | "bgs";
   active: boolean;
   lastRunAt: string | null;
   lastRunStatus: string | null;
@@ -547,7 +547,7 @@ function mapSearch(r: Record<string, unknown>): SavedSearch {
     format: fmt === "ALL" || fmt === "AUCTION" || fmt === "BEST_OFFER" ? fmt : "FIXED_PRICE",
     maxPrice: numOrNull(r.max_price),
     excludeWords: typeof r.exclude_words === "string" ? r.exclude_words : "",
-    grading: r.grading === "graded" || r.grading === "raw" ? r.grading : "any",
+    grading: r.grading === "graded" || r.grading === "raw" || r.grading === "psa" || r.grading === "bgs" ? r.grading : "any",
     active: Boolean(r.active),
     lastRunAt: r.last_run_at ? String(r.last_run_at) : null,
     lastRunStatus: r.last_run_status ? String(r.last_run_status) : null,

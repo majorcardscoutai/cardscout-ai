@@ -87,3 +87,23 @@ test("Base Set 2 spellings and Pokémon titles that don't say Pokémon", () => {
   assert.equal(b.serialNumbered, undefined);
   assert.equal(cardFromListing("Pokemon Charizard 4/102 Base Set 1999 Holo PSA 5").card.set, "Base Set");
 });
+
+import { buildSearchPath, fitsGrading, searchWords } from "../src/lib/ebay/client";
+test("Graded or raw: PSA only, BGS only, all graded, ungraded", () => {
+  const psa = { title: "2018 Topps Update Ohtani #US1 PSA 10", condition: "Graded", aspects: [] };
+  const bgs = { title: "2018 Topps Update Ohtani #US1 Beckett 9.5", condition: "Graded", aspects: [] };
+  const sgc = { title: "Ohtani #US1 SGC 10", condition: "Graded", aspects: [] };
+  const raw = { title: "Ohtani #US1 raw NM", condition: "Ungraded", aspects: [] };
+  const byAspect = { title: "Ohtani US1 slab", condition: "Graded", aspects: [{ name: "Professional Grader", value: "Professional Sports Authenticator (PSA)" }] };
+  assert.deepEqual([psa, bgs, sgc, raw, byAspect].map((l) => fitsGrading(l, "psa")), [true, false, false, false, true]);
+  assert.deepEqual([psa, bgs, sgc, raw].map((l) => fitsGrading(l, "bgs")), [false, true, false, false]);
+  assert.deepEqual([psa, bgs, sgc, raw].map((l) => fitsGrading(l, "graded")), [true, true, true, false]);
+  assert.deepEqual([psa, bgs, sgc, raw].map((l) => fitsGrading(l, "raw")), [false, false, false, true]);
+  assert.deepEqual([psa, raw].map((l) => fitsGrading(l, "any")), [true, true]);
+  assert.equal(searchWords("ohtani us1", "psa"), "ohtani us1 PSA");
+  assert.equal(searchWords("ohtani psa 10", "psa"), "ohtani psa 10");
+  assert.equal(searchWords("ohtani us1", "bgs"), "ohtani us1 (BGS, Beckett)");
+  const path = decodeURIComponent(buildSearchPath({ q: "ohtani", market: "EBAY_US", category: "sportsCards", maxPrice: null, format: "FIXED_PRICE", grading: "bgs" }).replace(/\+/g, " "));
+  assert.match(path, /conditionIds:\{2750\}/);
+  assert.match(path, /q=ohtani \(BGS, Beckett\)/);
+});

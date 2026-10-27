@@ -282,11 +282,14 @@ export interface SavedSearchInput {
   format: "ALL" | "FIXED_PRICE" | "AUCTION" | "BEST_OFFER";
   maxPrice: number | null;
   excludeWords: string;
-  grading: "any" | "graded" | "raw";
+  grading: Grading;
 }
 
-export function parseGrading(v: unknown): "any" | "graded" | "raw" {
-  return v === "graded" || v === "raw" ? v : "any";
+export type Grading = "any" | "graded" | "raw" | "psa" | "bgs";
+export const GRADING_LABEL: Record<Grading, string> = { any: "Any", graded: "All graded", psa: "PSA only", bgs: "BGS only", raw: "Ungraded only" };
+
+export function parseGrading(v: unknown): Grading {
+  return v === "graded" || v === "raw" || v === "psa" || v === "bgs" ? v : "any";
 }
 
 export function parseSavedSearchForm(fd: FormData): Parsed<SavedSearchInput> {

@@ -284,11 +284,11 @@ export interface SearchInput {
   minPrice?: number | null;
   /** eBay item-specifics filter, e.g. "Sport:{Baseball}" (category is added automatically). */
   aspectFilter?: string;
-  /** Graded slabs only, ungraded (raw) cards only, or both. */
+  /** Graded slabs only (any company, PSA or BGS), ungraded (raw) cards only, or both. */
   grading?: Grading;
 }
 
-export type Grading = "any" | "graded" | "raw";
+export type Grading = "any" | "graded" | "raw" | "psa" | "bgs";
 
 /** EBAY_FIXED_PRICE_ONLY=1 (Vercel): only Buy It Now listings are searched, as eBay's Buy API requirements ask. */
 export function fixedPriceOnly(): boolean {
@@ -307,6 +307,35 @@ export function isGradedListing(l: Pick<EbayListing, "title" | "condition" | "as
   return GRADER_WORDS.test(l.title);
 }
 
+/** Which grading company slabbed this listing: eBay's "Professional Grader" first, then the title. */
+export function listingGrader(l: Pick<EbayListing, "title" | "aspects">): "PSA" | "BGS" | "other" | null {
+  const a = l.aspects.find((x) => /^professional grader$/i.test(x.name.trim()))?.value ?? "";
+  if (/\bPSA\b|Professional Sports Authenticator/i.test(a)) return "PSA";
+  if (/\bBGS\b|Beckett/i.test(a)) return "BGS";
+  if (a.trim() && !/^(ungraded|not graded|n\/a)$/i.test(a.trim())) return "other";
+  const m = l.title.match(/\b(PSA|BGS|Beckett|SGC|CGC|HGA|TAG|ISA|KSA|GMA|CSG)\b/i);
+  if (!m) return null;
+  const g = m[1].toUpperCase();
+  return g === "PSA" ? "PSA" : g === "BGS" || g === "BECKETT" ? "BGS" : "other";
+}
+
+/** Does a listing fit the "Graded or raw" choice? */
+export function fitsGrading(l: Pick<EbayListing, "title" | "condition" | "aspects">, grading: Grading | undefined): boolean {
+  if (!grading || grading === "any") return true;
+  const graded = isGradedListing(l);
+  if (grading === "raw") return !graded;
+  if (!graded) return false;
+  if (grading === "graded") return true;
+  return listingGrader(l) === (grading === "psa" ? "PSA" : "BGS");
+}
+
+/** Search words: "PSA only" / "BGS only" add the company to the eBay search so the results are full of them. */
+export function searchWords(q: string, grading: Grading | undefined): string {
+  if (grading === "psa" && !/\bpsa\b/i.test(q)) return `${q} PSA`;
+  if (grading === "bgs" && !/\b(bgs|beckett)\b/i.test(q)) return `${q} (BGS, Beckett)`;
+  return q;
+}
+
 export function buildSearchPath(s: SearchInput): string {
   const filters: string[] = [];
   const currency = s.market === "EBAY_AU" ? "AUD" : "USD";
@@ -315,9 +344,9 @@ export function buildSearchPath(s: SearchInput): string {
   // eBay's Buy API requirements: results limited to fixed-price items (switch on with EBAY_FIXED_PRICE_ONLY=1).
   const format = fixedPriceOnly() && (s.format === "ALL" || s.format === "AUCTION") ? "FIXED_PRICE" : s.format;
   filters.push(format === "ALL" ? "buyingOptions:{FIXED_PRICE|AUCTION}" : `buyingOptions:{${format}}`);
-  if (s.grading === "graded" || s.grading === "raw") filters.push(`conditionIds:{${CONDITION_IDS[s.grading]}}`);
+  if (s.grading && s.grading !== "any") filters.push(`conditionIds:{${CONDITION_IDS[s.grading === "raw" ? "raw" : "graded"]}}`);
   const params = new URLSearchParams({
-    q: s.q,
+    q: searchWords(s.q, s.grading),
     category_ids: CATEGORY_IDS[s.category],
     filter: filters.join(","),
     sort: "newlyListed",
@@ -338,8 +367,8 @@ export async function searchListings(
   const seen = new Set<string>();
   const unique = items.filter((i) => (seen.has(i.itemId) ? false : (seen.add(i.itemId), true)));
   const words = s.exclude ?? [];
-  // Graded / raw: eBay filters by condition; listings that slip through are dropped here too.
-  const graded = s.grading === "graded" || s.grading === "raw" ? unique.filter((i) => isGradedListing(i) === (s.grading === "graded")) : unique;
+  // Graded / raw / PSA / BGS: eBay filters by condition; listings that slip through are dropped here too.
+  const graded = unique.filter((i) => fitsGrading(i, s.grading));
   const kept = words.length ? graded.filter((i) => !excludedBy(i.title, words)) : graded;
   return { ok: true, data: { total: r.data.total ?? unique.length, items: kept, excluded: unique.length - kept.length } };
 }

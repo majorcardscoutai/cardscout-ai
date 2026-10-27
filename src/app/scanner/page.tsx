@@ -31,7 +31,7 @@ import { displayFx, shipToFor } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
 import { currentViewer } from "@/data/session";
 import { MAX_SAVED_SEARCHES } from "@/lib/limits";
-import { parseGrading } from "@/lib/forms";
+import { GRADING_LABEL, parseGrading } from "@/lib/forms";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -230,8 +230,10 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           </Field>
           <Field label="Graded or raw">
             <select name="grading" defaultValue={search?.grading ?? "any"} className={inputCls}>
-              <option value="any">Both</option>
-              <option value="graded">Graded only</option>
+              <option value="any">Any (graded or raw)</option>
+              <option value="graded">All graded</option>
+              <option value="psa">PSA only</option>
+              <option value="bgs">BGS only</option>
               <option value="raw">Ungraded (raw) only</option>
             </select>
           </Field>
@@ -374,7 +376,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                       {s.name}
                     </div>
                     <div className="text-xs text-faint">
-                      “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"} · {FORMAT_LABEL[s.format]}{s.grading === "graded" ? " · Graded only" : s.grading === "raw" ? " · Raw only" : ""}
+                      “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"} · {FORMAT_LABEL[s.format]}{s.grading && s.grading !== "any" ? ` · ${GRADING_LABEL[s.grading]}` : ""}
                       {s.maxPrice ? ` · ≤ ${s.market === "EBAY_AU" ? "A$" : "US$"}${s.maxPrice}` : ""}
                     </div>
                     <form action={updateSavedSearchExcludeAction} className="mt-1.5 flex items-center gap-2">
