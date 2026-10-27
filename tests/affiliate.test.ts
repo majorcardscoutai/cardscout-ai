@@ -44,3 +44,14 @@ test("off-centre (OC) listings are spotted", () => {
   for (const t of ["Kobe Bryant Topps Chrome PSA 10", "OCTAGON Charizard", "Rocket Mosaic PSA 10", "Doc Rivers auto", "2023 Panini PSA 10 #OC1x"])
     assert.equal(offCentreInTitle(t), false, t);
 });
+
+import { mixedGradeLabel } from "../src/lib/scan";
+
+test("BGS/CGC 9 on the any-company grade price is flagged; PSA, 10s and own values aren't", () => {
+  const auto = { source: "pricecharting" as const, graderSpecific: false };
+  assert.equal(mixedGradeLabel(auto, "pokemon|lugia||neo genesis|9|1st edition holo|||bgs|9"), "BGS 9");
+  assert.equal(mixedGradeLabel(auto, "pokemon|lugia||neo genesis|9||||psa|9"), null);
+  assert.equal(mixedGradeLabel({ source: "pricecharting" as const, graderSpecific: true }, "pokemon|x||s|1||||cgc|10"), null);
+  assert.equal(mixedGradeLabel({ source: "you" as const, graderSpecific: false }, "pokemon|x||s|1||||bgs|9"), null);
+  assert.equal(mixedGradeLabel(null, "pokemon|x||s|1||||bgs|9"), null);
+});

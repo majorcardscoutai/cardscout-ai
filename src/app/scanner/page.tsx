@@ -1,3 +1,4 @@
+import { GradePriceWarning } from "@/components/GradePriceWarning";
 import { OffCentreWarning } from "@/components/OffCentreWarning";
 import Link from "next/link";
 import {
@@ -24,7 +25,7 @@ import { ebayConfigured, searchListings, type SearchInput } from "@/lib/ebay/cli
 import { emailConfigured } from "@/lib/email";
 import { excludedBy, excludeWordsText, parseExcludeWords } from "@/lib/exclude";
 import { isEnded, isFresh } from "@/lib/freshness";
-import { auctionEnded, auctionTooEarly, evaluateListing, revalueHit } from "@/lib/scan";
+import { auctionEnded, auctionTooEarly, evaluateListing, mixedGradeLabel, revalueHit } from "@/lib/scan";
 import { displayFx, shipToFor } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
 import { currentViewer } from "@/data/session";
@@ -292,6 +293,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                           {l.sellerName && <span>seller {l.sellerName}</span>}
                           <EbayLink url={l.url} />
                           <OffCentreWarning title={l.title} />
+                          {h.valueUsd !== null && <GradePriceWarning label={mixedGradeLabel(h.cardKey ? values.map.get(h.cardKey) : null, h.cardKey)} />}
                           <ValueSource source={h.valueSource} />
                           {h.valueUsd !== null ? (
                             h.meetsCriteria ? (
@@ -492,6 +494,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                     <span>· eBay details checked {ago(h.checkedAt ?? h.createdAt)}</span>
                     <EbayLink url={h.url} />
                     <OffCentreWarning title={h.title} />
+                    {h.valueUsd !== null && <GradePriceWarning label={mixedGradeLabel(h.cardKey ? values.map.get(h.cardKey) : null, h.cardKey)} />}
                     {h.isAuction && <Tag tone="warn">Auction{endsIn(h.endsAt) ? ` · ${endsIn(h.endsAt)}` : ""}</Tag>}
                     <ValueSource source={h.valueSource} />
                     {h.meetsCriteria && <span className="rounded-md bg-gain-soft px-1.5 py-0.5 font-medium text-gain">Deal</span>}

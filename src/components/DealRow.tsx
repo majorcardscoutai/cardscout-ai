@@ -1,3 +1,4 @@
+import { GradePriceWarning } from "@/components/GradePriceWarning";
 import { OffCentreWarning } from "@/components/OffCentreWarning";
 import Link from "next/link";
 import { rejectAutoValueAction } from "@/app/actions";
@@ -41,6 +42,7 @@ export function DealRow({ d, fx, rank, returnTo = "/deals" }: { d: DealHit; fx: 
             {d.isAuction ? <Tag tone="warn">Auction · {endsIn(d.endsAt) ?? "end time unknown"}</Tag> : <Tag>Buy It Now</Tag>}
             <EbayLink url={d.url} />
             <OffCentreWarning title={d.title} />
+            <GradePriceWarning label={d.mixedGrade} />
             <ValueSource source={d.valueSource} />
             <span>{d.searchName}</span>
             {d.salesVolume !== null && d.salesVolume !== undefined && <span>· sells ~{d.salesVolume}/yr</span>}

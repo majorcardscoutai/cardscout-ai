@@ -6,7 +6,7 @@
  */
 import { excludedBy, parseExcludeWords } from "./exclude";
 import { isFresh } from "./freshness";
-import { auctionEnded, auctionTooEarly, revalueHit, type ScanHit } from "./scan";
+import { auctionEnded, auctionTooEarly, revalueHit, type ScanHit, mixedGradeLabel } from "./scan";
 import type { Settings } from "./types";
 
 /** A saved scan result (same shape as the database row type). */
@@ -19,7 +19,7 @@ export interface PickedDeals {
   valuedCount: number;
 }
 
-export type DealHit = StoredHit & { searchName: string; discountPercent: number | null; /** Price guide sales per year (null = unknown / your own value). */ salesVolume?: number | null };
+export type DealHit = StoredHit & { searchName: string; discountPercent: number | null; /** e.g. "BGS 9" when the value is the any-company grade price (usually too high). */ mixedGrade?: string | null; /** Price guide sales per year (null = unknown / your own value). */ salesVolume?: number | null };
 
 export type DealSort = "profit" | "roi" | "newest" | "price";
 
@@ -57,13 +57,18 @@ export function pickDeals(
         ? Math.round(((h.maxPriceUsd - h.priceUsd) / h.maxPriceUsd) * 1000) / 10
         : null;
     const v = h.cardKey ? values.get(h.cardKey) : undefined;
-    rows.push({ ...h, searchName: m?.name ?? "Search", discountPercent, salesVolume: v && v.source && v.source !== "you" ? v.salesVolume ?? null : null });
+    rows.push({
+      ...h, searchName: m?.name ?? "Search", discountPercent,
+      salesVolume: v && v.source && v.source !== "you" ? v.salesVolume ?? null : null,
+      mixedGrade: h.valueUsd !== null ? mixedGradeLabel(v, h.cardKey) : null,
+    });
   }
   const valued = rows.filter((r) => r.valueUsd !== null);
   return {
     deals: valued.filter((r) => r.meetsCriteria),
     nearMisses: valued
-      .filter((r) => !r.meetsCriteria && r.discountPercent !== null && r.discountPercent >= -15)
+      // A BGS/CGC/SGC 9 valued at the any-company grade price can't be a deal, so it isn't "close" either.
+      .filter((r) => !r.meetsCriteria && !r.mixedGrade && r.discountPercent !== null && r.discountPercent >= -15)
       .sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0)),
     valuedCount: valued.length,
   };

@@ -151,6 +151,18 @@ export function dealGradeValue(v: Pick<CardValue, "source" | "graderSpecific">, 
 }
 
 /**
+ * A non-PSA graded card (e.g. BGS 9, CGC 9) valued with the guide's grade price for ANY grading company.
+ * That price is mostly PSA sales, so the real value is usually lower. Returns "BGS 9" etc., or null.
+ */
+export function mixedGradeLabel(v: Pick<CardValue, "source" | "graderSpecific"> | null | undefined, key: string | null): string | null {
+  if (!v || dealGradeValue(v, key)) return null;
+  const parts = (key ?? "").split("|");
+  const grader = (parts.at(-2) ?? "").toUpperCase();
+  const grade = parts.at(-1) ?? "";
+  return grader ? `${grader} ${grade}`.trim() : "This grade";
+}
+
+/**
  * Automatic values are dropped when the title shows the listing isn't the plain card that was valued:
  * a qualified grade ("8 (OC)") or a variation / stamped card the key doesn't include. Your own values always stand.
  */
