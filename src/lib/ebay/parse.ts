@@ -319,6 +319,10 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
     // In Pokémon titles plain "Holo" just describes the card (holo rares are the normal version).
     // The price guide calls it "1st Edition" (holo is the normal version).
     if (known && !(sport === "Pokemon" && known === "Holo")) set("parallel", sport === "Pokemon" && known === "1st Edition Holo" ? "1st Edition" : known, "title");
+    // "Chrome" in a non-Chrome set (Topps Heritage Chrome, "Chrome-Pink Sparkle") is part of the parallel:
+    // the guide lists those as "[Pink Sparkle Chrome]" / "[Chrome]", a different card from the base one.
+    if (sport !== "Pokemon" && card.set && !/chrome/i.test(card.set) && /\bchrome\b/i.test(title) && !/\bchrome\b/i.test(card.parallel ?? ""))
+      set("parallel", card.parallel ? `Chrome ${card.parallel}` : "Chrome", "title");
   }
 
   // Serial number (print run): "/99", "#'d /25", "12/50" — not for Pokémon, where X/Y is the card number.

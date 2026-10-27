@@ -63,3 +63,16 @@ test("qualified grades in any case for OC, capitals only for the rest", () => {
   assert.equal(qualifiedGradeInTitle("Ozzie Smith PSA 9 St Louis Cardinals"), false);
   assert.equal(qualifiedGradeInTitle("Jordan PSA 9 MC"), true);
 });
+
+import { scoreProduct } from "../src/lib/provider";
+test("Chrome parallels in non-Chrome sets (Topps Heritage)", () => {
+  const c = cardFromListing("2026 TOPPS HERITAGE CHROME-PINK SPARKLE #290 SHOHEI OHTANI PSA 9").card;
+  assert.equal(c.parallel, "Chrome Pink Sparkle");
+  const p = { id: "1", productName: "Shohei Ohtani [Pink Sparkle Chrome] #290", consoleName: "Baseball Cards 2026 Topps Heritage", prices: { "graded-price": 15000 }, salesVolume: null };
+  assert.equal(scoreProduct(c, p).ok, true);
+  const base = { ...p, productName: "Shohei Ohtani #290" };
+  assert.equal(scoreProduct(c, base).ok, false);
+  assert.equal(cardFromListing("2023 Topps Heritage Chrome #100 Shohei Ohtani PSA 10").card.parallel, "Chrome");
+  assert.equal(cardFromListing("2018 Topps Chrome Update #HMT1 Shohei Ohtani PSA 10").card.parallel, undefined);
+  assert.equal(cardFromListing("2018 Topps Chrome #150 Shohei Ohtani Gold Refractor PSA 10").card.parallel, "Gold Refractor");
+});
