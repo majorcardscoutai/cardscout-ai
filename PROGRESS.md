@@ -427,3 +427,4 @@ Changes made:
 - src/data/sealed.ts fillSealedValues: Popular sets first (guideSealedProducts), then guide search (sealedQuery) + getProduct; cached in provider_values (card null, price_field loose-price). Used by live search (4 s), the background filler (/api/live-values) and scheduled saved searches (not the Hunter).
 - scan.ts listingKey: card key first, else sealed key; value × box count (case of 12, x2). Tests: tests/sealed.test.ts (4) + e2e scenario 29.
 - Next (step 3): sealed Profit Hunter; booster bundles/blisters review; Japanese boxes as their own products; shipping default for boxes.
+- [x] Sealed fixes (27 Oct, after first live test): "+ acrylic case" / "w/ case" / "magnetic case" no longer read as a case of boxes; no-match "why?" now lists the sealed items the guide has for that set (to spot naming differences, e.g. Evolving Skies ETB). MATCHER_UPDATED_AT bumped so unmatched lookups retry.

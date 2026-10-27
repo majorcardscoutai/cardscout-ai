@@ -48,7 +48,11 @@ const NOT_A_SEALED_BOX =
 /** Packs from a box ("36 packs") are fine; these words mean a different language / print. */
 const OTHER_LANGUAGE = /\b(japanese|japan|jp|jpn|korean|chinese|s-chinese|t-chinese|thai|indonesian|german|french|italian|spanish|portuguese)\b/i;
 
-function quantityIn(title: string): number | null {
+/** "+ acrylic case", "w/ case", "magnetic case": a protective case that comes with ONE box, not a case of boxes. */
+const PROTECTIVE_CASE = /(?:\b(?:acrylic|display|protective|protector|magnetic|plastic|uv|perspex|hard)\s+case\b)|(?:(?:\bw\/|\bwith\b|\+|&)\s*(?:an?\s+)?(?:acrylic\s+|protective\s+|display\s+)?case\b)/gi;
+
+function quantityIn(rawTitle: string): number | null {
+  const title = rawTitle.replace(PROTECTIVE_CASE, " ");
   const m =
     title.match(/\b(?:lot|set|case|bundle) of (\d{1,2})\b/i) ??
     title.match(/\b(\d{1,2})\s*(?:x|×)\s+\D/i) ??
@@ -137,7 +141,13 @@ export function matchSealed(item: SealedItem, products: ProviderProduct[]): Seal
   const names = new Set([...(POKEMON_TYPES.find((t) => t.type === item.type)?.names ?? []), ...(SPORTS_TYPES.find((t) => t.type === item.type)?.names ?? [])].map(norm));
   const fits = products.filter((p) => names.has(norm(p.productName)) && setFits(item, p.consoleName));
   const unique = [...new Map(fits.map((p) => [p.id, p])).values()];
-  if (unique.length === 0) return { ok: false, reason: "no_match", detail: `No ${item.type} for ${item.year ? `${item.year} ` : ""}${item.set} in the price guide.` };
+  if (unique.length === 0) {
+    // Show the sealed products the guide does have for this set, so a different spelling is easy to spot.
+    const near = products.filter((p) => setFits(item, p.consoleName) && !/#/.test(p.productName)).map((p) => p.productName);
+    const other = products.filter((p) => names.has(norm(p.productName))).map((p) => `${p.productName} · ${p.consoleName}`);
+    const seen = near.length ? ` Sealed items listed for this set: ${[...new Set(near)].slice(0, 6).join("; ")}.` : other.length ? ` Closest: ${[...new Set(other)].slice(0, 3).join("; ")}.` : "";
+    return { ok: false, reason: "no_match", detail: `No ${item.type} for ${item.year ? `${item.year} ` : ""}${item.set} in the price guide.${seen}` };
+  }
   if (unique.length > 1) return { ok: false, reason: "ambiguous", detail: `Several products match (${unique.slice(0, 3).map((p) => p.consoleName).join("; ")}).` };
   const pennies = unique[0].prices["loose-price"];
   return { ok: true, product: unique[0], usd: pennies && pennies > 0 ? Math.round(pennies) / 100 : null };

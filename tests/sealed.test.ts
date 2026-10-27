@@ -66,3 +66,12 @@ test("listing key: cards first, sealed products otherwise, with box count", () =
   assert.ok(r.ok);
   if (r.ok) assert.equal(s.key, sealedKey(r.item));
 });
+
+test("a protective case isn't a case of boxes", () => {
+  const a = sealedFromTitle("2021 POKEMON SWORD & SHIELD EVOLVING SKIES SEALED BOOSTER BOX + ACRYLIC CASE");
+  assert.ok(a.ok && a.item.quantity === 1 && a.item.type === "Booster Box");
+  const b = sealedFromTitle("Pokémon SWSH Evolving Skies Elite Trainer Box Sealed Umbreon Art Sealed w/ Case");
+  assert.ok(b.ok && b.item.quantity === 1);
+  assert.equal(sealedFromTitle("Pokemon Evolving Skies Booster Box Case").ok, false);
+  assert.equal(sealedFromTitle("Pokémon TCG Sealed Elite Trainer Box Lot - Evolving Skies + More").ok, false);
+});
