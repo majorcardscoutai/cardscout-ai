@@ -15,7 +15,8 @@ import { localGuide } from "./guide";
 export const REFRESH_MATCHED_MS = 24 * 3_600_000;
 export const RETRY_UNMATCHED_MS = 7 * 86_400_000;
 /** Matching rules last improved — unmatched results saved before this are retried once. */
-export const MATCHER_UPDATED_AT = Date.parse("2026-10-20T00:00:00Z");
+/** 27 Oct 2026: gallery numbers (GG54/GG70) and leading zeros (015 = 15) — unmatched lookups are retried. */
+export const MATCHER_UPDATED_AT = Date.parse("2026-10-27T00:00:00Z");
 /** Variation / stamped rule (23 Oct 2026): every saved guide match from before it is looked up again, matched ones too. */
 export const REMATCH_ALL_AT = Date.parse("2026-10-23T03:00:00Z");
 /** Parallels must now match exactly ("Refractor" ≠ "Gold Refractor"): parallel values saved before this are redone. */

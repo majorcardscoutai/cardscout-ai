@@ -407,5 +407,8 @@ Changes made:
 - [x] APP_URL fallbacks use https://www.cardhawkai.com. GitHub workflows deliberately stay on https://cardscout-ai.vercel.app (always works, independent of custom-domain DNS).
 - [x] Vercel APP_URL = https://www.cardhawkai.com; Supabase Site URL + redirect https://www.cardhawkai.com/auth/reset (old one kept). GoDaddy DNS: www CNAME → Vercel, A @ 216.198.79.1 (apex 308 → www).
 - [x] Resend domain (Tokyo) set up via auto-configure; ALERT_FROM = CardHawk AI <alerts@cardhawkai.com>; Supabase custom SMTP via Resend (no-reply@cardhawkai.com) — password-reset email tested OK 27 Oct.
-- [ ] Inbox/forwarding for hello@cardhawkai.com → LEGAL_EMAIL. EPN website property updated.
+- [x] ImprovMX (free) catch-all *@cardhawkai.com → majorcardscoutai@gmail.com (GoDaddy MX mx1/mx2 + SPF); LEGAL_EMAIL = hello@cardhawkai.com — tested 27 Oct. Receive-only (replying as hello@ needs a paid option).
+- [x] EPN: EBAY_CAMPAIGN_ID set in Vercel (Config); Admin → Services shows Connected (27 Oct).
 - [x] EPN code: EBAY_CAMPAIGN_ID (10 digits, Vercel Config var) → Browse API X-EBAY-C-ENDUSERCTX affiliateCampaignId → links use itemAffiliateWebUrl (fallback itemWebUrl). Admin → Services shows status. Deals found before it's set keep plain links.
+- [x] Pokémon matching (27 Oct): gallery/subset numbers read from titles (GG54/GG70, TG17/TG30, SV107/SV122); leading zeros ignored (015/172 = #15). MATCHER_UPDATED_AT bumped so unmatched lookups retry.
+- [ ] Idea: Japanese set names (e.g. S12a VSTAR Universe → "Pokemon Japanese VSTAR Universe"); Black Star promos. Chinese sets: guide coverage thin — leave unvalued.

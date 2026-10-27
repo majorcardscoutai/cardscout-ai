@@ -47,9 +47,10 @@ const norm = (s: string | null | undefined) =>
     .trim();
 const tokens = (s: string | null | undefined) => norm(s).split(" ").filter(Boolean);
 
-/** Card number as the guide writes it: "#US1" → "us1"; Pokémon "199/165" → "199". */
+/** Card number as the guide writes it: "#US1" → "us1"; Pokémon "199/165" → "199", "GG54/GG70" → "gg54". */
 export function normNumber(n: string | null | undefined): string {
-  return norm((n ?? "").replace(/^#/, "").split("/")[0]).replace(/[^a-z0-9]/g, "");
+  // Leading zeros don't matter: "015/172" = "#15", "GG05" = "GG5".
+  return norm((n ?? "").replace(/^#/, "").split("/")[0]).replace(/[^a-z0-9]/g, "").replace(/(^|[a-z])0+(?=\d)/g, "$1");
 }
 
 const SET_STOPWORDS = new Set(["baseball", "basketball", "football", "cards", "card", "pokemon", "tcg", "the", "and", "of", "panini"]);

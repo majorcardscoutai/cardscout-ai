@@ -287,7 +287,8 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
       title.match(/#\s*([A-Z]{0,6}-?\d+(?:-\d+)?[A-Z]?)\b/i) ??
       title.match(/\bNo\.?\s*(\d{1,4}[A-Z]?)\b/i) ??
       (sport === "Pokemon"
-        ? title.match(/\b(\d{1,3}\/\d{2,3})\b/)
+        ? // "015/172", and gallery/subset numbers like "GG54/GG70", "TG17/TG30", "SV107/SV122".
+          title.match(/\b((?:GG|TG|SV|RC|SH)?\d{1,3}\/(?:GG|TG|SV|RC|SH)?\d{2,3})\b/i)
         : title.match(/\b(?!(?:PSA|BGS|SGC|CGC|GEM|MT|NM|RC|SP|SSP|HOF|MVP|POP|LOT|QTY|GMA|HGA|TAG|KSA)-?\d)(?!(?:T2\d\d|E\d{2,3})\b)([A-Z]{1,4}-?\d{1,4}[A-Z]?)\b/));
     if (m) set("cardNumber", m[1].toUpperCase(), "title");
   }

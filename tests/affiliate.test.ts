@@ -21,3 +21,17 @@ test("tracked link is preferred, plain link is the fallback", () => {
   assert.equal(mapItem(base).url, "https://www.ebay.com/itm/123");
   assert.equal(mapItem({ ...base, itemAffiliateWebUrl: "https://www.ebay.com/itm/123?mkcid=1&campid=5339123456" }).url, "https://www.ebay.com/itm/123?mkcid=1&campid=5339123456");
 });
+
+import { cardFromListing } from "../src/lib/ebay/parse";
+import { normNumber } from "../src/lib/provider";
+
+test("Pokémon gallery numbers and leading zeros", () => {
+  const z = cardFromListing("Pokemon Zamazenta v Full Art GG54/GG70 Crown Zenith Galarian Gallery PSA 10", [], { sport: "Pokemon" });
+  assert.equal(z.card.cardNumber, "GG54/GG70");
+  assert.equal(normNumber(z.card.cardNumber), normNumber("#GG54"));
+  assert.equal(cardFromListing("Pikachu VMAX TG17/TG30 Lost Origin PSA 9", [], { sport: "Pokemon" }).card.cardNumber, "TG17/TG30");
+  assert.equal(normNumber("015/172"), normNumber("#15"));
+  assert.equal(normNumber("GG05"), "gg5");
+  assert.notEqual(normNumber("150"), normNumber("15"));
+  assert.notEqual(normNumber("105"), normNumber("15"));
+});
