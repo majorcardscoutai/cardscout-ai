@@ -143,7 +143,7 @@ export function CurrencyPicker({
           ? { value, onChange: (e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value as "USD" | "AUD") }
           : { defaultValue })}
       >
-        <option value="AUD">AUD (A$)</option>
+        <option value="AUD">AUD</option>
         <option value="USD">USD (US$)</option>
       </select>
     </Field>

@@ -478,3 +478,4 @@ Changes made:
 - Bands: 80+ Strong deal (green) · 65–79 Worth a look (blue) · 50–64 Marginal (amber) · <50 Weak.
 - components/DealScore.tsx: round badge next to the prices; click/tap opens the breakdown (<details>, works without JS): bars per category, caps explained. Shown on Overview "Best live deals", Top Deals and Profit Hunter (DealRow). Computed in pickDeals. The old demo-era lib/scoring.ts (Analyse) is unchanged.
 - 134 unit tests + e2e scenario 30.
+- [x] Currency label (28 Oct): Australian amounts now read "AUD $1,234" instead of "A$1,234" everywhere (formatMoney, Analyse, Hunter budget, eBay AU options, Settings text, alert emails/push via moneyPair). US$ unchanged.

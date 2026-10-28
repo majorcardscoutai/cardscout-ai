@@ -29,7 +29,7 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
   const v = await hunterView();
   const { config } = v;
   const fx = displayFx(v.settings);
-  const cur = config.market === "EBAY_AU" ? "A$" : "US$";
+  const cur = config.market === "EBAY_AU" ? "AUD $" : "US$";
   const needsSql = v.configError !== null && /hunter_config|relation|does not exist/i.test(v.configError);
   const lastRun = v.searches
     .map((s) => s.lastRunAt)
@@ -177,7 +177,7 @@ export default async function ProfitHunterPage({ searchParams }: { searchParams:
             <Field label="eBay site">
               <select name="market" defaultValue={config.market} className={inputCls}>
                 <option value="EBAY_US">eBay US (US$)</option>
-                <option value="EBAY_AU">eBay AU (A$)</option>
+                <option value="EBAY_AU">eBay AU (AUD)</option>
               </select>
             </Field>
             <Field label={`Budget — max per card (${cur})`}>

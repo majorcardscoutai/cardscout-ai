@@ -63,7 +63,7 @@ export default function ManualAnalysis({ settings, prefill }: { settings: Settin
   const offer = ready ? recommendedOpeningOffer(askingUsd as number, maxPrice) : null;
   const passes =
     result !== null && result.roiPercent >= settings.minRoiPercent && result.netProfitUsd >= settings.minProfitUsd;
-  const sym = currency === "AUD" ? "A$" : "US$";
+  const sym = currency === "AUD" ? "AUD $" : "US$";
 
   return (
     <form action={addWatchlistAction} className="space-y-6">

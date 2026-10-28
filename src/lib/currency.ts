@@ -26,9 +26,9 @@ function formatNumber(value: number, decimals: number): string {
   });
 }
 
-/** "US$1,234" style formatting. Whole dollars unless the value is small. */
+/** "US$1,234" / "AUD $1,234" style formatting. Whole dollars unless the value is small. */
 export function formatMoney(value: number, currency: "USD" | "AUD"): string {
-  const prefix = currency === "USD" ? "US$" : "A$";
+  const prefix = currency === "USD" ? "US$" : "AUD $";
   const decimals = Math.abs(value) < 100 ? 2 : 0;
   const sign = value < 0 ? "-" : "";
   return `${sign}${prefix}${formatNumber(value, decimals)}`;
@@ -46,7 +46,7 @@ export function moneyPair(usd: number, fx: number): { main: string; sub: string 
   return fx > 0 ? { main: formatMoney(usd * fx, "AUD"), sub: formatMoney(usd, "USD") } : { main: formatMoney(usd, "USD"), sub: null };
 }
 
-/** "A$1,200 · US$800" (Australia) or "US$800". */
+/** "AUD $1,200 · US$800" (Australia) or "US$800". */
 export function moneyText(usd: number, fx: number): string {
   const p = moneyPair(usd, fx);
   return p.sub ? `${p.main} · ${p.sub}` : p.main;

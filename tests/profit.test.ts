@@ -82,6 +82,6 @@ test("currency conversion and formatting", () => {
   assert.throws(() => usdToAud(100, 0));
   assert.equal(roundMoney(0.1 + 0.2), 0.3);
   assert.equal(formatMoney(1234.5, "USD"), "US$1,235");
-  assert.equal(formatMoney(12.5, "AUD"), "A$12.50");
+  assert.equal(formatMoney(12.5, "AUD"), "AUD $12.50");
   assert.equal(formatMoney(-40, "USD"), "-US$40.00");
 });

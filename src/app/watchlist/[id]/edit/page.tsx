@@ -27,7 +27,7 @@ export default async function EditWatchlistPage({
       <Link href="/watchlist" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
         <IconArrowLeft className="h-4 w-4" /> Watchlist
       </Link>
-      <PageHeader title="Edit watchlist card" subtitle="Prices are shown in US$, the currency they're stored in. You can switch to A$ before saving." />
+      <PageHeader title="Edit watchlist card" subtitle="Prices are shown in US$, the currency they're stored in. You can switch to AUD before saving." />
       <Flash error={error} />
       <DbError error={dbError} />
 

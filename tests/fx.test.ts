@@ -33,9 +33,9 @@ test("liveUsdToAud falls back to null on failure, caches success", async () => {
 
 test("Australian buyers see A$ first, US$ underneath; others US$ only", async () => {
   const { moneyPair, moneyText } = await import("../src/lib/currency.js");
-  assert.deepEqual(moneyPair(5850, 1.425), { main: "A$8,336", sub: "US$5,850" });
-  assert.deepEqual(moneyPair(41.99, 1.425), { main: "A$59.84", sub: "US$41.99" });
+  assert.deepEqual(moneyPair(5850, 1.425), { main: "AUD $8,336", sub: "US$5,850" });
+  assert.deepEqual(moneyPair(41.99, 1.425), { main: "AUD $59.84", sub: "US$41.99" });
   assert.deepEqual(moneyPair(5850, 0), { main: "US$5,850", sub: null });
-  assert.equal(moneyText(100, 1.5), "A$150 · US$100");
+  assert.equal(moneyText(100, 1.5), "AUD $150 · US$100");
   assert.equal(moneyText(100, 0), "US$100");
 });

@@ -103,7 +103,7 @@ export default async function ManualScannerPage({
       slab = { cert, result: cert && suggestion.card.grader === "PSA" && psaConfigured() ? await checkPsaCert(cert) : null };
       const askingUsd = toUsd(listing.price, fx);
       if (listing.price && askingUsd === null) {
-        listingError = `This listing is priced in ${listing.price.currency}. Only US$ and A$ listings are supported for now.`;
+        listingError = `This listing is priced in ${listing.price.currency}. Only US$ and AUD listings are supported for now.`;
       }
       prefill = {
         card: suggestion.card,

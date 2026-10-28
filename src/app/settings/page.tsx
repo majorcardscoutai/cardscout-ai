@@ -51,7 +51,7 @@ export default async function SettingsPage({
           <fieldset className="rounded-lg border border-line p-4">
             <legend className="px-1 text-sm font-medium">Where you buy from</legend>
             <p className="mb-3 text-xs text-faint">
-              Sets where eBay quotes shipping to, what the tax line means, and whether amounts also show in A$.
+              Sets where eBay quotes shipping to, what the tax line means, and whether amounts also show in AUD.
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               {(["AU", "US", "OTHER"] as const).map((r) => (
@@ -60,7 +60,7 @@ export default async function SettingsPage({
                   <span>
                     <span className="block text-sm">{REGION_LABELS[r]}</span>
                     <span className="block text-xs text-faint">
-                      {r === "AU" ? "A$ (US$ underneath) · import GST" : r === "US" ? "US$ · sales tax" : "US$ · import tax / VAT"}
+                      {r === "AU" ? "AUD (US$ underneath) · import GST" : r === "US" ? "US$ · sales tax" : "US$ · import tax / VAT"}
                     </span>
                   </span>
                 </label>

@@ -216,7 +216,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
           <Field label="eBay site">
             <select name="market" defaultValue={search?.market ?? "EBAY_US"} className={inputCls}>
               <option value="EBAY_US">eBay US (US$)</option>
-              <option value="EBAY_AU">eBay AU (A$)</option>
+              <option value="EBAY_AU">eBay AU (AUD)</option>
             </select>
           </Field>
           <Field label="Category">
@@ -387,7 +387,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
                     </div>
                     <div className="text-xs text-faint">
                       “{s.query}” · {s.market === "EBAY_AU" ? "eBay AU" : "eBay US"}{s.category === "pokemonSealed" ? " · Pokémon sealed" : s.category === "sportsSealed" ? " · Sports sealed" : ""} · {FORMAT_LABEL[s.format]}{s.grading && s.grading !== "any" && !s.category.endsWith("Sealed") ? ` · ${GRADING_LABEL[s.grading]}` : ""}
-                      {s.maxPrice ? ` · ≤ ${s.market === "EBAY_AU" ? "A$" : "US$"}${s.maxPrice}` : ""}
+                      {s.maxPrice ? ` · ≤ ${s.market === "EBAY_AU" ? "AUD $" : "US$"}${s.maxPrice}` : ""}
                     </div>
                     <form action={updateSavedSearchExcludeAction} className="mt-1.5 flex items-center gap-2">
                       <input type="hidden" name="id" value={s.id} />
