@@ -20,6 +20,8 @@ export interface CardIdentity {
   isRookie: boolean;
   grader: Grader;
   grade: number | null; // null for raw cards
+  /** Non-English Pokémon card ("Japanese", "German"…) — CardHawk only prices English cards for now. */
+  language?: string | null;
 }
 
 /** A listing that is currently for sale (asking price, NOT market value). */

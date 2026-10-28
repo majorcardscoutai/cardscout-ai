@@ -129,3 +129,23 @@ test("title and eBay item specifics disagree on the grade → no grade", () => {
   const ok = cardFromListing("2002 POKEMON LEGENDARY COLLECTION #11 GENGAR-REVERSE FOIL PSA 6", [{ name: "Professional Grader", value: "PSA" }, { name: "Grade", value: "6" }]);
   assert.equal(ok.card.grade, 6);
 });
+
+import { cardLanguageInTitle } from "../src/lib/ebay/parse";
+import { cardKey } from "../src/lib/cardKey";
+import { usableValue } from "../src/lib/scan";
+test("non-English Pokémon cards are never matched to English prices", () => {
+  const g = cardFromListing("Pokemon Altaria Holo Deoxys 1/107 German PSA 10 Gem Mint");
+  assert.equal(g.card.language, "German");
+  assert.equal(cardKey(g.card), null);
+  assert.ok(g.missing.some((m) => /German card/.test(m)));
+  assert.equal(cardLanguageInTitle("Charizard ex 151 Japanese SAR PSA 10"), "Japanese");
+  assert.equal(cardLanguageInTitle("Pikachu VMAX JP S8b PSA 10"), "Japanese");
+  assert.equal(cardLanguageInTitle("Charizard Base Set English PSA 9"), null);
+  assert.equal(cardLanguageInTitle("Charizard Base Set 4/102 PSA 9"), null);
+  // English titles are unaffected
+  assert.ok(cardKey(cardFromListing("Pokemon Card Charizard 4/102 Base Set 1999 Holo PSA 5").card));
+  // a value saved earlier for the English card is dropped for a German listing
+  assert.equal(usableValue({ source: "pricecharting" as const }, "Pokemon Altaria Holo Deoxys 1/107 German PSA 10", "k"), null);
+  // sports titles with "JP" (e.g. a player's initials) aren't affected
+  assert.equal(cardFromListing("2017 Topps Update JP Crawford #US1 PSA 10").card.language, undefined);
+});

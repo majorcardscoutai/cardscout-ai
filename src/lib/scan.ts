@@ -3,7 +3,7 @@
  * No network or database calls — those live in src/data/scanner.ts.
  */
 import { cardKey } from "./cardKey";
-import { cardFromListing, qualifiedGradeInTitle, variationInTitle } from "./ebay/parse";
+import { cardFromListing, cardLanguageInTitle, qualifiedGradeInTitle, variationInTitle } from "./ebay/parse";
 import { toUsd, type EbayListing } from "./ebay/client";
 import { calculateProfit, maxPurchasePrice } from "./profit";
 import { sealedFromTitle, sealedKey } from "./sealed";
@@ -189,6 +189,7 @@ export function mixedGradeLabel(v: Pick<CardValue, "source" | "graderSpecific"> 
 export function usableValue<V extends Pick<CardValue, "source">>(v: V | null, title: string, key: string | null): V | null {
   if (!v || (v.source ?? "you") === "you") return v;
   if (qualifiedGradeInTitle(title)) return null;
+  if (/pok[eé]mon/i.test(title) && cardLanguageInTitle(title)) return null; // e.g. a German card matched to the English one
   if (variationInTitle(title) && !(key ?? "").split("|").at(7)) return null;
   return v;
 }

@@ -36,6 +36,8 @@ export function cardKey(card: Partial<CardIdentity>): string | null {
   const { sport, player, year, set, cardNumber, grader } = card;
   // Pokémon titles often skip the year, and the price guide identifies Pokémon cards by set + number.
   if (!sport || !player || (!year && sport !== "Pokemon") || !set || !cardNumber || !grader) return null;
+  // Non-English cards are different products with different prices — never matched to English ones.
+  if (card.language) return null;
   if (grader !== "RAW" && (card.grade === undefined || card.grade === null)) return null;
   return [
     sport.toLowerCase(),

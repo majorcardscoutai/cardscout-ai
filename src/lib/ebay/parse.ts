@@ -258,6 +258,25 @@ export function offCentreInTitle(title: string): boolean {
   return /(?<![A-Za-z0-9])\(?oc\)?(?![A-Za-z0-9])/i.test(title) || /\boff[- ]?cent(?:er|re)(?:e?d)?\b/i.test(title);
 }
 
+const CARD_LANGUAGES: [RegExp, string][] = [
+  [/\b(japanese|japan|jpn|jp|jap)\b/i, "Japanese"],
+  [/\b(korean|kor)\b/i, "Korean"],
+  [/\b(chinese|s-chinese|t-chinese|simplified chinese|traditional chinese)\b/i, "Chinese"],
+  [/\b(german|deutsch|deutsche)\b/i, "German"],
+  [/\b(french|fran[cç]ais|francaise)\b/i, "French"],
+  [/\b(italian|italiano|italiana)\b/i, "Italian"],
+  [/\b(spanish|espa[nñ]ol|espanola)\b/i, "Spanish"],
+  [/\b(portuguese|portugu[eê]s)\b/i, "Portuguese"],
+  [/\b(dutch|nederlands)\b/i, "Dutch"],
+  [/\b(thai|indonesian|russian|polish)\b/i, "Other language"],
+];
+
+/** The language a Pokémon card's title names, if it isn't English ("German", "Japanese"…). */
+export function cardLanguageInTitle(title: string): string | null {
+  if (/\benglish\b/i.test(title) && !/\bnot english\b/i.test(title)) return null;
+  return CARD_LANGUAGES.find(([re]) => re.test(title))?.[1] ?? null;
+}
+
 export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { sport?: Sport } = {}): CardSuggestion {
   const card: Partial<CardIdentity> = {};
   const sources: CardSuggestion["sources"] = {};
@@ -401,6 +420,12 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
     if (g) set("player", g, "title");
   }
 
+  // Non-English Pokémon cards (Japanese, German…) are priced differently — no English guide price.
+  if (card.sport === "Pokemon") {
+    const lang = cardLanguageInTitle(title) ?? (aspect(aspects, "Language") && !/^english$/i.test(aspect(aspects, "Language")!.trim()) ? aspect(aspects, "Language") : null);
+    if (lang) set("language", lang, "title");
+  }
+
   // Variations and stamped cards are different cards with the same number.
   const variation = variationInTitle(title);
   if (variation) set("variation", variation, "title");
@@ -418,6 +443,7 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
     ["grader", "grading company"],
   ];
   const missing = required.filter(([k]) => card[k] === undefined && !(k === "year" && card.sport === "Pokemon")).map(([, label]) => label);
+  if (card.language) missing.push(`${card.language} card — CardHawk only prices English cards for now`);
   if (card.grader && card.grader !== "RAW" && card.grade === undefined)
     missing.push(gradeConflict ? `grade (${gradeConflict})` : qualified ? "qualified grade (OC, ST…) — no guide price" : "grade");
 
