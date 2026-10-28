@@ -444,3 +444,31 @@ Changes made:
 - [x] eBay logo (28 Oct): official EPN Creative Gallery tile (blue/mint), scaled to 128px, public/media/ebay-logo.png, shown 32px in the signed-in footer linking to ebay.com. EBAY_FIXED_PRICE_ONLY=1 set in Vercel (Travis, 28 Oct). Next: new Application Growth Check submission.
 - [x] Application Growth Check re-submitted 28 Oct 2026: Browse API, Increase My Call Limit, EPN member (Publisher ID 8045484), App URL cardhawkai.com. Requested 40,000 calls/day (search 15,000/day peak 1,000/hr; getItem 25,000/day peak 2,000/hr); current ~1,450/day. Follow up ~4 Nov if no reply. EPN W-8BEN submitted via impact.com 28 Oct (individual, Australia, treaty claimed, no US services).
 - [x] Non-English Pokémon cards (28 Oct): "Altaria Deoxys 1/107 German PSA 10" got the English card's US$6,825 (via the set-name fallback). Titles naming Japanese/JP, Korean, Chinese, German, French, Italian, Spanish, Portuguese, Dutch… (or eBay "Language" ≠ English) now set card.language → no card key, no lookup, "German card — CardHawk only prices English cards for now"; usableValue drops saved values on such titles. Sports titles unaffected (e.g. "JP Crawford"). Later: Japanese sets matched to PriceCharting's Japanese consoles.
+
+## LATER PHASES — growth & marketing notes (agreed 28 Oct 2026)
+
+### Pricing (draft)
+- Standard: Hobby A$14.99 · Collector A$29.99 · Pro A$89 per month, prices INCLUDE GST. Profit Hunter = Pro only.
+  - Hobby: 3 saved searches every 3 h; live search with values; profit after fees/GST; Analyse; email alerts; watchlist + portfolio.
+  - Collector: 6 searches hourly; + phone alerts, PSA/BGS-only filters, recent sales links, own card values.
+  - Pro: 10 searches every 30 min; + Profit Hunter (every 10 min), sales-per-year filter, priority alerts, early access.
+- Idea: "Founding member" pricing A$9.99 / A$19.99 / A$49.99 locked for life for the first 50–100 members; annual plans (2 months free).
+- Design options: Claude Design canvas "CardHawk AI pricing tiers" (Option A updated to the standard prices).
+
+### CAC targets (customer acquisition cost)
+- Blended avg revenue ≈ A$29.84/member/month (60/25/15 mix), ≈ A$25 profit. Assumed 5% monthly churn → ~20-month life → LTV ≈ A$500 profit.
+- A$150–170 per paying member = CEILING (3:1 LTV:CAC; ~6-month payback), not the target. At 10% monthly churn the ceiling halves to ~A$85.
+- By plan (LTV at 20 months → max CAC at 3:1): Hobby ~A$240 → ≤A$80 · Collector ~A$500 → ≤A$165 · Pro ~A$1,500 → ≤A$500.
+- Launch target: blended < A$80–100 per paying member while real churn is learned; spend more on channels that bring Pro members (A$200–300 OK).
+- Spend by stage: beta A$200–500/month testing · 100–300 members 20–30% of revenue · 500+ 15–25% of revenue.
+- Track from day one: sign-up source (referral codes / links), trial→paid conversion, monthly churn, cost per paying member per channel. Recalculate after 2–3 months of real data.
+- Channels: Instagram/TikTok deal clips; YouTube/podcast creators paid per sign-up (referral code); card communities (Facebook, Reddit, Discord, card shows); paid ads only once conversion is known (start A$10–20/day).
+
+### Referral programme (to build)
+- Each member gets a referral code/link; a friend who becomes a paying member → the referrer gets a free month (amount TBC; possibly the friend gets a discount too).
+- Creators/influencers get their own codes, paid per paying sign-up.
+- Admin: referrals per member/code, paid conversions, credits given.
+
+### New-member card giveaway (to design)
+- In their first month, new paying members get entries into a card giveaway by tier (amounts TBC, e.g. Hobby 1 · Collector 3 · Pro 10). Prize card(s) TBC.
+- Before running it: Australian trade-promotion rules — written terms & conditions; check permit requirements for games of chance by state (e.g. ACT and SA can require permits depending on prize value); consider a free entry method. Get the lawyer to check alongside the Terms review.
