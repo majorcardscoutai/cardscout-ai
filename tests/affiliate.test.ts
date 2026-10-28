@@ -149,3 +149,25 @@ test("non-English Pokémon cards are never matched to English prices", () => {
   // sports titles with "JP" (e.g. a player's initials) aren't affected
   assert.equal(cardFromListing("2017 Topps Update JP Crawford #US1 PSA 10").card.language, undefined);
 });
+
+import { scoreLiveDeal } from "../src/lib/live-score";
+test("deal score out of 100 with its breakdown, capped when evidence is thin", () => {
+  const now = Date.parse("2026-10-28T05:00:00Z");
+  const base = { title: "2018 Topps Update Shohei Ohtani #US1 PSA 10", priceUsd: 300, valueUsd: 500, roiPercent: 45, netProfitUsd: 120, isAuction: false, salesVolume: 1446, valueSource: "sportscardspro", checkedAt: "2026-10-28T04:30:00Z" };
+  const s = scoreLiveDeal(base, now)!;
+  assert.equal(s.factors.reduce((a, f) => a + f.max, 0), 100);
+  assert.equal(s.factors.length, 6);
+  assert.ok(s.total >= 80 && s.total <= 100, String(s.total));
+  assert.deepEqual(s.caps, []);
+  // thin evidence holds it down
+  assert.ok(scoreLiveDeal({ ...base, salesVolume: 2 }, now)!.total <= 75);
+  assert.ok(scoreLiveDeal({ ...base, salesVolume: null }, now)!.total <= 70);
+  assert.ok(scoreLiveDeal({ ...base, mixedGrade: "BGS 9" }, now)!.total <= 60);
+  assert.ok(scoreLiveDeal({ ...base, title: base.title + " OC" }, now)!.total <= 60);
+  assert.match(scoreLiveDeal({ ...base, salesVolume: null }, now)!.caps[0], /capped at 70/);
+  // auctions and stale details lose risk points
+  const risky = scoreLiveDeal({ ...base, isAuction: true, checkedAt: "2026-10-27T20:00:00Z" }, now)!;
+  assert.equal(risky.factors.find((f) => f.label === "Listing risk")!.points, 5);
+  // no value → no score
+  assert.equal(scoreLiveDeal({ ...base, valueUsd: null }, now), null);
+});

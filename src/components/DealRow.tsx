@@ -1,3 +1,4 @@
+import { DealScore } from "@/components/DealScore";
 import { GradePriceWarning } from "@/components/GradePriceWarning";
 import { OffCentreWarning } from "@/components/OffCentreWarning";
 import Link from "next/link";
@@ -69,6 +70,7 @@ export function DealRow({ d, fx, rank, returnTo = "/deals" }: { d: DealHit; fx: 
         <div>
           <div className="text-[10px] uppercase tracking-wide text-faint">ROI</div>
           <div className="text-sm"><Pct value={d.roiPercent} /></div>
+          {d.score && <div className="mt-1.5"><DealScore score={d.score} /></div>}
           <Link href={`/analyse?item=${d.itemId}`} className="mt-1 block text-xs text-accent hover:underline">
             Analyse →
           </Link>

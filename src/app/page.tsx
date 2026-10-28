@@ -10,6 +10,7 @@ import { providerConfigured } from "@/lib/provider-client";
 import { listHoldings, listWatchlist, loadSettings } from "@/data/source";
 import { displayFx, REGION_LABELS } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
+import { DealScore } from "@/components/DealScore";
 import SetupGuide, { setupGuideData } from "@/components/SetupGuide";
 import { psaConfigured } from "@/lib/psa";
 
@@ -99,6 +100,7 @@ export default async function OverviewPage({ searchParams }: { searchParams?: Pr
                     <Money usd={d.priceUsd} fx={fx} size="sm" align="right" />
                     <div className="mt-0.5"><Money usd={d.netProfitUsd} fx={fx} size="sm" tone="auto" align="right" /></div>
                   </div>
+                  <DealScore score={d.score} />
                 </li>
               ))}
             </ul>

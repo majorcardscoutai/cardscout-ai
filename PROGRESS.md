@@ -472,3 +472,9 @@ Changes made:
 ### New-member card giveaway (to design)
 - In their first month, new paying members get entries into a card giveaway by tier (amounts TBC, e.g. Hobby 1 · Collector 3 · Pro 10). Prize card(s) TBC.
 - Before running it: Australian trade-promotion rules — written terms & conditions; check permit requirements for games of chance by state (e.g. ACT and SA can require permits depending on prize value); consider a free entry method. Get the lawyer to check alongside the Terms review.
+
+## Deal score out of 100 (28 Oct 2026)
+- src/lib/live-score.ts scoreLiveDeal: Discount to market 25 (40%+ below = full) · Profit margin 20 (ROI 60%+) · Profit size 15 (US$150+ net) · Sales evidence 15 (guide sales/yr, weekly+ = full; own value 8) · Value confidence 15 (exact guide match 15, own value 10, any-company grade price 5) · Listing risk 10 (−3 auction, −4 OC, −2 eBay details >3 h old). Caps: no sales data 70 · <6 sales/yr 75 · BGS/CGC/SGC any-company grade price 60 · OC 60. No value → no score.
+- Bands: 80+ Strong deal (green) · 65–79 Worth a look (blue) · 50–64 Marginal (amber) · <50 Weak.
+- components/DealScore.tsx: round badge next to the prices; click/tap opens the breakdown (<details>, works without JS): bars per category, caps explained. Shown on Overview "Best live deals", Top Deals and Profit Hunter (DealRow). Computed in pickDeals. The old demo-era lib/scoring.ts (Analyse) is unchanged.
+- 134 unit tests + e2e scenario 30.

@@ -8,6 +8,7 @@ import { excludedBy, parseExcludeWords } from "./exclude";
 import { isFresh } from "./freshness";
 import { auctionEnded, auctionTooEarly, revalueHit, type ScanHit, mixedGradeLabel } from "./scan";
 import type { Settings } from "./types";
+import { scoreLiveDeal, type LiveScore } from "./live-score";
 
 /** A saved scan result (same shape as the database row type). */
 export type StoredHit = ScanHit & { id: string; createdAt: string; searchId: string; alerted: boolean; checkedAt?: string | null; status?: string | null };
@@ -19,7 +20,7 @@ export interface PickedDeals {
   valuedCount: number;
 }
 
-export type DealHit = StoredHit & { searchName: string; discountPercent: number | null; /** e.g. "BGS 9" when the value is the any-company grade price (usually too high). */ mixedGrade?: string | null; /** Price guide sales per year (null = unknown / your own value). */ salesVolume?: number | null };
+export type DealHit = StoredHit & { searchName: string; discountPercent: number | null; /** e.g. "BGS 9" when the value is the any-company grade price (usually too high). */ mixedGrade?: string | null; /** Deal score out of 100 with its breakdown (null = no value to score). */ score?: LiveScore | null; /** Price guide sales per year (null = unknown / your own value). */ salesVolume?: number | null };
 
 export type DealSort = "profit" | "roi" | "newest" | "price";
 
@@ -62,6 +63,8 @@ export function pickDeals(
       salesVolume: v && v.source && v.source !== "you" ? v.salesVolume ?? null : null,
       mixedGrade: h.valueUsd !== null ? mixedGradeLabel(v, h.cardKey) : null,
     });
+    const last = rows[rows.length - 1];
+    last.score = scoreLiveDeal({ ...last, valueSource: last.valueSource ?? null, salesVolume: v && v.source && v.source !== "you" ? v.salesVolume ?? null : null }, now);
   }
   const valued = rows.filter((r) => r.valueUsd !== null);
   return {
