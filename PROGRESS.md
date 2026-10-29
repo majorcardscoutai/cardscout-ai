@@ -479,3 +479,9 @@ Changes made:
 - components/DealScore.tsx: round badge next to the prices; click/tap opens the breakdown (<details>, works without JS): bars per category, caps explained. Shown on Overview "Best live deals", Top Deals and Profit Hunter (DealRow). Computed in pickDeals. The old demo-era lib/scoring.ts (Analyse) is unchanged.
 - 134 unit tests + e2e scenario 30.
 - [x] Currency label (28 Oct): Australian amounts now read "AUD $1,234" instead of "A$1,234" everywhere (formatMoney, Analyse, Hunter budget, eBay AU options, Settings text, alert emails/push via moneyPair). US$ unchanged.
+
+### 29 Oct — Mobile tidy-up (Overview → Best live deals)
+- Phones: each deal row now stacks — larger thumbnail, title on two lines with the score beside it, tags/ROI/eBay button wrap neatly, then labelled Price and Profit side by side. Tablet/desktop unchanged.
+- Tags ("Buy It Now", "Auction") and "View on eBay ↗" never wrap mid-word anywhere in the app.
+- Page can no longer be pushed wider than the phone (main uses overflow-x: clip), which was making iOS shrink the page and misplace the header.
+- Mobile header pads itself below the iPhone clock/notch when opened from the home screen (viewport-fit=cover + safe-area padding).

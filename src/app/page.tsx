@@ -77,30 +77,45 @@ export default async function OverviewPage({ searchParams }: { searchParams?: Pr
           ) : (
             <ul className="divide-y divide-line">
               {top.map((d) => (
-                <li key={d.id} className="flex items-center gap-3 py-3 first:pt-0">
+                <li key={d.id} className="flex items-start gap-3 py-4 first:pt-0 sm:items-center sm:py-3" data-testid="best-deal-row">
                   {d.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={d.imageUrl} alt="" className="h-12 w-9 shrink-0 rounded object-cover ring-1 ring-line" />
+                    <img src={d.imageUrl} alt="" className="h-16 w-12 shrink-0 rounded object-cover ring-1 ring-line sm:h-12 sm:w-9" />
                   ) : (
-                    <div className="h-12 w-9 shrink-0 rounded bg-panel-2 ring-1 ring-line" />
+                    <div className="h-16 w-12 shrink-0 rounded bg-panel-2 ring-1 ring-line sm:h-12 sm:w-9" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="line-clamp-1 text-sm font-medium hover:text-accent">
+                    <a href={d.url} target="_blank" rel="noopener noreferrer" className="line-clamp-2 text-sm font-medium hover:text-accent sm:line-clamp-1">
                       {d.title}
                     </a>
-                    <div className="mt-1 flex items-center gap-2 text-xs">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
                       {d.isAuction ? <Tag tone="warn">Auction</Tag> : <Tag>Buy It Now</Tag>}
-                      <Pct value={d.roiPercent} />
-                      <span className="text-faint">ROI</span>
+                      <span className="inline-flex items-baseline gap-1 whitespace-nowrap">
+                        <Pct value={d.roiPercent} />
+                        <span className="text-faint">ROI</span>
+                      </span>
                       <EbayLink url={d.url} />
                       <OffCentreWarning title={d.title} />
                     </div>
+                    {/* Phones: price and profit on their own line, labelled */}
+                    <div className="mt-2.5 grid grid-cols-2 gap-3 sm:hidden">
+                      <div>
+                        <div className="text-[11px] text-faint">Price</div>
+                        <Money usd={d.priceUsd} fx={fx} size="sm" />
+                      </div>
+                      <div>
+                        <div className="text-[11px] text-faint">Profit</div>
+                        <Money usd={d.netProfitUsd} fx={fx} size="sm" tone="auto" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
+                  <div className="hidden shrink-0 text-right sm:block">
                     <Money usd={d.priceUsd} fx={fx} size="sm" align="right" />
                     <div className="mt-0.5"><Money usd={d.netProfitUsd} fx={fx} size="sm" tone="auto" align="right" /></div>
                   </div>
-                  <DealScore score={d.score} />
+                  <div className="shrink-0">
+                    <DealScore score={d.score} />
+                  </div>
                 </li>
               ))}
             </ul>

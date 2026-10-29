@@ -22,6 +22,7 @@ export const viewport: Viewport = {
   themeColor: "#080b10",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover", // lets the header pad itself clear of the iPhone clock/notch
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -33,7 +34,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
-        <main className="md:pl-60">
+        <main className="overflow-x-clip md:pl-60">
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8 lg:px-8">
             {children}
             {viewer && (

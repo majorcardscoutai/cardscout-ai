@@ -80,7 +80,7 @@ export default function Nav({ admin = false }: { admin?: boolean }) {
       </aside>
 
       {/* Mobile header + scrollable tab strip */}
-      <header className="sticky top-0 z-20 border-b border-line bg-bg/95 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-20 border-b border-line bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <Logo />
           <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-faint">

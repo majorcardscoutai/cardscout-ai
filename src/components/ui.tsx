@@ -146,7 +146,7 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
 export function Tag({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "warn" }) {
   return (
     <span
-      className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
         tone === "warn" ? "bg-warn-soft text-warn" : "bg-panel-2 text-muted ring-1 ring-line"
       }`}
     >
