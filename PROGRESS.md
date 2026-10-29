@@ -510,3 +510,6 @@ Changes made:
 ### 29 Oct — SGC 10 priced as PSA 10 (grader conflict)
 - "Shohei Ohtani 2018 Topps Chrome #150 SGC 10" showed US$1,000. Gap found: when eBay's item specifics name a grading company (e.g. PSA) but have no Grade field, the grader came from the specifics and the 10 from the title — so an SGC 10 could be priced as a PSA 10. Now any title/specifics company mismatch is a grade conflict → no value ("SGC 10 in the title, PSA in eBay's details").
 - Test in tests/ebay.test.ts (139 unit tests; e2e pass).
+
+### 29 Oct — Login / landing page layout
+- Desktop (1024px+): sign in · promo video · waitlist side by side, vertically centred (max width 1152px; video up to 82% of screen height). Phones/tablets unchanged: stacked in the same order. Terms/Privacy links span underneath.

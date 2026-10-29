@@ -17,7 +17,8 @@ export default async function LoginPage({
   return (
     // Covers the whole screen, including the sidebar. Scrolls on small phones.
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg px-4 py-10">
-      <div className="mx-auto flex min-h-full w-full max-w-sm flex-col justify-center gap-5">
+      {/* Phones/tablets: one column (sign in → video → waitlist). Desktop: the same three side by side. */}
+      <div className="mx-auto grid min-h-full w-full max-w-sm content-center gap-5 lg:max-w-6xl lg:grid-cols-3 lg:items-center lg:gap-6">
         <div className="rounded-2xl border border-line bg-panel p-6">
           <div className="mb-6 flex items-center gap-2.5">
             <HawkLogo framed className="h-12 w-12 shrink-0" />
@@ -49,7 +50,7 @@ export default async function LoginPage({
 
         <figure className="overflow-hidden rounded-2xl border border-line bg-panel">
           <video
-            className="mx-auto block max-h-[70vh] w-full object-contain"
+            className="mx-auto block max-h-[70vh] w-full object-contain lg:max-h-[82vh]"
             src="/media/cardhawk-promo.mp4"
             poster="/media/cardhawk-promo-poster.jpg"
             autoPlay
@@ -139,7 +140,7 @@ export default async function LoginPage({
             </form>
           )}
         </section>
-        <p className="text-center text-[11px] text-faint">
+        <p className="text-center text-[11px] text-faint lg:col-span-3">
           <a href="/terms" className="hover:text-accent hover:underline">Terms of Use</a> ·{" "}
           <a href="/privacy" className="hover:text-accent hover:underline">Privacy Policy</a>
         </p>
