@@ -493,3 +493,9 @@ Changes made:
 - Phone tab strip follows the same order; Top Deals and Hunter chips show their counts.
 - currentDeals() is cached per request (React cache) so Overview/Top Deals and the badges share one lookup.
 - Tests: tests/nav.test.ts (status pill, initials, badges) — 136 unit tests pass; e2e all pass.
+
+### 29 Oct — Outlier PSA 10 guide prices
+- Found via 2002 Bowman Chrome Derek Jeter #2 PSA 10: correctly matched (product 2048474), but SportsCardsPro's PSA 10 price was US$1,441 while real PSA 10 sales are ~A$67–146. Showed as a false 94-score deal.
+- New `outlierTenPrice` (src/lib/provider.ts): a 10 price (PSA/BGS/CGC/SGC) more than 5× the 9.5 price, or 8× the 9 price when there's no 9.5, is not used → "no value", with a clear reason. Normal gem premiums (≤5× a 9) still pass. If the guide has no 9/9.5 price the check can't run.
+- REMATCH_ALL_AT moved to 2026-10-29T00:30Z so every saved match is re-checked.
+- Test added in tests/provider.test.ts (137 unit tests pass; e2e all pass).

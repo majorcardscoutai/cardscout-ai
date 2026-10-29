@@ -205,12 +205,36 @@ export function inconsistentGradePrice(prices: Record<string, number>, field: st
   return null;
 }
 
+/** A 10 can't be checked against a higher grade, so it's checked against the grades just below it. */
+const TEN_FIELDS = new Set(["manual-only-price", "bgs-10-price", "condition-17-price", "condition-18-price"]);
+const TEN_LIMITS: [string, number][] = [
+  ["box-only-price", 5], // 9.5
+  ["graded-price", 8], // 9
+];
+
+/**
+ * The guide's 10 price is wildly above its 9.5 / 9 price for the same card (5× a 9.5 or 8× a 9) — usually one
+ * odd or mis-filed sale (e.g. 2002 Bowman Chrome Jeter #2: PSA 10 listed at US$1,441 while PSA 10s sell for
+ * about US$45–100). Returns the lower grade's field it was checked against, or null if it looks fine.
+ * Real gem premiums can be big, so this only catches extreme gaps; a caught card shows no value rather than a false deal.
+ */
+export function outlierTenPrice(prices: Record<string, number>, field: string): string | null {
+  if (!TEN_FIELDS.has(field)) return null;
+  const ten = prices[field];
+  if (!ten || ten <= 0) return null;
+  for (const [lower, limit] of TEN_LIMITS) {
+    const lp = prices[lower];
+    if (lp && lp > 0) return ten > lp * limit ? lower : null; // compare with the nearest grade that has a price
+  }
+  return null;
+}
+
 export function priceFor(card: Partial<CardIdentity>, p: ProviderProduct): { usd: number; field: string; graderSpecific: boolean } | null {
   const f = priceFieldFor(card);
   if (!f) return null;
   const pennies = p.prices[f.field];
   if (!pennies || pennies <= 0) return null;
-  if (inconsistentGradePrice(p.prices, f.field)) return null;
+  if (inconsistentGradePrice(p.prices, f.field) || outlierTenPrice(p.prices, f.field)) return null;
   return { usd: Math.round(pennies) / 100, ...f };
 }
 

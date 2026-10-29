@@ -3,7 +3,7 @@
  * refresh daily. Used by scans (new + recent listings), the Analyse page and the Settings test.
  */
 import { cardKey } from "@/lib/cardKey";
-import { PROVIDER_LABEL, buildQuery, inconsistentGradePrice, matchBySetInTitle, normNumber, pickProduct, priceFor, priceFieldFor, sameCardKey, siteFor, type ProviderProduct } from "@/lib/provider";
+import { PROVIDER_LABEL, buildQuery, inconsistentGradePrice, outlierTenPrice, matchBySetInTitle, normNumber, pickProduct, priceFor, priceFieldFor, sameCardKey, siteFor, type ProviderProduct } from "@/lib/provider";
 export { sameCardKey };
 import { cardFromListing, type Aspect } from "@/lib/ebay/parse";
 import { getProduct, providerConfigured, searchProducts } from "@/lib/provider-client";
@@ -18,8 +18,9 @@ export const RETRY_UNMATCHED_MS = 7 * 86_400_000;
 /** 27 Oct 2026: gallery numbers (GG54/GG70) and leading zeros (015 = 15) — unmatched lookups are retried. */
 export const MATCHER_UPDATED_AT = Date.parse("2026-10-27T04:40:00Z");
 /** Variation / stamped rule (23 Oct 2026): every saved guide match from before it is looked up again, matched ones too. */
-/** 28 Oct 2026: inconsistent guide prices (a grade priced 1.5×+ above a better grade) are no longer used — all saved matches re-checked. */
-export const REMATCH_ALL_AT = Date.parse("2026-10-27T22:30:00Z");
+/** 28 Oct 2026: inconsistent guide prices (a grade priced 1.5×+ above a better grade) are no longer used.
+ *  29 Oct 2026: a 10 priced 5×+ a 9.5 (or 8×+ a 9) is no longer used — all saved matches re-checked. */
+export const REMATCH_ALL_AT = Date.parse("2026-10-29T00:30:00Z");
 /** Parallels must now match exactly ("Refractor" ≠ "Gold Refractor"): parallel values saved before this are redone. */
 export const PARALLEL_RULE_AT = Date.parse("2026-10-16T03:00:00Z");
 
@@ -106,9 +107,15 @@ export function rowFromProduct(card: CardIdentity, key: string, product: Provide
         detail: (() => {
           const f = priceFieldFor(card);
           const bad = f ? inconsistentGradePrice(product.prices, f.field) : null;
-          return bad
-            ? `Matched ${matchedName}, but the guide's ${gradeLabel(card)} price is higher than its price for a better grade — its data for this card looks wrong, so it isn't used.`
-            : `Matched ${matchedName}, but the guide has no ${gradeLabel(card)} price for it yet.`;
+          const outlier = f ? outlierTenPrice(product.prices, f.field) : null;
+          if (bad) return `Matched ${matchedName}, but the guide's ${gradeLabel(card)} price is higher than its price for a better grade — its data for this card looks wrong, so it isn't used.`;
+          if (outlier && f) {
+            const ten = (product.prices[f.field] / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
+            const lowLabel = outlier === "box-only-price" ? "9.5" : "9";
+            const low = (product.prices[outlier] / 100).toLocaleString("en-US", { maximumFractionDigits: 0 });
+            return `Matched ${matchedName}, but the guide's ${gradeLabel(card)} price (US$${ten}) is far above its grade ${lowLabel} price (US$${low}) — likely an odd sale, so it isn't used. Add your own Card Value if you know the real price.`;
+          }
+          return `Matched ${matchedName}, but the guide has no ${gradeLabel(card)} price for it yet.`;
         })(),
       };
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildQuery, normNumber, parseApiProduct, pickProduct, priceFieldFor, priceFor, scoreProduct, siteFor, type ProviderProduct } from "../src/lib/provider.js";
+import { buildQuery, normNumber, outlierTenPrice, parseApiProduct, pickProduct, priceFieldFor, priceFor, scoreProduct, siteFor, type ProviderProduct } from "../src/lib/provider.js";
 import type { CardIdentity } from "../src/lib/types.js";
 
 const ohtani: CardIdentity = { sport: "MLB", player: "Shohei Ohtani", year: 2018, set: "Topps Update", cardNumber: "US1", parallel: null, serialNumbered: null, variation: null, isRookie: true, grader: "PSA", grade: 10 };
@@ -204,4 +204,21 @@ test("wrong Top Deals (23 Oct): variations, stamped cards, qualified grades, non
   assert.equal(dealGradeValue(any, "mlb|sandy koufax|1955|topps|123||||psa|6"), true);
   assert.equal(dealGradeValue({ source: "sportscardspro", graderSpecific: true }, "x|||||||cgc|10"), true, "grader-specific 10s count");
   assert.equal(dealGradeValue({ source: "you" }, "x|||||||bgs|9"), true);
+});
+
+test("a 10 priced wildly above the 9.5 / 9 for the same card is not used (one odd sale)", () => {
+  // 2002 Bowman Chrome Jeter #2 pattern: PSA 10 US$1,441 vs PSA 9 ~US$60.
+  const jeter = { id: "2048474", productName: "Derek Jeter #2", consoleName: "Baseball Cards 2002 Bowman Chrome", salesVolume: 30, prices: { "loose-price": 1500, "graded-price": 6000, "manual-only-price": 144100 } };
+  assert.equal(outlierTenPrice(jeter.prices, "manual-only-price"), "graded-price");
+  assert.equal(priceFor({ grader: "PSA", grade: 10 }, jeter), null);
+  assert.equal(priceFor({ grader: "PSA", grade: 9 }, jeter)?.usd, 60); // the 9 itself is still fine
+  // 9.5 present: compared with the 9.5 first (5× limit).
+  assert.equal(outlierTenPrice({ "box-only-price": 10000, "graded-price": 2000, "manual-only-price": 45000 }, "manual-only-price"), null); // 4.5× 9.5 — OK
+  assert.equal(outlierTenPrice({ "box-only-price": 10000, "manual-only-price": 60000 }, "manual-only-price"), "box-only-price");
+  // Normal gem premium is kept: PSA 10 US$400 vs PSA 9 US$80 (5×).
+  assert.equal(outlierTenPrice({ "graded-price": 8000, "manual-only-price": 40000 }, "manual-only-price"), null);
+  // Other 10s are checked too; lower grades and missing lower prices aren't.
+  assert.equal(outlierTenPrice({ "graded-price": 5000, "bgs-10-price": 90000 }, "bgs-10-price"), "graded-price");
+  assert.equal(outlierTenPrice({ "graded-price": 5000, "box-only-price": 0, "new-price": 90000 }, "new-price"), null);
+  assert.equal(outlierTenPrice({ "manual-only-price": 144100 }, "manual-only-price"), null);
 });
