@@ -35,6 +35,9 @@
     "tests/guide.test.ts",
     "tests/affiliate.test.ts",
     "tests/sealed.test.ts",
-    "tests/nav.test.ts"
+    "tests/nav.test.ts",
+    "tests/health.test.ts",
+    "tests/toogood.test.ts",
+    "tests/audit.test.ts"
   ]
 }

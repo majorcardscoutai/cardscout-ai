@@ -9,6 +9,7 @@ import { calculateProfit, maxPurchasePrice } from "./profit";
 import { sealedFromTitle, sealedKey } from "./sealed";
 import { sealedEnabled } from "./categories";
 import type { Settings, Sport } from "./types";
+import { tooGoodReason } from "./live-score";
 
 export interface CardValue {
   id: string;
@@ -142,6 +143,7 @@ export function revalueHit<T extends ScanHit>(h: T, settings: Settings, values: 
 /** Should this hit trigger an alert? Auctions only when ending within 24 hours (early bids are meaningless). */
 export function shouldAlert(h: ScanHit, now = new Date()): boolean {
   if (!h.meetsCriteria) return false;
+  if (tooGoodReason({ valueSource: h.valueSource ?? null, valueUsd: h.valueUsd, priceUsd: h.priceUsd, roiPercent: h.roiPercent })) return false;
   if (!h.isAuction) return true;
   if (!h.endsAt) return false;
   const hoursLeft = (new Date(h.endsAt).getTime() - now.getTime()) / 3_600_000;

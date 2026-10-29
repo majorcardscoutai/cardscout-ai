@@ -4,6 +4,7 @@ import { DbError, Field, Flash, inputCls, SubmitButton } from "@/components/Form
 import { PageHeader, Panel, Tag } from "@/components/ui";
 import { listAccounts, listUsage, listWaitlist } from "@/data/db";
 import { currentViewer } from "@/data/session";
+import { systemHealth } from "@/data/health";
 import { affiliateCampaignId, ebayConfigured, fixedPriceOnly } from "@/lib/ebay/client";
 import { emailConfigured } from "@/lib/email";
 import { WAITLIST_GOALS } from "@/lib/forms";
@@ -23,7 +24,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const viewer = await currentViewer();
   if (!viewer?.admin) notFound();
   const { saved, error } = await searchParams;
-  const [accounts, waitlist, usage] = await Promise.all([listAccounts(), listWaitlist(), listUsage(7)]);
+  const [accounts, waitlist, usage, health] = await Promise.all([listAccounts(), listWaitlist(), listUsage(7), systemHealth()]);
 
   const emailOf = new Map(accounts.data.map((a) => [a.userId, a.email]));
   const scopeLabel = (s: string) => (s === "shared" ? "Shared Hunter search" : s === "app" ? "Pages (Analyse, live search)" : (emailOf.get(s) ?? `Account ${s.slice(0, 8)}`));
@@ -38,6 +39,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     ["Terms & Privacy details", legalDetails().missing.length === 0, legalDetails().missing.join(" + ")],
     ["eBay Partner Network (commission on eBay links)", affiliateCampaignId() !== null, "EBAY_CAMPAIGN_ID (10-digit Campaign ID)"],
     ["eBay: fixed-price listings only (Buy API requirement)", fixedPriceOnly(), "EBAY_FIXED_PRICE_ONLY=1 when you're ready"],
+    ["Outside health monitor", !!process.env.HEALTH_KEY, "HEALTH_KEY, then point UptimeRobot at /api/cron/health?key=…"],
   ];
 
   return (
@@ -45,6 +47,33 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <PageHeader title="Admin" subtitle="Accounts, invites, waitlist and API usage. Only admins can see this page." />
       <Flash saved={saved} error={error} />
       <DbError error={accounts.error && !/profiles/.test(accounts.error) ? accounts.error : null} />
+
+      <Panel
+        title="Scanning health"
+        className="mt-6"
+        right={<span data-testid="health-status" className={`text-xs font-medium ${health.ok ? "text-gain" : "text-loss"}`}>{health.ok ? "● All running" : "● Needs attention"}</span>}
+      >
+        <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <div className="text-xs text-faint">Profit Hunter last ran</div>
+            <div className="num">{health.hunterAgeMin === null ? "never" : `${health.hunterAgeMin} min ago`}</div>
+          </div>
+          <div>
+            <div className="text-xs text-faint">Saved-search scan last ran</div>
+            <div className="num">{health.scanAgeMin === null ? "never" : health.scanAgeMin < 120 ? `${health.scanAgeMin} min ago` : `${Math.round(health.scanAgeMin / 60)} h ago`}</div>
+          </div>
+        </div>
+        {health.problems.length > 0 && (
+          <ul className="mt-3 space-y-1 rounded-md bg-loss-soft px-3 py-2 text-xs text-loss">
+            {health.problems.map((p) => <li key={p}>{p}</li>)}
+          </ul>
+        )}
+      </Panel>
+
+      <a href="/admin/audit" className="mt-6 flex items-center justify-between rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm text-accent hover:bg-accent/15">
+        <span><strong>Accuracy audit</strong> — check this week&apos;s deals by hand and track how many were real (target 90%+).</span>
+        <span aria-hidden>→</span>
+      </a>
 
       <Panel title="Invite someone" className="mt-6">
         <form action={inviteAction} className="flex flex-col gap-2 sm:flex-row sm:items-end">

@@ -1,0 +1,24 @@
+# Checks every change you push: TypeScript errors + all unit tests.
+# Result shows as a green tick / red cross next to the commit on GitHub (and GitHub emails you on a red cross).
+name: CardHawk checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npm test

@@ -18,7 +18,7 @@ const SORTS: { key: DealSort; label: string }[] = [
 export default async function TopDealsPage({ searchParams }: { searchParams: Promise<{ sort?: string }> }) {
   const { sort: rawSort } = await searchParams;
   const sort: DealSort = SORTS.some((s) => s.key === rawSort) ? (rawSort as DealSort) : "profit";
-  const { settings, deals, nearMisses, valuedCount, error } = await currentDeals();
+  const { settings, deals, nearMisses, needsCheck, valuedCount, error } = await currentDeals();
   const fx = displayFx(settings); // A$ shown for Australian buyers only
   const rows = sortDeals(deals, sort);
 
@@ -70,6 +70,24 @@ export default async function TopDealsPage({ searchParams }: { searchParams: Pro
           </ul>
         )}
       </Panel>
+
+      {needsCheck.length > 0 && (
+        <Panel title={`Needs a manual check (${needsCheck.length})`} className="mt-6" right={<Tag tone="warn">too good to be true?</Tag>}>
+          <p className="mb-3 text-xs text-faint">
+            These look like huge deals — a guide value 3× the price or more, or over 150% ROI. That&apos;s far more often a wrong value
+            (an odd sale, the wrong parallel, grade or language) than a real bargain, so they&apos;re never alerted or ranked. Check
+            the card against SportsCardsPro yourself; if the value is wrong, tap <strong>Wrong match?</strong>.
+          </p>
+          <ul className="divide-y divide-line">
+            {sortDeals(needsCheck, "profit").map((d) => (
+              <li key={d.id} className="py-1">
+                <p className="pt-2 text-[11px] text-warn">{d.needsCheck}</p>
+                <ul><DealRow d={d} fx={fx} /></ul>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       {nearMisses.length > 0 && (
         <Panel title="Close to your rules" className="mt-6" right={<Tag>within 15% of your max price</Tag>}>

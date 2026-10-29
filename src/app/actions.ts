@@ -426,3 +426,28 @@ export async function hideSetupGuideAction() {
   jar.set("ch_setup_hidden", "1", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
   redirect("/");
 }
+
+/** Admin → Accuracy audit: record whether a deal CardHawk showed was real. Numbers come from the server, not the form. */
+export async function auditDealAction(formData: FormData) {
+  const { saveAudit } = await import("@/data/audit");
+  const { currentDeals } = await import("@/data/deals");
+  const { AUDIT_REASONS } = await import("@/lib/audit");
+  const viewer = await currentViewer();
+  if (!viewer?.admin) back("/", "error", "Admins only.");
+  const itemId = String(formData.get("itemId") ?? "").slice(0, 100);
+  const verdict = String(formData.get("verdict") ?? "");
+  if (!["good", "bad", "unsure"].includes(verdict)) back("/admin/audit", "error", "Pick real deal, wrong or unsure.");
+  const rawReason = String(formData.get("reason") ?? "");
+  const reason = verdict === "bad" ? ((AUDIT_REASONS as readonly string[]).includes(rawReason) ? rawReason : "Other") : null;
+  const all = await currentDeals();
+  const d = [...all.deals, ...all.needsCheck].find((x) => x.itemId === itemId);
+  if (!d) back("/admin/audit", "error", "That listing isn't in your live deals any more.");
+  const err = await saveAudit({
+    itemId: d.itemId, title: d.title, cardKey: d.cardKey ?? null, priceUsd: d.priceUsd, valueUsd: d.valueUsd, roiPercent: d.roiPercent,
+    score: d.score?.total ?? null, needsCheck: !!d.needsCheck, verdict: verdict as "good" | "bad" | "unsure", reason, auditedBy: viewer.email,
+  });
+  if (err && /deal_audits/.test(err)) back("/admin/audit", "error", "Run the 30 Oct “deal accuracy audit” SQL in Supabase first (bottom of supabase/schema.sql).");
+  if (err) back("/admin/audit", "error", `Couldn't save: ${err}`);
+  revalidatePath("/admin/audit");
+  back("/admin/audit", "saved", "Saved.");
+}

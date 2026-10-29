@@ -357,3 +357,22 @@ alter table public.profiles add column if not exists terms_accepted_at timestamp
 
 -- ---------- 26 Oct 2026: eBay display requirements — seller user name on finds ----------
 alter table public.scan_hits add column if not exists seller_name text;
+
+-- ---------- 30 Oct 2026: deal accuracy audit (Admin → Accuracy audit) ----------
+-- One row per listing you've checked by hand: was CardHawk's "deal" a real deal? Server key only.
+create table if not exists public.deal_audits (
+  item_id text primary key,
+  title text not null,
+  card_key text,
+  price_usd numeric,
+  value_usd numeric,
+  roi_percent numeric,
+  score integer,
+  needs_check boolean not null default false,
+  verdict text not null check (verdict in ('good', 'bad', 'unsure')),
+  reason text,
+  audited_by text,
+  created_at timestamptz not null default now()
+);
+alter table public.deal_audits enable row level security;
+revoke all on public.deal_audits from anon, authenticated;

@@ -513,3 +513,11 @@ Changes made:
 
 ### 29 Oct — Login / landing page layout
 - Desktop (1024px+): sign in · promo video · waitlist side by side, vertically centred (max width 1152px; video up to 82% of screen height). Phones/tablets unchanged: stacked in the same order. Terms/Privacy links span underneath.
+
+### 30 Oct — Review action plan, "this week" items
+- **CI** (.github/workflows/ci.yml): every push runs `tsc --noEmit` + `npm test`; red cross + GitHub email if anything breaks.
+- **Health check** (src/lib/health.ts, src/data/health.ts, /api/cron/health?key=HEALTH_KEY): 200 when healthy, 503 with reasons when the Hunter hasn't run for 30+ min, saved-search scans for 4+ h, the last 3 Hunter runs or last 2 scans failed. Off (404) until HEALTH_KEY is set in Vercel. Meant for an outside monitor (UptimeRobot / cron-job.org) so it still alerts if GitHub's scheduler is what stopped. Admin → "Scanning health" panel shows the same.
+- **Too good to be true** (src/lib/live-score.ts `tooGoodReason`): guide value ≥ 3× price or ROI > 150% → held as "Needs a manual check": not in deals, Overview, badges or alerts (email/push); own Card Values exempt; score capped at 50. Shown on Top Deals in its own panel with the reason.
+- **Accuracy audit** (Admin → Accuracy audit, /admin/audit; src/lib/audit.ts, src/data/audit.ts, `auditDealAction`): mark each live deal ✓ Real / ✗ Wrong (with reason) / Unsure; weekly precision (target 90%+), top reasons, "Wrong match?" taps in the last 7 days (value_rejections). Needs the 30 Oct SQL (deal_audits) — bottom of supabase/schema.sql.
+- Drafted: SportsCardsPro data-licence email; eBay Growth Check follow-up.
+- Tests: health, toogood, audit (146 unit; e2e pass).

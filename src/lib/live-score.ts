@@ -12,7 +12,7 @@
  *                           100
  *
  * Caps (the total can't go above them): no sales data 70 · fewer than 6 sales a year 75 ·
- * any-company grade price (BGS/CGC/SGC below 10) 60 · off-centre (OC) 60.
+ * any-company grade price (BGS/CGC/SGC below 10) 60 · off-centre (OC) 60 · too good to be true (3× value or 150%+ ROI) 50.
  */
 import { offCentreInTitle } from "./ebay/parse";
 
@@ -45,6 +45,23 @@ export interface LiveScoreInput {
   mixedGrade?: string | null;
   checkedAt?: string | null;
   createdAt?: string | null;
+}
+
+/** Above either of these, an automatic value is more likely wrong than the deal is real. */
+export const TOO_GOOD_ROI = 150;
+export const TOO_GOOD_MULTIPLE = 3;
+
+/**
+ * "Too good to be true": a price-guide value 3×+ the price, or 150%+ ROI. Real deals that big are rare;
+ * wrong values (outlier sales, wrong parallel/grade/language) are not. Such listings are shown as
+ * "Needs a manual check" — never ranked as a deal, never alerted. Your own Card Values are trusted.
+ */
+export function tooGoodReason(d: { valueSource?: string | null; valueUsd: number | null; priceUsd: number | null; roiPercent: number | null }): string | null {
+  if ((d.valueSource ?? "you") === "you") return null;
+  if (d.valueUsd !== null && d.priceUsd !== null && d.priceUsd > 0 && d.valueUsd >= d.priceUsd * TOO_GOOD_MULTIPLE)
+    return `Guide value is ${(d.valueUsd / d.priceUsd).toFixed(1)}× the price — check it's the same card before buying`;
+  if (d.roiPercent !== null && d.roiPercent > TOO_GOOD_ROI) return `${Math.round(d.roiPercent)}% ROI — check the value before buying`;
+  return null;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -106,6 +123,9 @@ export function scoreLiveDeal(d: LiveScoreInput, now = Date.now()): LiveScore | 
     notes.push("eBay details over 3 hours old");
   }
   factors.push({ label: "Listing risk", points: clamp(risk, 0, 10), max: 10, detail: notes.length ? `Lower: ${notes.join(", ")}` : "No risk flags" });
+
+  if (tooGoodReason({ valueSource: d.valueSource, valueUsd: d.valueUsd, priceUsd: d.priceUsd, roiPercent: d.roiPercent }))
+    caps.push({ at: 50, why: "Too good to be true — needs a manual check" });
 
   const raw = factors.reduce((s, f) => s + f.points, 0);
   const cap = caps.reduce((m, c) => Math.min(m, c.at), 100);

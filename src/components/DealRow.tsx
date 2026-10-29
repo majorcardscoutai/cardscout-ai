@@ -44,6 +44,11 @@ export function DealRow({ d, fx, rank, returnTo = "/deals" }: { d: DealHit; fx: 
             <EbayLink url={d.url} />
             <OffCentreWarning title={d.title} />
             <GradePriceWarning label={d.mixedGrade} />
+            {d.needsCheck && (
+              <span className="rounded-md bg-warn-soft px-1.5 py-0.5 font-medium text-warn" data-testid="needs-check" title={d.needsCheck}>
+                ⚠ Needs a manual check
+              </span>
+            )}
             <ValueSource source={d.valueSource} />
             <span>{d.searchName}</span>
             {d.salesVolume !== null && d.salesVolume !== undefined && <span>· sells ~{d.salesVolume}/yr</span>}

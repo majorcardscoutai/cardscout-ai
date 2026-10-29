@@ -44,6 +44,7 @@ async function loadCurrentDeals(): Promise<CurrentDeals> {
     error: hits.error ?? values.error ?? null,
     deals: [...mine.deals, ...hunted.deals.filter((d) => liquid(d) && !seen.has(d.itemId))],
     nearMisses: [...mine.nearMisses, ...hunted.nearMisses.filter(liquid)].sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0)),
+    needsCheck: [...mine.needsCheck, ...hunted.needsCheck.filter((d) => liquid(d) && !seen.has(d.itemId))],
     valuedCount: mine.valuedCount + hunted.valuedCount,
   };
 }
