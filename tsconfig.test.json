@@ -34,6 +34,7 @@
     "tests/sales.test.ts",
     "tests/guide.test.ts",
     "tests/affiliate.test.ts",
-    "tests/sealed.test.ts"
+    "tests/sealed.test.ts",
+    "tests/nav.test.ts"
   ]
 }

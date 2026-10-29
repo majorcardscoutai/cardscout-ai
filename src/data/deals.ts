@@ -3,6 +3,7 @@
  * re-priced with today's Card Values, Settings and exchange rate (logic in src/lib/deals.ts).
  * Profit Hunter finds only count when the card sells often enough (Hunter → sales per year).
  */
+import { cache } from "react";
 import { pickDeals, type DealHit, type PickedDeals } from "@/lib/deals";
 import { hunterRules, liquidEnough, parseHunterSport, type HunterConfig } from "@/lib/hunter";
 import { isFresh } from "@/lib/freshness";
@@ -19,7 +20,10 @@ export interface CurrentDeals extends PickedDeals {
   error: string | null;
 }
 
-export async function currentDeals(): Promise<CurrentDeals> {
+/** Cached per request: the Overview, Top Deals and the menu badges share one lookup. */
+export const currentDeals = cache(loadCurrentDeals);
+
+async function loadCurrentDeals(): Promise<CurrentDeals> {
   const [{ settings }, mineHits, hunterHits, values, searches, hunter] = await Promise.all([
     loadSettings(),
     listRecentHits(1000, false, "mine"),

@@ -485,3 +485,11 @@ Changes made:
 - Tags ("Buy It Now", "Auction") and "View on eBay ↗" never wrap mid-word anywhere in the app.
 - Page can no longer be pushed wider than the phone (main uses overflow-x: clip), which was making iOS shrink the page and misplace the header.
 - Mobile header pads itself below the iPhone clock/notch when opened from the home screen (viewport-fit=cover + safe-area padding).
+
+### 29 Oct — New left-hand menu (Sidebar A, "Grouped")
+- Desktop menu grouped under DEALS (Overview, Top Deals, Profit Hunter) · FIND (Automatic Scanner, Manual Scanner) · MY CARDS (Watchlist, Card Values, Portfolio) · ACCOUNT (Settings, Admin for admins). Blue dot marks the page you're on. Width 256px (main content shifted to match); the list scrolls on short laptop screens.
+- Real count badges (never sample numbers): Top Deals = live deals meeting your rules; Profit Hunter = those found by the Hunter (green); Automatic Scanner = your switched-on saved searches; Watchlist = cards on it. Hidden when zero. Streamed in after the page (src/data/nav.ts), so the menu never slows a page; any error just hides them.
+- Bottom: data-source line (muted, replaces the amber box), Hunter status pill (green "Hunter live · checked N min ago"; amber if over 30 min or never run; grey if the Hunter is off — src/lib/nav.ts hunterStatus), and an account card (initials, email, Admin/Member, Sign out).
+- Phone tab strip follows the same order; Top Deals and Hunter chips show their counts.
+- currentDeals() is cached per request (React cache) so Overview/Top Deals and the badges share one lookup.
+- Tests: tests/nav.test.ts (status pill, initials, badges) — 136 unit tests pass; e2e all pass.

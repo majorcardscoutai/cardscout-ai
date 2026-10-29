@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import Nav from "@/components/Nav";
 import NavProgress from "@/components/NavProgress";
 import { currentViewer } from "@/data/session";
+import { navCounts } from "@/data/nav";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -27,14 +28,16 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const viewer = await currentViewer().catch(() => null);
+  // Not awaited: the menu badges stream in after the page, so they never slow it down.
+  const counts = viewer ? navCounts() : undefined;
   return (
     <html lang="en-AU" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-screen">
-        <Nav admin={viewer?.admin === true} />
+        <Nav admin={viewer?.admin === true} email={viewer?.email} counts={counts} />
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
-        <main className="overflow-x-clip md:pl-60">
+        <main className="overflow-x-clip md:pl-64">
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8 lg:px-8">
             {children}
             {viewer && (
