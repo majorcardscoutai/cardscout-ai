@@ -395,11 +395,16 @@ export function cardFromListing(title: string, aspects: Aspect[] = [], hint: { s
   }
   // The title and eBay's item specifics name different grades ("PSA 6" vs Grade 8): don't guess which is right.
   let gradeConflict: string | null = null;
-  if (titleGrade && sources.grade === "item specifics") {
+  // Also when only the grading company came from item specifics ("SGC 10" in the title, Professional Grader: PSA,
+  // no Grade field) — otherwise the title's 10 would be priced as the other company's 10.
+  if (titleGrade && (sources.grade === "item specifics" || sources.grader === "item specifics")) {
     const tg = Number(titleGrade[2]);
     const tGrader = titleGrade[1].toUpperCase();
     if (tg !== card.grade || tGrader !== card.grader) {
-      gradeConflict = `${tGrader} ${tg} in the title, ${card.grader} ${card.grade} in eBay's details`;
+      gradeConflict =
+        sources.grade === "item specifics"
+          ? `${tGrader} ${tg} in the title, ${card.grader} ${card.grade} in eBay's details`
+          : `${tGrader} ${tg} in the title, ${card.grader} in eBay's details`;
       delete card.grade;
       delete sources.grade;
     }

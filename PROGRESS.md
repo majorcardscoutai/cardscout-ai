@@ -506,3 +506,7 @@ Changes made:
 - VAPID contact (`vapidSubject`): VAPID_SUBJECT → ALERT_EMAIL → LEGAL_EMAIL → APP_URL — never the old "mailto:alerts@example.com" placeholder, which Apple can reject.
 - Notifications are only sent for NEW alert-worthy deals from scheduled scans (same as the email) — no new deals, no notification.
 - Test added in tests/webpush.test.ts (138 unit tests pass; e2e all pass).
+
+### 29 Oct — SGC 10 priced as PSA 10 (grader conflict)
+- "Shohei Ohtani 2018 Topps Chrome #150 SGC 10" showed US$1,000. Gap found: when eBay's item specifics name a grading company (e.g. PSA) but have no Grade field, the grader came from the specifics and the 10 from the title — so an SGC 10 could be priced as a PSA 10. Now any title/specifics company mismatch is a grade conflict → no value ("SGC 10 in the title, PSA in eBay's details").
+- Test in tests/ebay.test.ts (139 unit tests; e2e pass).

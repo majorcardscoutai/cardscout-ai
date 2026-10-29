@@ -267,3 +267,13 @@ test("eBay display requirements: seller user name; fixed-price-only switch", () 
   assert.match(decodeURIComponent(buildSearchPath({ ...base, format: "BEST_OFFER" })), /buyingOptions:\{BEST_OFFER\}/);
   delete process.env.EBAY_FIXED_PRICE_ONLY;
 });
+
+test("SGC 10 in the title but PSA in eBay's details (no Grade field): not priced as a PSA 10", () => {
+  const r = cardFromListing("Shohei Ohtani 2018 Topps Chrome #150 SGC 10 Rookie RC", [{ name: "Professional Grader", value: "Professional Sports Authenticator (PSA)" }]);
+  assert.equal(r.card.grade, undefined);
+  assert.ok(r.missing.some((m: string) => /SGC 10 in the title, PSA in eBay's details/.test(m)));
+  // Matching company in both: fine.
+  const ok = cardFromListing("Shohei Ohtani 2018 Topps Chrome #150 SGC 10 Rookie RC", [{ name: "Professional Grader", value: "Sportscard Guaranty Corporation (SGC)" }]);
+  assert.equal(ok.card.grader, "SGC");
+  assert.equal(ok.card.grade, 10);
+});
