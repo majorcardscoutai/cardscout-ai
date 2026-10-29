@@ -8,7 +8,7 @@
  * Keys come from environment variables (never the browser):
  *   VAPID_PUBLIC_KEY   base64url, 65-byte uncompressed P-256 public key (safe to share)
  *   VAPID_PRIVATE_KEY  base64url, 32-byte private key (SECRET)
- *   VAPID_SUBJECT      optional, "mailto:you@example.com" (defaults to ALERT_EMAIL)
+ *   VAPID_SUBJECT      optional, "mailto:you@yourdomain.com" (defaults to ALERT_EMAIL, LEGAL_EMAIL, then APP_URL)
  */
 import { createECDH, createHmac, createPrivateKey, randomBytes, sign, createCipheriv } from "node:crypto";
 
@@ -93,6 +93,19 @@ export interface PushMessage {
   tag?: string; // same tag replaces an older notification
 }
 
+/**
+ * Who the push services can contact about our messages. Apple rejects placeholder addresses, so it falls back
+ * to real ones: VAPID_SUBJECT → ALERT_EMAIL → LEGAL_EMAIL → the site address (APP_URL).
+ */
+export function vapidSubject(env: Record<string, string | undefined> = process.env): string {
+  if (env.VAPID_SUBJECT?.trim()) return env.VAPID_SUBJECT.trim();
+  const email = env.ALERT_EMAIL?.trim() || env.LEGAL_EMAIL?.trim();
+  if (email) return `mailto:${email}`;
+  const url = env.APP_URL?.trim();
+  if (url && /^https:\/\//.test(url)) return url.replace(/\/+$/, "");
+  return "https://www.cardhawkai.com";
+}
+
 /** Send one notification. `gone: true` means the subscription is dead — delete it. Never throws. */
 export async function sendPush(sub: PushSubscriptionKeys, msg: PushMessage): Promise<PushResult> {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
@@ -101,7 +114,7 @@ export async function sendPush(sub: PushSubscriptionKeys, msg: PushMessage): Pro
   try {
     const endpoint = new URL(sub.endpoint);
     if (endpoint.protocol !== "https:") return { ok: false, gone: true, error: "Invalid push endpoint." };
-    const subject = process.env.VAPID_SUBJECT ?? (process.env.ALERT_EMAIL ? `mailto:${process.env.ALERT_EMAIL}` : "mailto:alerts@example.com");
+    const subject = vapidSubject();
     const jwt = vapidJwt(endpoint.origin, subject, publicKey, privateKey);
     const body = encryptPayload(Buffer.from(JSON.stringify(msg).slice(0, 3000)), sub.p256dh, sub.auth);
     const res = await fetch(sub.endpoint, {
@@ -117,6 +130,13 @@ export async function sendPush(sub: PushSubscriptionKeys, msg: PushMessage): Pro
       signal: AbortSignal.timeout(8000),
     });
     if (res.status === 404 || res.status === 410) return { ok: false, gone: true, error: "This device is no longer subscribed." };
+    if (res.status === 403 || res.status === 400) {
+      const text = (await res.text().catch(() => "")).slice(0, 200);
+      // Subscription made with an old server key: dead for good — the phone re-subscribes next time Settings opens.
+      if (/VapidPkHashMismatch|BadWebPushTopic|ExpiredSubscription|Unregistered/i.test(text))
+        return { ok: false, gone: true, error: "This device's subscription is out of date — open Settings on it to renew." };
+      return { ok: false, gone: false, error: `Push service said ${res.status}${text ? `: ${text}` : ""}` };
+    }
     if (!res.ok) {
       const text = (await res.text().catch(() => "")).slice(0, 200);
       return { ok: false, gone: false, error: `Push service said ${res.status}${text ? `: ${text}` : ""}` };

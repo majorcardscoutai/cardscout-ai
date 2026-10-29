@@ -499,3 +499,10 @@ Changes made:
 - New `outlierTenPrice` (src/lib/provider.ts): a 10 price (PSA/BGS/CGC/SGC) more than 5× the 9.5 price, or 8× the 9 price when there's no 9.5, is not used → "no value", with a clear reason. Normal gem premiums (≤5× a 9) still pass. If the guide has no 9/9.5 price the check can't run.
 - REMATCH_ALL_AT moved to 2026-10-29T00:30Z so every saved match is re-checked.
 - Test added in tests/provider.test.ts (137 unit tests pass; e2e all pass).
+
+### 29 Oct — Phone notifications not arriving (fixes)
+- Self-heal: opening Settings on a phone re-saves its subscription to the server every time (a device the server had dropped after a 404/410, or saved under another account, comes back automatically).
+- Stale key: if the phone's subscription was made with an old VAPID public key, it's replaced quietly; Apple's VapidPkHashMismatch/expired replies now remove the dead device instead of failing forever.
+- VAPID contact (`vapidSubject`): VAPID_SUBJECT → ALERT_EMAIL → LEGAL_EMAIL → APP_URL — never the old "mailto:alerts@example.com" placeholder, which Apple can reject.
+- Notifications are only sent for NEW alert-worthy deals from scheduled scans (same as the email) — no new deals, no notification.
+- Test added in tests/webpush.test.ts (138 unit tests pass; e2e all pass).

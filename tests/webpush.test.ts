@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createDecipheriv, createECDH, createHmac, createPublicKey, verify } from "node:crypto";
-import { encryptPayload, vapidJwt } from "../src/lib/webpush.js";
+import { encryptPayload, vapidJwt, vapidSubject } from "../src/lib/webpush.js";
 
 // RFC 8291 Appendix A — the published example message.
 const RFC = {
@@ -74,4 +74,13 @@ test("only real browser push services are accepted", async () => {
   assert.equal(parseSubscription({ endpoint: "https://web.push.apple.com.evil.com/x", keys }).ok, false);
   assert.equal(parseSubscription({ endpoint: "https://web.push.apple.com/x", keys: { p256dh: "AAAA", auth: RFC.authSecret } }).ok, false);
   assert.equal(parseSubscription(null).ok, false);
+});
+
+test("VAPID contact never falls back to a placeholder address (Apple rejects those)", () => {
+  assert.equal(vapidSubject({ VAPID_SUBJECT: "mailto:a@b.com", ALERT_EMAIL: "x@y.com" }), "mailto:a@b.com");
+  assert.equal(vapidSubject({ ALERT_EMAIL: "alerts@cardhawkai.com" }), "mailto:alerts@cardhawkai.com");
+  assert.equal(vapidSubject({ LEGAL_EMAIL: "hello@cardhawkai.com" }), "mailto:hello@cardhawkai.com");
+  assert.equal(vapidSubject({ APP_URL: "https://www.cardhawkai.com/" }), "https://www.cardhawkai.com");
+  assert.equal(vapidSubject({}), "https://www.cardhawkai.com");
+  assert.doesNotMatch(vapidSubject({}), /example\.com/);
 });

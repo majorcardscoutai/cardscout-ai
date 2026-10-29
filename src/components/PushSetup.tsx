@@ -20,6 +20,13 @@ function keyToBytes(base64url: string): Uint8Array {
   return out;
 }
 
+function sameKey(current: ArrayBuffer | null, base64url: string): boolean {
+  if (!current) return false;
+  const a = new Uint8Array(current);
+  const b = keyToBytes(base64url);
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
 function deviceLabel(): string {
   const ua = navigator.userAgent;
   if (/iPhone/.test(ua)) return "iPhone";
@@ -47,10 +54,21 @@ export default function PushSetup({ publicKey }: { publicKey: string | null }) {
     }
     navigator.serviceWorker
       .register("/sw.js")
-      .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setState(sub ? "on" : "off"))
+      .then(async (reg) => {
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) return setState("off");
+        // Made with an old server key? Apple rejects every message for it — replace it quietly.
+        if (publicKey && Notification.permission === "granted" && !sameKey(sub.options.applicationServerKey, publicKey)) {
+          await sub.unsubscribe().catch(() => {});
+          sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(publicKey) as BufferSource });
+        }
+        // Re-save it every visit, so a device the server dropped (or saved under another account) is restored.
+        const r = await subscribePushAction(sub.toJSON(), deviceLabel());
+        if (!r.ok) setMsg(r.error ?? "This device's notifications couldn't be re-checked.");
+        setState("on");
+      })
       .catch(() => setState("off"));
-  }, []);
+  }, [publicKey]);
 
   async function turnOn() {
     if (!publicKey) return;
