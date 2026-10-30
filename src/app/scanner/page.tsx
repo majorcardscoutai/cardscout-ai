@@ -365,7 +365,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ---------- Saved searches ---------- */}
         <Panel
-          title={!plan || !Number.isFinite(plan.limits.savedSearches) ? "Saved searches" : `Saved searches (${mySearches.length} of ${plan.limits.savedSearches})`}
+          title={!plan || !Number.isFinite(plan.limits.savedSearches) ? "Saved searches" : `Saved searches (${mySearches.filter((x) => x.active).length} of ${plan.limits.savedSearches} running)`}
           className="lg:col-span-2"
           right={
             <form action={scanNowAction}>

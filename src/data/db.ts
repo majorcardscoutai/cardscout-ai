@@ -567,7 +567,7 @@ export async function listSavedSearches(): Promise<DbResult<SavedSearch[]>> {
   }
 }
 
-export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" | "lastRunStatus" | "active" | "kind">): Promise<string | null> {
+export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" | "lastRunStatus" | "active" | "kind">, active = true): Promise<string | null> {
   try {
     const { error } = await (await tbl("saved_searches")).insert({
       name: s.name,
@@ -576,7 +576,7 @@ export async function insertSavedSearch(s: Omit<SavedSearch, "id" | "lastRunAt" 
       category: s.category,
       format: s.format,
       max_price: s.maxPrice,
-      active: true,
+      active,
       ...(s.excludeWords ? { exclude_words: s.excludeWords } : {}),
       ...(s.grading && s.grading !== "any" ? { grading: s.grading } : {}),
     });
@@ -1233,6 +1233,12 @@ export async function recordUsage(counts: Map<string, { ebay: number; guide: num
 export async function countOwnSavedSearches(): Promise<number> {
   const all = await listSavedSearches();
   return all.data.filter((x) => x.kind !== "hunter").length;
+}
+
+/** Your searches that are switched on — the plan limit counts only these (paused ones are kept for later). */
+export async function countActiveOwnSavedSearches(): Promise<number> {
+  const all = await listSavedSearches();
+  return all.data.filter((x) => x.kind !== "hunter" && x.active).length;
 }
 
 // ---------- Profiles: each account's email, for alerts and the Admin page (server key only) ----------

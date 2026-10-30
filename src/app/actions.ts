@@ -2,6 +2,7 @@
 
 import { currentViewer } from "@/data/session";
 import { billingRequired, currentLimits } from "@/data/billing";
+import { MAX_STORED_SEARCHES } from "@/lib/plans";
 
 /**
  * Server actions — run on the server when you submit a form.
@@ -23,6 +24,7 @@ import {
   deleteSavedSearch,
   insertSavedSearch,
   countOwnSavedSearches,
+  countActiveOwnSavedSearches,
   markInvited,
   saveHunterConfig,
   listGuideSets,
@@ -211,20 +213,21 @@ export async function addSavedSearchAction(formData: FormData) {
   const parsed = parseSavedSearchForm(formData);
   if (!parsed.ok) back("/scanner", "error", parsed.error);
   const cap = (await currentLimits()).savedSearches;
-  const paid = billingRequired();
   if (cap === 0) back("/scanner", "error", "Choose a plan to save searches — see Plan & billing.");
-  if (Number.isFinite(cap) && (await countOwnSavedSearches()) >= cap)
-    back("/scanner", "error", paid
-      ? `Your plan includes up to ${cap} saved searches. Delete one, or upgrade in Plan & billing.`
-      : `You can have up to ${cap} saved searches during the beta. Delete one to add another.`);
-  const error = await insertSavedSearch(parsed.value);
+  if (Number.isFinite(cap) && (await countOwnSavedSearches()) >= MAX_STORED_SEARCHES)
+    back("/scanner", "error", `You've ${MAX_STORED_SEARCHES} saved searches — delete some you no longer need to add another.`);
+  // Only running searches count toward the plan: at the limit, a new search is kept but saved paused.
+  const full = Number.isFinite(cap) && (await countActiveOwnSavedSearches()) >= cap;
+  const error = await insertSavedSearch(parsed.value, !full);
   if (error && /grading/.test(error))
     back("/scanner", "error", "The graded / raw filter needs a one-time database update — run the newest SQL in Supabase (bottom of supabase/schema.sql), then save again.");
   if (error && /exclude_words/.test(error))
     back("/scanner", "error", "Exclude words need a one-time database update — run the Phase 5 SQL in Supabase (see PROGRESS.md), then save again.");
   if (error) back("/scanner", "error", `Couldn't save: ${error}`);
   revalidatePath("/", "layout");
-  back("/scanner", "saved", `Saved search "${parsed.value.name}". It will be checked on every scan.`);
+  back("/scanner", "saved", full
+    ? `Saved "${parsed.value.name}" as paused — you already have ${cap} searches running${billingRequired() ? " (your plan's limit)" : ""}. Pause another to start it.`
+    : `Saved search "${parsed.value.name}". It will be checked on every scan.`);
 }
 
 export async function updateSavedSearchExcludeAction(formData: FormData) {
@@ -243,6 +246,13 @@ export async function toggleSavedSearchAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!UUID.test(id)) back("/scanner", "error", "Invalid item.");
   const active = formData.get("active") === "true";
+  if (active) {
+    const cap = (await currentLimits()).savedSearches;
+    if (Number.isFinite(cap) && (await countActiveOwnSavedSearches()) >= cap)
+      back("/scanner", "error", billingRequired()
+        ? `You have ${cap} searches running — your plan's limit. Pause one first, or upgrade in Plan & billing.`
+        : `You have ${cap} searches running — the beta limit. Pause one first.`);
+  }
   const error = await setSavedSearchActive(id, active);
   if (error) back("/scanner", "error", `Couldn't update: ${error}`);
   revalidatePath("/", "layout");
@@ -476,7 +486,7 @@ export async function quickStartAction(formData: FormData) {
     back("/hunter", "saved", "You're set up 🎉 The Profit Hunter is on and checks new listings every 10 minutes — first finds usually appear within the hour. You'll get an email when one clears your rules.");
   }
 
-  const have = await countOwnSavedSearches();
+  const have = await countActiveOwnSavedSearches();
   const room = Number.isFinite(limits.savedSearches) ? limits.savedSearches - have : 3;
   let added = 0;
   for (const s of starterSearches(q, settings.usdToAud, room)) {

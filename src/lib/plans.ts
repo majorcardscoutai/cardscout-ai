@@ -27,7 +27,7 @@ export const PLANS: Record<PlanId, Plan> = {
     hunter: false,
     push: false,
     tagline: "For collectors hunting a few cards",
-    features: ["3 saved searches, scanned automatically", "Live search with market values", "Real profit after fees, GST and shipping", "Analyse any eBay listing", "Email deal alerts", "Watchlist and portfolio"],
+    features: ["3 saved searches running at once, scanned automatically", "Live search with market values", "Real profit after fees, GST and shipping", "Analyse any eBay listing", "Email deal alerts", "Watchlist and portfolio"],
   },
   collector: {
     id: "collector",
@@ -37,7 +37,7 @@ export const PLANS: Record<PlanId, Plan> = {
     hunter: false,
     push: true,
     tagline: "For regular buyers and part-time flippers",
-    features: ["Everything in Hobby", "6 saved searches", "Phone notifications", "PSA / BGS-only filters", "Your own Card Values"],
+    features: ["Everything in Hobby", "6 saved searches running at once", "Phone notifications", "PSA / BGS-only filters", "Your own Card Values"],
   },
   pro: {
     id: "pro",
@@ -47,7 +47,7 @@ export const PLANS: Record<PlanId, Plan> = {
     hunter: true,
     push: true,
     tagline: "For flippers who want every deal first",
-    features: ["Everything in Collector", "10 saved searches", "Profit Hunter: scans the whole market every 10 minutes", "Sales-per-year filter", "Early access to new features"],
+    features: ["Everything in Collector", "10 saved searches running at once", "Profit Hunter: scans the whole market every 10 minutes", "Sales-per-year filter", "Early access to new features"],
   },
 };
 
@@ -85,6 +85,9 @@ export interface Limits {
   /** Scheduled scans run for this account at all. */
   scans: boolean;
 }
+
+/** Saved searches someone can keep in total (running + paused) — only running ones count toward the plan. */
+export const MAX_STORED_SEARCHES = 50;
 
 /** Beta testers keep the beta allowance (5 searches, everything on) until billing is switched on. */
 export const BETA_SAVED_SEARCHES = 5;

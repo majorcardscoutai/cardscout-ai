@@ -550,3 +550,9 @@ Changes made:
   4. Saved searches (no `only`) — minute 17, hours 0,3,6,9,12,15,18,21
 - Once cron-job.org runs are confirmed (Admin → Scanning health), disable the three GitHub scheduled workflows (Actions → workflow → ⋯ → Disable) so scans don't run twice. Keep ci.yml.
 - Part 2 (staging site) deferred until just before launch.
+
+### 30 Oct — Search limits count running searches only
+- Plan limits (3 / 6 / 10, beta 5) now count only RUNNING saved searches. Paused ones are kept and can be swapped in any time (no monthly limit). Up to 50 stored in total.
+- At the limit: a new search is saved paused ("Saved … as paused — you already have N running"); resuming one is blocked until another is paused.
+- Scheduled scans run at most the plan's number of running searches (covers a Pro → Hobby downgrade with 10 running).
+- Scanner shows "Saved searches (N of 3 running)"; plan features say "running at once".

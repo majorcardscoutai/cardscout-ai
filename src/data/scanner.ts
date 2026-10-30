@@ -139,6 +139,8 @@ export interface ScanOptions {
   skipGuideRefresh?: boolean;
   /** This account's plan includes the Profit Hunter / phone notifications (default yes). */
   allowHunter?: boolean;
+  /** Most of your own saved searches to run (the plan's limit; default no limit). */
+  maxSearches?: number;
   allowPush?: boolean;
 }
 
@@ -255,10 +257,13 @@ export async function runAllScans(
     if (f.error) autoError = f.error;
   };
 
+  let ownLeft = opts.maxSearches ?? Infinity; // a downgraded account runs its first N running searches
   const toRun = searches.data.filter((x) => {
     if (!x.active) return false;
     if (x.kind === "hunter") return opts.allowHunter !== false && hunterCfg.enabled && parseHunterSport(x.query) !== null && hunterCfg.sports.includes(parseHunterSport(x.query)!);
-    return !hunterOnly;
+    if (hunterOnly || ownLeft <= 0) return false;
+    ownLeft--;
+    return true;
   });
   for (const s of toRun) {
     if (Date.now() > end) break; // out of time — the next run carries on (oldest searches first)
@@ -540,6 +545,7 @@ export async function runScheduledScans(trigger: "schedule" | "daily" | "hunter"
         runAllScans(trigger, {
           only, ebay, hunterGroups, deadline: Math.min(deadline, Date.now() + slice), skipGuideRefresh: true,
           allowHunter: limitsOf.get(owners.data[i])!.hunter, allowPush: limitsOf.get(owners.data[i])!.push,
+          maxSearches: limitsOf.get(owners.data[i])!.savedSearches,
         }),
       ),
     );

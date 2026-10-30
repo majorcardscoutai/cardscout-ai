@@ -102,6 +102,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       </div>
 
       <p className="mt-6 text-xs leading-relaxed text-faint">
+        Search limits count searches that are running — keep as many paused searches as you like and switch between them any time.
         Payments are handled by Stripe — CardHawk never sees your card number. Your plan renews monthly until you cancel; cancelling keeps
         access until the end of the period you&apos;ve paid for. {billingRequired() ? "" : "Billing isn't switched on yet."} CardHawk shows market
         estimates, not financial advice — see the Terms of Use.
