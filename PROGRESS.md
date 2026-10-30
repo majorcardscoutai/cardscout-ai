@@ -534,3 +534,9 @@ Changes made:
 - Before live charging: Vercel Pro (Hobby plan is non-commercial), lawyer review of Terms (subscriptions, refunds, auto-renewal), SportsCardsPro 8% above US$1,000/mo revenue.
 - Tests: plans.test.ts (152 unit; e2e pass).
 - 30 Oct: Plan & billing hidden from everyone except admins until BILLING_REQUIRED=1 (menu link, page → 404, checkout action → home). Beta users at their search cap see the beta message, not an upgrade prompt. Stripe setup deferred until 1–2 weeks before leaving the beta.
+
+### 30 Oct — Onboarding: Quick start
+- /start (src/app/start/page.tsx, src/lib/quickstart.ts, `quickStartAction`): 3 questions on one page — where you buy from (AU/US), what you collect (Baseball/Basketball/Pokémon), budget per card (A$/US$ 150/500/1,500/5,000) + how choosy (Only strong 25%/US$40 · Balanced 15%/US$20 · Show me more 8%/US$10).
+- Saves Settings (region, ROI/profit minimums; tax 10% AU / 8% US on a first-time setup only), then switches on the Profit Hunter (budget converted A$→US$, min price = max(US$10, budget/10) capped at US$50) — or, on plans without the Hunter, one starter "PSA 10" saved search per sport under the budget.
+- New members who accept an invite land on Quick start; the Overview checklist now has a "Quick start — 1 minute" button.
+- Tests: quickstart.test.ts + e2e scenario 31 (156 unit; e2e pass).

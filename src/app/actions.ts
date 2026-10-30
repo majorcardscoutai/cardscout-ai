@@ -456,3 +456,35 @@ export async function auditDealAction(formData: FormData) {
   revalidatePath("/admin/audit");
   back("/admin/audit", "saved", "Saved.");
 }
+
+/** Quick start (/start): region, sports, budget, choosiness → Settings + Profit Hunter (or starter searches). */
+export async function quickStartAction(formData: FormData) {
+  const { parseQuickStart, quickStartSettings, quickStartHunter, starterSearches } = await import("@/lib/quickstart");
+  const parsed = parseQuickStart(formData);
+  if (!parsed.ok) back("/start", "error", parsed.error);
+  const q = parsed.value;
+  const limits = await currentLimits();
+  if (limits.savedSearches === 0) back("/start", "error", "Choose a plan first — see Plan & billing.");
+  const { settings, source } = await loadSettings();
+  const sErr = await saveSettings(quickStartSettings(settings, q, source !== "database"));
+  if (sErr) back("/start", "error", `Couldn't save your settings: ${sErr}`);
+
+  if (limits.hunter) {
+    const hErr = await saveHunterConfig(quickStartHunter(q, settings.usdToAud));
+    if (hErr) back("/start", "error", `Couldn't switch on the Profit Hunter: ${hErr}`);
+    revalidatePath("/", "layout");
+    back("/hunter", "saved", "You're set up 🎉 The Profit Hunter is on and checks new listings every 10 minutes — first finds usually appear within the hour. You'll get an email when one clears your rules.");
+  }
+
+  const have = await countOwnSavedSearches();
+  const room = Number.isFinite(limits.savedSearches) ? limits.savedSearches - have : 3;
+  let added = 0;
+  for (const s of starterSearches(q, settings.usdToAud, room)) {
+    const err = await insertSavedSearch(s);
+    if (!err) added++;
+  }
+  revalidatePath("/", "layout");
+  back("/scanner", "saved", added > 0
+    ? `You're set up 🎉 ${added} starter search${added === 1 ? "" : "es"} saved and scanned automatically. Edit them or add your own below.`
+    : "Settings saved. You've no room for more saved searches — edit the ones below.");
+}

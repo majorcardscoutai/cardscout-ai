@@ -70,13 +70,18 @@ export default function SetupGuide({ data }: { data: { steps: SetupStep[]; welco
         <div>
           <h2 className="text-lg font-semibold">{welcome ? "Welcome to CardHawk 👋" : "Get set up"}</h2>
           <p className="mt-1 text-sm text-muted">
-            {doneCount} of {required.length} done · about five minutes. Every purchase happens on eBay — CardHawk finds the deals and
+            {doneCount} of {required.length} done. Quick start does the main steps in one go. Every purchase happens on eBay — CardHawk finds the deals and
             works out the real profit.
           </p>
         </div>
-        <form action={hideSetupGuideAction}>
-          <button className="text-xs text-faint hover:text-ink">Hide</button>
-        </form>
+        <div className="flex items-center gap-4">
+          <Link href="/start" className="rounded-lg bg-gain px-4 py-2 text-sm font-semibold text-bg hover:bg-gain/90" data-testid="quickstart-link">
+            Quick start — 1 minute
+          </Link>
+          <form action={hideSetupGuideAction}>
+            <button className="text-xs text-faint hover:text-ink">Hide</button>
+          </form>
+        </div>
       </div>
       <ol className="mt-4 grid gap-3 sm:grid-cols-2">
         {steps.map((s, i) => (

@@ -68,7 +68,7 @@ export async function completePasswordReset(_prev: { error: string } | null, for
   await saveSession(at, rt);
   if (invite) {
     await recordTermsAccepted(r.data.id, r.data.email);
-    redirect("/?welcome=1");
+    redirect("/start"); // new member → Quick start (the Overview checklist stays as a fallback)
   }
   redirect("/");
 }
