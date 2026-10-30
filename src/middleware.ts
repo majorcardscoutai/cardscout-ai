@@ -13,6 +13,8 @@ export async function middleware(req: NextRequest) {
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   // The scheduled scan endpoint has its own secret check (CRON_SECRET).
   if (pathname.startsWith("/api/cron/")) return NextResponse.next();
+  // Stripe's webhook proves itself with a signature (STRIPE_WEBHOOK_SECRET).
+  if (pathname === "/api/stripe/webhook") return NextResponse.next();
 
   // Account session.
   const at = req.cookies.get(AT_COOKIE)?.value;

@@ -44,7 +44,13 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { href: "/portfolio", label: "Portfolio", Icon: IconBriefcase },
     ],
   },
-  { title: "Account", items: [{ href: "/settings", label: "Settings", Icon: IconSettings }] },
+  {
+    title: "Account",
+    items: [
+      { href: "/settings", label: "Settings", Icon: IconSettings },
+      { href: "/billing", label: "Plan & billing", short: "Plan", Icon: IconTag },
+    ],
+  },
 ];
 
 const ADMIN: Item = { href: "/admin", label: "Admin", Icon: IconSettings };
@@ -94,12 +100,25 @@ function HunterPill({ counts }: { counts: Promise<NavCounts | null> }) {
   );
 }
 
-export default function Nav({ admin = false, email, counts }: { admin?: boolean; email?: string; counts?: Promise<NavCounts | null> }) {
+export default function Nav({
+  admin = false,
+  email,
+  counts,
+  showBilling = false,
+}: {
+  admin?: boolean;
+  email?: string;
+  counts?: Promise<NavCounts | null>;
+  /** Plan & billing: admins only until billing is switched on (BILLING_REQUIRED=1). */
+  showBilling?: boolean;
+}) {
   const pathname = usePathname();
   if (pathname.startsWith("/login") || pathname.startsWith("/auth/") || pathname === "/terms" || pathname === "/privacy") return null;
-  const groups = admin
-    ? GROUPS.map((g) => (g.title === "Account" ? { ...g, items: [...g.items, ADMIN] } : g))
-    : GROUPS;
+  const groups = GROUPS.map((g) => {
+    if (g.title !== "Account") return g;
+    const items = g.items.filter((i) => i.href !== "/billing" || showBilling);
+    return { ...g, items: admin ? [...items, ADMIN] : items };
+  });
   const flat = groups.flatMap((g) => g.items);
 
   return (

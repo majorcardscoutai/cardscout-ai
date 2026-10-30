@@ -521,3 +521,16 @@ Changes made:
 - **Accuracy audit** (Admin → Accuracy audit, /admin/audit; src/lib/audit.ts, src/data/audit.ts, `auditDealAction`): mark each live deal ✓ Real / ✗ Wrong (with reason) / Unsure; weekly precision (target 90%+), top reasons, "Wrong match?" taps in the last 7 days (value_rejections). Needs the 30 Oct SQL (deal_audits) — bottom of supabase/schema.sql.
 - Drafted: SportsCardsPro data-licence email; eBay Growth Check follow-up.
 - Tests: health, toogood, audit (146 unit; e2e pass).
+
+### 30 Oct — Paid plans (Stripe), built — test mode first
+- Plans (src/lib/plans.ts): Hobby A$14.99 (3 searches, email alerts) · Collector A$29.99 (6 searches, + phone alerts) · Pro A$89 (10 searches, + Profit Hunter). AUD incl. GST.
+- Founding members: first 50 → 30% off for life (STRIPE_FOUNDER_COUPON, "forever") + 7-day free trial; offer closes at 50 or FOUNDER_UNTIL (default 31 Dec 2026). Only for accounts that have never had a Stripe customer.
+- Access (accessFor): admin → everything; live subscription (trialing/active/past_due) → its plan; BILLING_REQUIRED unset → "beta" (5 searches, all features, as now); otherwise "none" (no scheduled scans, banner to choose a plan).
+- Enforced: saved-search cap per plan; Hunter save = Pro; phone-notification sign-up = Collector+; scheduled runs skip accounts with no plan, Hunter groups/searches only for Pro, push only for Collector+.
+- Stripe via REST, no new packages (src/lib/stripe.ts): Checkout (startCheckoutAction), Billing portal (billingPortalAction), webhook /api/stripe/webhook (signature-checked; checkout.session.completed + customer.subscription.created/updated/deleted → profiles plan columns).
+- Page: Account → Plan & billing (/billing).
+- SQL: "30 Oct 2026: paid plans" at the bottom of supabase/schema.sql.
+- NOT yet: different scan frequencies per plan (3 h / hourly / 30 min) — waits for the eBay Growth Check quota. Pricing copy shouldn't promise faster scans until then.
+- Before live charging: Vercel Pro (Hobby plan is non-commercial), lawyer review of Terms (subscriptions, refunds, auto-renewal), SportsCardsPro 8% above US$1,000/mo revenue.
+- Tests: plans.test.ts (152 unit; e2e pass).
+- 30 Oct: Plan & billing hidden from everyone except admins until BILLING_REQUIRED=1 (menu link, page → 404, checkout action → home). Beta users at their search cap see the beta message, not an upgrade prompt. Stripe setup deferred until 1–2 weeks before leaving the beta.

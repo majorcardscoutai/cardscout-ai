@@ -38,6 +38,7 @@
     "tests/nav.test.ts",
     "tests/health.test.ts",
     "tests/toogood.test.ts",
-    "tests/audit.test.ts"
+    "tests/audit.test.ts",
+    "tests/plans.test.ts"
   ]
 }

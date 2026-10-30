@@ -8,11 +8,13 @@ import { redirect } from "next/navigation";
 import { deletePushSubscription, savePushSubscription } from "@/data/db";
 import { pushToAllDevices } from "@/data/notify";
 import { parseSubscription, pushConfigured } from "@/lib/webpush";
+import { currentLimits } from "@/data/billing";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function subscribePushAction(raw: unknown, label: string): Promise<{ ok: boolean; error?: string }> {
   if (!pushConfigured()) return { ok: false, error: "Push isn't set up on the server yet (VAPID keys missing in Vercel)." };
+  if (!(await currentLimits()).push) return { ok: false, error: "Phone notifications are on the Collector and Pro plans — see Plan & billing." };
   const parsed = parseSubscription(raw);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const err = await savePushSubscription({ ...parsed.value, label: label.slice(0, 60) || null });

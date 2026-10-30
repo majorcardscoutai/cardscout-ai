@@ -6,6 +6,7 @@ import Nav from "@/components/Nav";
 import NavProgress from "@/components/NavProgress";
 import { currentViewer } from "@/data/session";
 import { navCounts } from "@/data/nav";
+import { billingRequired, viewerPlan } from "@/data/billing";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -30,15 +31,21 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const viewer = await currentViewer().catch(() => null);
   // Not awaited: the menu badges stream in after the page, so they never slow it down.
   const counts = viewer ? navCounts() : undefined;
+  const plan = viewer ? await viewerPlan() : null;
   return (
     <html lang="en-AU" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="min-h-screen">
-        <Nav admin={viewer?.admin === true} email={viewer?.email} counts={counts} />
+        <Nav admin={viewer?.admin === true} email={viewer?.email} counts={counts} showBilling={viewer?.admin === true || billingRequired()} />
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>
         <main className="overflow-x-clip md:pl-64">
           <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8 lg:px-8">
+            {plan?.access === "none" && (
+              <a href="/billing" className="mb-6 block rounded-xl border border-warn/40 bg-warn-soft px-4 py-3 text-sm text-warn" data-testid="choose-plan">
+                <strong>Choose a plan</strong> to keep automatic scans and deal alerts running → Plan &amp; billing
+              </a>
+            )}
             {children}
             {viewer && (
               <footer className="mt-12 flex items-start gap-3 border-t border-line pt-4 pb-2 text-[11px] leading-relaxed text-faint">

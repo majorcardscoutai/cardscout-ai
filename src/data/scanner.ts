@@ -21,6 +21,8 @@ import { listScanOwners, recordUsage } from "./db";
 import { excludedBy, parseExcludeWords } from "@/lib/exclude";
 import { displayFx, shipToFor } from "@/lib/region";
 import { dealsMessage, pushToAllDevices } from "./notify";
+import { adminIds, billingMap, billingRequired } from "./billing";
+import { accessFor, limitsFor, NO_BILLING } from "@/lib/plans";
 import { evaluateListing, revalueHit, shouldAlert, type ScanHit } from "@/lib/scan";
 import { hunterRules, hunterSearchInput, liquidEnough, parseHunterSport } from "@/lib/hunter";
 import {
@@ -135,6 +137,9 @@ export interface ScanOptions {
   deadline?: number;
   /** Popular sets were already refreshed once for this run. */
   skipGuideRefresh?: boolean;
+  /** This account's plan includes the Profit Hunter / phone notifications (default yes). */
+  allowHunter?: boolean;
+  allowPush?: boolean;
 }
 
 export interface HunterGroup {
@@ -252,7 +257,7 @@ export async function runAllScans(
 
   const toRun = searches.data.filter((x) => {
     if (!x.active) return false;
-    if (x.kind === "hunter") return hunterCfg.enabled && parseHunterSport(x.query) !== null && hunterCfg.sports.includes(parseHunterSport(x.query)!);
+    if (x.kind === "hunter") return opts.allowHunter !== false && hunterCfg.enabled && parseHunterSport(x.query) !== null && hunterCfg.sports.includes(parseHunterSport(x.query)!);
     return !hunterOnly;
   });
   for (const s of toRun) {
@@ -444,7 +449,7 @@ export async function runAllScans(
   }
 
   // Phone notifications for the same alert-worthy deals as the email.
-  if (toEmail.length > 0) {
+  if (toEmail.length > 0 && opts.allowPush !== false) {
     const p = await pushToAllDevices(dealsMessage(toEmail, displayFx(settings)));
     summary.pushed = p.sent;
     summary.errors.push(...p.errors);
@@ -488,8 +493,12 @@ export interface ScheduledSummary extends ScanSummary {
 export async function runScheduledScans(trigger: "schedule" | "daily" | "hunter", only?: "hunter" | "hunter-quick"): Promise<ScheduledSummary> {
   const start = Date.now();
   const deadline = start + RUN_BUDGET_MS;
-  const owners = await listScanOwners();
-  if (owners.error) return { ...mergeSummaries([]), errors: [`Accounts: ${owners.error}`], accounts: 0, skipped: 0 };
+  const all = await listScanOwners();
+  if (all.error) return { ...mergeSummaries([]), errors: [`Accounts: ${all.error}`], accounts: 0, skipped: 0 };
+  // Plans: accounts without one (once billing is switched on) aren't scanned; Hunter / push only where included.
+  const [bills, admins] = await Promise.all([billingMap(all.data), adminIds(all.data)]);
+  const limitsOf = new Map(all.data.map((uid) => [uid, limitsFor(accessFor({ admin: admins.has(uid), billingRequired: billingRequired(), billing: bills.get(uid) ?? NO_BILLING }))]));
+  const owners = { data: all.data.filter((uid) => limitsOf.get(uid)!.scans), error: null };
 
   const shared: ScanSummary[] = [];
   if (providerConfigured() && owners.data.length > 0) {
@@ -501,6 +510,7 @@ export async function runScheduledScans(trigger: "schedule" | "daily" | "hunter"
   const hunterGroups = new Map<string, HunterGroup>();
   for (const uid of owners.data) {
     await runAsUser(uid, async () => {
+      if (!limitsOf.get(uid)!.hunter) return;
       const [{ settings }, h] = await Promise.all([loadSettings(), loadHunterConfig()]);
       if (!h.config.enabled) return;
       for (const sport of h.config.sports) {
@@ -527,7 +537,10 @@ export async function runScheduledScans(trigger: "schedule" | "daily" | "hunter"
     const slice = Math.max(MIN_ACCOUNT_SLICE_MS, left / (owners.data.length - i));
     runs.push(
       await runAsUser(owners.data[i], () =>
-        runAllScans(trigger, { only, ebay, hunterGroups, deadline: Math.min(deadline, Date.now() + slice), skipGuideRefresh: true }),
+        runAllScans(trigger, {
+          only, ebay, hunterGroups, deadline: Math.min(deadline, Date.now() + slice), skipGuideRefresh: true,
+          allowHunter: limitsOf.get(owners.data[i])!.hunter, allowPush: limitsOf.get(owners.data[i])!.push,
+        }),
       ),
     );
   }

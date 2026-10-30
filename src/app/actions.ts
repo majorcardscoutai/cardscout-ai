@@ -1,7 +1,7 @@
 "use server";
 
 import { currentViewer } from "@/data/session";
-import { MAX_SAVED_SEARCHES } from "@/lib/limits";
+import { billingRequired, currentLimits } from "@/data/billing";
 
 /**
  * Server actions — run on the server when you submit a form.
@@ -210,9 +210,13 @@ export async function deleteCardValueAction(formData: FormData) {
 export async function addSavedSearchAction(formData: FormData) {
   const parsed = parseSavedSearchForm(formData);
   if (!parsed.ok) back("/scanner", "error", parsed.error);
-  const viewer = await currentViewer();
-  if (!viewer?.admin && (await countOwnSavedSearches()) >= MAX_SAVED_SEARCHES)
-    back("/scanner", "error", `You can have up to ${MAX_SAVED_SEARCHES} saved searches. Delete one to add another.`);
+  const cap = (await currentLimits()).savedSearches;
+  const paid = billingRequired();
+  if (cap === 0) back("/scanner", "error", "Choose a plan to save searches — see Plan & billing.");
+  if (Number.isFinite(cap) && (await countOwnSavedSearches()) >= cap)
+    back("/scanner", "error", paid
+      ? `Your plan includes up to ${cap} saved searches. Delete one, or upgrade in Plan & billing.`
+      : `You can have up to ${cap} saved searches during the beta. Delete one to add another.`);
   const error = await insertSavedSearch(parsed.value);
   if (error && /grading/.test(error))
     back("/scanner", "error", "The graded / raw filter needs a one-time database update — run the newest SQL in Supabase (bottom of supabase/schema.sql), then save again.");
@@ -283,6 +287,7 @@ export async function rejectAutoValueAction(formData: FormData) {
 
 /** Profit Hunter → save settings (and the hidden per-sport searches). */
 export async function saveHunterAction(formData: FormData) {
+  if (!(await currentLimits()).hunter) back("/hunter", "error", "The Profit Hunter is part of the Pro plan — see Plan & billing.");
   const parsed = parseHunterForm(formData);
   if (!parsed.ok) back("/hunter", "error", parsed.error);
   const error = await saveHunterConfig(parsed.value);

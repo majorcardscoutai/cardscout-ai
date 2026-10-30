@@ -376,3 +376,14 @@ create table if not exists public.deal_audits (
 );
 alter table public.deal_audits enable row level security;
 revoke all on public.deal_audits from anon, authenticated;
+
+-- ---------- 30 Oct 2026: paid plans (Stripe) ----------
+-- Written only by the server (Stripe webhook). Accounts can read their own row (profiles_own_row) but not change it.
+alter table public.profiles add column if not exists plan text;
+alter table public.profiles add column if not exists plan_status text;
+alter table public.profiles add column if not exists plan_period_end timestamptz;
+alter table public.profiles add column if not exists cancel_at_period_end boolean not null default false;
+alter table public.profiles add column if not exists founder boolean not null default false;
+alter table public.profiles add column if not exists stripe_customer_id text;
+alter table public.profiles add column if not exists stripe_subscription_id text;
+create unique index if not exists profiles_stripe_customer on public.profiles (stripe_customer_id) where stripe_customer_id is not null;

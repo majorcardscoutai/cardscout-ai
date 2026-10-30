@@ -32,7 +32,7 @@ import { fillSealedValues } from "@/data/sealed";
 import { displayFx, shipToFor } from "@/lib/region";
 import { EbayLink } from "@/components/EbayLink";
 import { currentViewer } from "@/data/session";
-import { MAX_SAVED_SEARCHES } from "@/lib/limits";
+import { viewerPlan } from "@/data/billing";
 import { GRADING_LABEL, parseGrading } from "@/lib/forms";
 
 export const dynamic = "force-dynamic";
@@ -101,6 +101,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
   const search = parseSearch(params);
   const onlyDeals = params.deals === "1";
 
+  const plan = await viewerPlan();
   const [result, values, saved, hits, runs, devices, viewer] = await Promise.all([
     search && connected ? searchListings({ ...search, shipTo: shipToFor(settings) }) : Promise.resolve(null),
     cardValueMap(),
@@ -364,7 +365,7 @@ export default async function AutomaticScannerPage({ searchParams }: { searchPar
       <div className="grid gap-6 lg:grid-cols-3">
         {/* ---------- Saved searches ---------- */}
         <Panel
-          title={viewer?.admin ? "Saved searches" : `Saved searches (${mySearches.length} of ${MAX_SAVED_SEARCHES})`}
+          title={!plan || !Number.isFinite(plan.limits.savedSearches) ? "Saved searches" : `Saved searches (${mySearches.length} of ${plan.limits.savedSearches})`}
           className="lg:col-span-2"
           right={
             <form action={scanNowAction}>
