@@ -540,3 +540,13 @@ Changes made:
 - Saves Settings (region, ROI/profit minimums; tax 10% AU / 8% US on a first-time setup only), then switches on the Profit Hunter (budget converted A$→US$, min price = max(US$10, budget/10) capped at US$50) — or, on plans without the Hunter, one starter "PSA 10" saved search per sport under the budget.
 - New members who accept an invite land on Quick start; the Overview checklist now has a "Quick start — 1 minute" button.
 - Tests: quickstart.test.ts + e2e scenario 31 (156 unit; e2e pass).
+
+### 30 Oct — Reliable scheduling (action plan item 8, part 1)
+- /api/cron/scan?async=1 answers 202 straight away and runs the scan in the background (Next `after()`, within the 60 s function limit) — for cron-job.org, whose free plan stops waiting after 30 s. Same CRON_SECRET bearer check.
+- cron-job.org jobs (timezone UTC, header Authorization: Bearer <CRON_SECRET>, base https://www.cardhawkai.com/api/cron/scan?source=cronjob&async=1):
+  1. Hunter quick `&only=hunter-quick` — minutes 7,27,47,57 every hour
+  2. Hunter quick `&only=hunter-quick` — minute 17, hours 1,2,4,5,7,8,10,11,13,14,16,17,19,20,22,23
+  3. Hunter full `&only=hunter` — minute 37 every hour
+  4. Saved searches (no `only`) — minute 17, hours 0,3,6,9,12,15,18,21
+- Once cron-job.org runs are confirmed (Admin → Scanning health), disable the three GitHub scheduled workflows (Actions → workflow → ⋯ → Disable) so scans don't run twice. Keep ci.yml.
+- Part 2 (staging site) deferred until just before launch.
